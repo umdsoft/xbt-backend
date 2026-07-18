@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    // Bir nechta ulanish (default + mahalla) DDL'lari — tranzaksiya-wrapper
+    // ikki ulanish o'rtasida lock deadlock beradi. Har statement avto-commit bo'lsin.
+    public $withinTransaction = false;
+
     public function up(): void
     {
         if (config('database.default') !== 'pgsql') {
