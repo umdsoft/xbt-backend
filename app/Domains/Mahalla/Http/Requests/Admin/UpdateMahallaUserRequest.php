@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Requests\Admin;
 
+use App\Domains\Mahalla\Support\MahallaAccess;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * ADMIN — operatsion (deputat) user yangilash validatsiyasi.
@@ -26,6 +28,7 @@ class UpdateMahallaUserRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6', 'max:255'],
             'mahalla_id' => ['nullable', 'uuid', 'exists:master.mahallas,id'],
+            'position' => ['nullable', 'string', Rule::in(array_keys(MahallaAccess::POSITIONS))],
             'street_ids' => ['array'],
             'street_ids.*' => ['uuid', 'distinct', 'exists:master.streets,id'],
             'is_active' => ['sometimes', 'boolean'],

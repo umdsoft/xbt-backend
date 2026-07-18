@@ -88,6 +88,7 @@ class UserManagementController extends Controller
                     'password' => $user->password, // legacy NOT NULL ustun — auth hash nusxasi
                     'district_id' => $districtId,
                     'mahalla_id' => $mahallaId,
+                    'position' => $data['position'] ?? null,
                     'is_active' => true,
                 ]);
 
@@ -144,6 +145,9 @@ class UserManagementController extends Controller
                 if ($mahallaProvided) {
                     $profile->mahalla_id = $mahallaId;
                     $profile->district_id = $districtId;
+                }
+                if (array_key_exists('position', $data)) {
+                    $profile->position = $data['position'];
                 }
                 if (array_key_exists('is_active', $data)) {
                     $profile->is_active = (bool) $data['is_active'];
@@ -276,6 +280,8 @@ class UserManagementController extends Controller
                 'id' => $profile->mahalla->id,
                 'name' => $profile->mahalla->name_cyr,
             ] : null,
+            'position' => $profile?->position,
+            'position_label' => MahallaAccess::positionLabel($profile?->position),
             'streets' => $profile
                 ? $profile->streetAssignments
                     ->map(fn (StreetAssignment $sa) => [

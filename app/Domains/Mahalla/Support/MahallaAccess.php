@@ -30,6 +30,43 @@ class MahallaAccess
     ];
 
     /**
+     * Mahalla-5ligi lavozimlari (tavsifiy yorliq — huquqqa ta'sir qilmaydi).
+     * Kod => ko'rsatiladigan nom (Kirill).
+     *
+     * @var array<string, string>
+     */
+    public const POSITIONS = [
+        'rais' => 'Маҳалла раиси',
+        'kotib' => 'Котиб',
+        'profilaktika' => 'Профилактика инспектори',
+        'yoshlar' => 'Ёшлар етакчиси',
+        'xotin_qizlar' => 'Хотин-қизлар фаоли',
+    ];
+
+    /**
+     * Lavozimlar ro'yxati API/picker uchun: [['code' => ..., 'name' => ...], ...].
+     *
+     * @return array<int, array{code: string, name: string}>
+     */
+    public static function positionOptions(): array
+    {
+        $out = [];
+        foreach (self::POSITIONS as $code => $name) {
+            $out[] = ['code' => $code, 'name' => $name];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Lavozim kodidan ko'rsatiladigan nom (yoki null).
+     */
+    public static function positionLabel(?string $code): ?string
+    {
+        return $code !== null ? (self::POSITIONS[$code] ?? null) : null;
+    }
+
+    /**
      * Foydalanuvchining mahalla tizimidagi roli (markaziy user_system_access'dan).
      */
     public function roleFor(User $user): ?string

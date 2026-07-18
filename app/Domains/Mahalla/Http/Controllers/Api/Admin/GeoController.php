@@ -6,11 +6,13 @@ namespace App\Domains\Mahalla\Http\Controllers\Api\Admin;
 
 use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Models\Master\Street;
+use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
 /**
- * ADMIN — biriktiruv pickerlari uchun geo (master): mahallalar + ko'chalari + tumani.
+ * ADMIN — biriktiruv pickerlari uchun geo (master): mahallalar + ko'chalari + tumani,
+ * hamda lavozimlar (mahalla-5ligi) ro'yxati.
  */
 class GeoController extends Controller
 {
@@ -38,6 +40,9 @@ class GeoController extends Controller
             ])
             ->all();
 
-        return response()->json(['mahallas' => $mahallas]);
+        return response()->json([
+            'mahallas' => $mahallas,
+            'positions' => MahallaAccess::positionOptions(),
+        ]);
     }
 }
