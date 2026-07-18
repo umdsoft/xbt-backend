@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Admin;
 
-use App\Domains\Mahalla\Models\HousePhoto;
-use App\Domains\Mahalla\Models\HousePhotoAnalysis;
 use App\Domains\Mahalla\Models\HouseZoneState;
+use App\Domains\Mahalla\Models\ZoneObservation;
 use App\Domains\Mahalla\Services\HouseProvisioner;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Http\Controllers\Controller;
@@ -17,9 +16,9 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 /**
- * MASUL HODIM (admin) REVIEW navbati: AI ikkilangan yoki o'zgarishsiz deb belgilagan
- * (decision='flagged', hali ko'rilmagan) kuzatuvlar. Masul hodim tasdiqlaydi (holatni
- * o'rnatadi) yoki rad etadi.
+ * MASUL HODIM (admin) REVIEW navbati: AI ikkilangan/o'zgarishsiz deb belgilagan
+ * KUZATUVLAR (decision='flagged', ko'rilmagan). Har kuzatuv N ta rakursli.
+ * Masul hodim tasdiqlaydi (holat o'rnatadi) yoki rad etadi.
  */
 class ReviewController extends Controller
 {
@@ -27,16 +26,13 @@ class ReviewController extends Controller
     {
     }
 
-    /**
-     * Ko'rilmagan flagged kuzatuvlar (paginatsiya) — rasm + honadon + zona + AI tahlili.
-     */
     public function index(Request $request): JsonResponse
     {
-        $q = HousePhotoAnalysis::query()
+        $q = ZoneObservation::query()
             ->where('decision', 'flagged')
             ->whereNull('reviewed_by')
-            ->with(['photo.house:id,building_id,mahalla_id,street_id,address,cadastral_number'])
-            ->orderBy('created_at');
+            ->with(['house:id,building_id,mahalla_id,street_id,address', 'photos:id,observation_id,angle'])
+            ->orderBy('observed_at');
 
         if ($request->filled('zone')) {
             $q->where('zone', $request->string('zone'));
@@ -44,34 +40,39 @@ class ReviewController extends Controller
 
         $rows = $q->paginate(30);
 
-        $uploaderIds = collect($rows->items())->map(fn ($a) => $a->photo?->uploaded_by)->filter()->unique()->all();
-        $uploaders = User::whereIn('id', $uploaderIds)->pluck('name', 'id');
+        $userIds = collect($rows->items())->pluck('user_id')->filter()->unique()->all();
+        $users = User::whereIn('id', $userIds)->pluck('name', 'id');
 
-        $data = collect($rows->items())->map(function (HousePhotoAnalysis $a) use ($uploaders) {
-            $p = $a->photo;
+        $data = collect($rows->items())->map(function (ZoneObservation $o) use ($users) {
+            $ai = $o->ai_result ?? [];
 
             return [
-                'analysis_id' => $a->id,
-                'photo_id' => $p?->id,
-                'zone' => $a->zone,
-                'zone_label' => MahallaZones::zoneLabel($a->zone),
-                'house_id' => $p?->house_id,
-                'building_id' => $p?->house?->building_id,
-                'address' => $p?->house?->address,
-                'photo_url' => $p ? route('api.mahalla.photos.show', $p->id) : null,
-                'on_site' => $p?->geofence_ok,
-                'distance_m' => $p?->distance_m,
-                'captured_at' => $p?->captured_at?->toIso8601String(),
-                'uploaded_by' => $uploaders[$p?->uploaded_by] ?? null,
-                'prev_status' => $a->prev_status,
-                'prev_status_label' => MahallaZones::statusLabel($a->prev_status),
-                'suggested_status' => $a->suggested_status,
-                'suggested_status_label' => MahallaZones::statusLabel($a->suggested_status),
-                'ai_before' => $a->changes['before'] ?? null,
-                'ai_after' => $a->changes['after'] ?? null,
-                'ai_summary' => $a->daily_work,
-                'ai_confidence' => $a->confidence,
-                'reason' => $a->decision_reason,
+                'observation_id' => $o->id,
+                'zone' => $o->zone,
+                'zone_label' => MahallaZones::zoneLabel($o->zone),
+                'house_id' => $o->house_id,
+                'building_id' => $o->house?->building_id,
+                'address' => $o->house?->address,
+                'on_site' => $o->is_on_site,
+                'distance_m' => $o->distance_m,
+                'observed_at' => $o->observed_at?->toIso8601String(),
+                'uploaded_by' => $users[$o->user_id] ?? null,
+                'photo_count' => $o->photo_count,
+                // Har rakurs uchun himoyalangan rasm URL'i
+                'photos' => $o->photos->map(fn ($p) => [
+                    'id' => $p->id,
+                    'angle' => $p->angle,
+                    'url' => route('api.mahalla.photos.show', $p->id),
+                ])->values()->all(),
+                'prev_status' => $o->prev_status,
+                'prev_status_label' => MahallaZones::statusLabel($o->prev_status),
+                'suggested_status' => $o->suggested_status,
+                'suggested_status_label' => MahallaZones::statusLabel($o->suggested_status),
+                'ai_before' => $ai['before'] ?? null,
+                'ai_after' => $ai['after'] ?? null,
+                'ai_summary' => $ai['change_description'] ?? null,
+                'ai_confidence' => $o->confidence,
+                'reason' => $o->decision_reason,
             ];
         })->all();
 
@@ -86,81 +87,68 @@ class ReviewController extends Controller
     }
 
     /**
-     * Tasdiqlash: masul hodim yakuniy holatni o'rnatadi (yoki AI taklifini qabul qiladi).
-     * Holat oldingidan farq qilsa — bu O'ZGARISH (zona holati + last_changed yangilanadi).
+     * Tasdiqlash: masul hodim yakuniy holatni o'rnatadi. Holat oldingidan farq
+     * qilsa — bu O'ZGARISH (zona holati + last_changed yangilanadi).
      */
-    public function confirm(Request $request, HousePhoto $photo): JsonResponse
+    public function confirm(Request $request, ZoneObservation $observation): JsonResponse
     {
         $data = Validator::make($request->all(), [
             'status' => ['nullable', 'string', Rule::in(MahallaZones::statusCodes())],
             'note' => ['nullable', 'string', 'max:500'],
         ])->validate();
 
-        $analysis = HousePhotoAnalysis::where('house_photo_id', $photo->id)->first();
         $state = HouseZoneState::firstOrCreate(
-            ['house_id' => $photo->house_id, 'zone' => $photo->zone],
+            ['house_id' => $observation->house_id, 'zone' => $observation->zone],
             ['status' => MahallaZones::DEFAULT_STATUS],
         );
 
         $prev = $state->status;
-        $final = $data['status'] ?? $analysis?->suggested_status ?? $prev;
+        $final = $data['status'] ?? $observation->suggested_status ?? $prev;
         if (! MahallaZones::isStatus((string) $final)) {
             $final = $prev;
         }
         $isChange = $final !== $prev;
 
-        HousePhotoAnalysis::updateOrCreate(
-            ['house_photo_id' => $photo->id],
-            [
-                'zone' => $photo->zone,
-                'prev_status' => $prev,
-                'suggested_status' => $final,
-                'is_change' => $isChange,
-                'decision' => 'auto_confirmed',
-                'decision_reason' => trim(($analysis?->decision_reason ?? '').' | Масул ходим тасдиқлади'.(! empty($data['note']) ? ': '.$data['note'] : '')),
-                'reviewed_by' => $request->user()->id,
-                'reviewed_at' => now(),
-            ],
-        );
+        $observation->update([
+            'prev_status' => $prev,
+            'suggested_status' => $final,
+            'status' => $final,
+            'is_change' => $isChange,
+            'decision' => 'auto_confirmed',
+            'decision_reason' => trim(($observation->decision_reason ?? '').' | Масул ходим тасдиқлади'.(! empty($data['note']) ? ': '.$data['note'] : '')),
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
 
-        $upd = ['status' => $final];
+        $upd = ['status' => $final, 'last_observation_id' => $observation->id];
         if ($isChange) {
             $upd['last_changed_at'] = now();
         }
         $state->update($upd);
-        $this->provisioner->recomputeHouse($photo->house_id);
+        $this->provisioner->recomputeHouse($observation->house_id);
 
         return response()->json([
             'message' => 'Тасдиқланди.',
-            'zone' => $photo->zone,
+            'zone' => $observation->zone,
             'status' => $final,
             'status_label' => MahallaZones::statusLabel($final),
             'is_change' => $isChange,
         ]);
     }
 
-    /**
-     * Rad etish (yaroqsiz rasm / aldash). Zona holati o'zgarmaydi.
-     */
-    public function reject(Request $request, HousePhoto $photo): JsonResponse
+    public function reject(Request $request, ZoneObservation $observation): JsonResponse
     {
         $data = Validator::make($request->all(), [
             'note' => ['nullable', 'string', 'max:500'],
         ])->validate();
 
-        $analysis = HousePhotoAnalysis::where('house_photo_id', $photo->id)->first();
-
-        HousePhotoAnalysis::updateOrCreate(
-            ['house_photo_id' => $photo->id],
-            [
-                'zone' => $photo->zone,
-                'is_change' => false,
-                'decision' => 'rejected',
-                'decision_reason' => trim(($analysis?->decision_reason ?? '').' | Масул ходим рад этди'.(! empty($data['note']) ? ': '.$data['note'] : '')),
-                'reviewed_by' => $request->user()->id,
-                'reviewed_at' => now(),
-            ],
-        );
+        $observation->update([
+            'is_change' => false,
+            'decision' => 'rejected',
+            'decision_reason' => trim(($observation->decision_reason ?? '').' | Масул ходим рад этди'.(! empty($data['note']) ? ': '.$data['note'] : '')),
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
 
         return response()->json(['message' => 'Рад этилди.']);
     }

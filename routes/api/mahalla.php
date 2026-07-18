@@ -52,8 +52,8 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
 
                 // Masul hodim review navbati (AI ikkilangan/o'zgarishsiz kuzatuvlar)
                 Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
-                Route::post('/reviews/{photo}/confirm', [ReviewController::class, 'confirm'])->name('reviews.confirm');
-                Route::post('/reviews/{photo}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
+                Route::post('/reviews/{observation}/confirm', [ReviewController::class, 'confirm'])->name('reviews.confirm');
+                Route::post('/reviews/{observation}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 
                 Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
                 Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');

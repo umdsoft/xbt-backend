@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Http\Controllers\Api;
 
 use App\Domains\Mahalla\Models\House;
-use App\Domains\Mahalla\Models\HousePhoto;
 use App\Domains\Mahalla\Models\HouseZoneState;
 use App\Domains\Mahalla\Models\Master\Building;
+use App\Domains\Mahalla\Models\ZoneObservation;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Http\Controllers\Controller;
@@ -101,46 +101,49 @@ class WorklistController extends Controller
         $observations = [];
         $changes = [];
         if ($house !== null) {
-            $photos = HousePhoto::where('house_id', $house->id)
-                ->with('analysis')
-                ->orderByDesc('captured_at')
-                ->limit(60)
+            $rows = ZoneObservation::where('house_id', $house->id)
+                ->with('photos:id,observation_id,angle')
+                ->orderByDesc('observed_at')
+                ->limit(40)
                 ->get();
 
-            foreach ($photos as $p) {
-                $a = $p->analysis;
-                $obs = [
-                    'id' => $p->id,
-                    'zone' => $p->zone,
-                    'zone_label' => MahallaZones::zoneLabel($p->zone),
-                    'type' => $p->type,
-                    'on_site' => $p->geofence_ok,
-                    'distance_m' => $p->distance_m,
-                    'captured_at' => $p->captured_at?->toIso8601String(),
-                    'photo_url' => route('api.mahalla.photos.show', $p->id),
-                    'analysis' => $a ? [
-                        'decision' => $a->decision,           // auto_confirmed | flagged | pending | rejected
-                        'is_change' => (bool) $a->is_change,
-                        'prev_status' => $a->prev_status,
-                        'suggested_status' => $a->suggested_status,
-                        'before' => $a->changes['before'] ?? null,
-                        'after' => $a->changes['after'] ?? null,
-                        'summary' => $a->daily_work,
-                        'confidence' => $a->confidence,
-                        'reason' => $a->decision_reason,
-                    ] : null,
+            foreach ($rows as $o) {
+                $ai = $o->ai_result ?? [];
+                $observations[] = [
+                    'id' => $o->id,
+                    'zone' => $o->zone,
+                    'zone_label' => MahallaZones::zoneLabel($o->zone),
+                    'photo_count' => $o->photo_count,
+                    'on_site' => $o->is_on_site,
+                    'distance_m' => $o->distance_m,
+                    'observed_at' => $o->observed_at?->toIso8601String(),
+                    // Har rakurs uchun himoyalangan rasm URL'i
+                    'photos' => $o->photos->map(fn ($p) => [
+                        'id' => $p->id,
+                        'angle' => $p->angle,
+                        'url' => route('api.mahalla.photos.show', $p->id),
+                    ])->values()->all(),
+                    'analysis' => [
+                        'decision' => $o->decision,
+                        'is_change' => (bool) $o->is_change,
+                        'prev_status' => $o->prev_status,
+                        'suggested_status' => $o->suggested_status,
+                        'before' => $ai['before'] ?? null,
+                        'after' => $ai['after'] ?? null,
+                        'summary' => $ai['change_description'] ?? null,
+                        'confidence' => $o->confidence,
+                        'reason' => $o->decision_reason,
+                    ],
                 ];
-                $observations[] = $obs;
 
-                // O'zgarishlar tarixi = is_change bo'lgan kuzatuvlar
-                if ($a !== null && $a->is_change) {
+                if ($o->is_change) {
                     $changes[] = [
-                        'zone' => $p->zone,
-                        'zone_label' => MahallaZones::zoneLabel($p->zone),
-                        'from' => $a->prev_status,
-                        'to' => $a->suggested_status,
-                        'description' => $a->daily_work,
-                        'at' => $p->captured_at?->toIso8601String(),
+                        'zone' => $o->zone,
+                        'zone_label' => MahallaZones::zoneLabel($o->zone),
+                        'from' => $o->prev_status,
+                        'to' => $o->suggested_status,
+                        'description' => $ai['change_description'] ?? null,
+                        'at' => $o->observed_at?->toIso8601String(),
                     ];
                 }
             }

@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Http\Controllers\Api\Admin;
 
 use App\Domains\Mahalla\Models\House;
-use App\Domains\Mahalla\Models\HousePhoto;
-use App\Domains\Mahalla\Models\HousePhotoAnalysis;
 use App\Domains\Mahalla\Models\HouseZoneState;
+use App\Domains\Mahalla\Models\ZoneObservation;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -68,16 +67,13 @@ class ReportsController extends Controller
             $houses->where('district_id', $districtId);
         }
 
-        $obs = $this->houseFilter(HousePhoto::query(), $mahallaId, $districtId);
-        $changes = $this->houseFilter(HousePhoto::query(), $mahallaId, $districtId)
-            ->join('house_photo_analyses as a', 'a.house_photo_id', '=', 'house_photos.id')
-            ->where('a.is_change', true);
+        $obs = $this->houseFilter(ZoneObservation::query(), $mahallaId, $districtId);
 
         return [
             'monitored_houses' => (clone $houses)->count(),
             'observations' => (clone $obs)->count(),
-            'changes' => (clone $changes)->count(),
-            'pending_reviews' => HousePhotoAnalysis::where('decision', 'flagged')->whereNull('reviewed_by')->count(),
+            'changes' => (clone $obs)->where('is_change', true)->count(),
+            'pending_reviews' => ZoneObservation::where('decision', 'flagged')->whereNull('reviewed_by')->count(),
         ];
     }
 
@@ -116,14 +112,13 @@ class ReportsController extends Controller
      */
     private function changeDynamics(?string $mahallaId, ?string $districtId): array
     {
-        $q = HousePhoto::query()
-            ->join('house_photo_analyses as a', 'a.house_photo_id', '=', 'house_photos.id')
-            ->where('a.is_change', true)
-            ->where('house_photos.captured_at', '>=', now()->subDays(30));
+        $q = ZoneObservation::query()
+            ->where('is_change', true)
+            ->where('observed_at', '>=', now()->subDays(30));
 
         $q = $this->houseFilter($q, $mahallaId, $districtId);
 
-        return $q->selectRaw("to_char(house_photos.captured_at, 'YYYY-MM-DD') as d, count(*) as c")
+        return $q->selectRaw("to_char(observed_at, 'YYYY-MM-DD') as d, count(*) as c")
             ->groupBy('d')
             ->orderBy('d')
             ->get()
@@ -138,19 +133,19 @@ class ReportsController extends Controller
      */
     private function deputyActivity(?string $mahallaId, ?string $districtId): array
     {
-        $q = $this->houseFilter(HousePhoto::query(), $mahallaId, $districtId);
+        $q = $this->houseFilter(ZoneObservation::query(), $mahallaId, $districtId);
 
-        $rows = $q->selectRaw('uploaded_by, count(*) as total, count(*) filter (where geofence_ok is true) as onsite')
-            ->whereNotNull('uploaded_by')
-            ->groupBy('uploaded_by')
+        $rows = $q->selectRaw('user_id, count(*) as total, count(*) filter (where is_on_site is true) as onsite')
+            ->whereNotNull('user_id')
+            ->groupBy('user_id')
             ->orderByDesc(DB::raw('count(*)'))
             ->limit(50)
             ->get();
 
-        $names = User::whereIn('id', $rows->pluck('uploaded_by')->all())->pluck('name', 'id');
+        $names = User::whereIn('id', $rows->pluck('user_id')->all())->pluck('name', 'id');
 
         return $rows->map(fn ($r) => [
-            'user' => $names[$r->uploaded_by] ?? '—',
+            'user' => $names[$r->user_id] ?? '—',
             'observations' => (int) $r->total,
             'on_site' => (int) $r->onsite,
             'on_site_percent' => $r->total > 0 ? round(100 * $r->onsite / $r->total) : 0,

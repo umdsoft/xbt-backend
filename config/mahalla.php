@@ -38,6 +38,8 @@ return [
         'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
         'max_tokens' => (int) env('MAHALLA_AI_MAX_TOKENS', 1500),
         'timeout' => (int) env('MAHALLA_AI_TIMEOUT', 60),
+        // Bir kuzatuvda AI'ga yuboriladigan maksimal rakurs (har tomon: oldingi+bugungi).
+        'max_angles' => (int) env('MAHALLA_AI_MAX_ANGLES', 4),
 
         /*
          * QUEUE ROBUSTLIGI (ko'p bir vaqtli so'rov uchun):

@@ -46,7 +46,9 @@ class StoreObservationRequest extends FormRequest
     {
         return [
             'zone' => ['required', 'string', Rule::in(MahallaZones::zoneCodes())],
-            'image' => ['required', 'image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
+            // Bir kuzatuvda 1..N ta RAKURS rasmi (bir zonaning turli burchaklari).
+            'images' => ['required', 'array', 'min:1', 'max:6'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
             'captured_lat' => ['required', 'numeric', 'between:-90,90'],
             'captured_lng' => ['required', 'numeric', 'between:-180,180'],
             'gps_accuracy_m' => ['nullable', 'numeric', 'min:0'],

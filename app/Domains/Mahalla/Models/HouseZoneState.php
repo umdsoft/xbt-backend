@@ -23,7 +23,7 @@ class HouseZoneState extends Model
 
     protected $fillable = [
         'house_id', 'zone', 'status', 'progress_percent',
-        'last_photo_id', 'last_observed_at', 'last_changed_at',
+        'last_photo_id', 'last_observation_id', 'last_observed_at', 'last_changed_at',
     ];
 
     protected $casts = [
