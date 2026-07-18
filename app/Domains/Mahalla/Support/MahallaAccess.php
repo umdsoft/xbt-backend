@@ -37,10 +37,10 @@ class MahallaAccess
      */
     public const POSITIONS = [
         'rais' => 'Маҳалла раиси',
-        'kotib' => 'Котиб',
-        'profilaktika' => 'Профилактика инспектори',
+        'hokim_yordamchisi' => 'Ҳоким ёрдамчиси',
         'yoshlar' => 'Ёшлар етакчиси',
         'xotin_qizlar' => 'Хотин-қизлар фаоли',
+        'profilaktika' => 'Профилактика инспектори',
     ];
 
     /**
