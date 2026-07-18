@@ -19,7 +19,7 @@ class HousePhoto extends Model
     use HasUuids;
 
     protected $fillable = [
-        'house_id', 'type', 'image_path',
+        'house_id', 'zone', 'type', 'image_path',
         'captured_lat', 'captured_lng', 'gps_accuracy_m', 'distance_m', 'geofence_ok',
         'taken_date', 'captured_at', 'uploaded_by', 'device_info',
     ];

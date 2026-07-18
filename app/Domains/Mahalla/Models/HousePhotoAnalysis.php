@@ -19,6 +19,7 @@ class HousePhotoAnalysis extends Model
 
     protected $fillable = [
         'house_photo_id', 'baseline_photo_id',
+        'zone', 'prev_status', 'suggested_status', 'is_change',
         'same_house', 'confidence', 'cheating_suspected',
         'changes', 'daily_work', 'progress_percent',
         'decision', 'decision_reason', 'raw_response',
@@ -26,6 +27,7 @@ class HousePhotoAnalysis extends Model
     ];
 
     protected $casts = [
+        'is_change' => 'boolean',
         'same_house' => 'boolean',
         'confidence' => 'float',
         'cheating_suspected' => 'boolean',

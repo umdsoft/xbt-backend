@@ -7,183 +7,223 @@ namespace App\Domains\Mahalla\Services;
 use App\Domains\Mahalla\Models\House;
 use App\Domains\Mahalla\Models\HousePhoto;
 use App\Domains\Mahalla\Models\HousePhotoAnalysis;
+use App\Domains\Mahalla\Models\HouseZoneState;
+use App\Domains\Mahalla\Support\MahallaZones;
+use App\Domains\Mahalla\Support\ZonePrompts;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 /**
- * Kunlik rasmni baseline bilan solishtiradi (Claude Vision):
- *   - bir uy ekanini tasdiqlaydi (anti-cheating),
- *   - kunlik bajarilgan ishni va umumiy progressni baholaydi.
- * Natijaga qarab avtomatik tasdiq/flag.
+ * Zona-aware AI tahlil: bir honadonning bitta zonasini (fasad/oshxona/hojatxona/
+ * tomorqa) OLDINGI kuzatuv bilan solishtirib REAL o'zgarishni aniqlaydi.
+ *
+ * Asosiy tamoyil: rasm yuklash o'zgarish EMAS. Ishonchli o'zgarish -> avto-tasdiq
+ * (holat yangilanadi). Ikkilangan yoki o'zgarishsiz -> masul hodim (flagged).
+ *
+ * API xatolari (429/5xx) BU YERDA tutilmaydi — job ularni qayta uradi (robust queue).
  */
 class PhotoAnalyzer
 {
-    public function analyze(HousePhoto $daily): HousePhotoAnalysis
+    public function __construct(private readonly HouseProvisioner $provisioner)
     {
-        $house = $daily->house()->first();
-        $baseline = HousePhoto::where('house_id', $daily->house_id)
-            ->where('type', 'baseline')
-            ->orderBy('taken_date')
+    }
+
+    public function analyze(HousePhoto $photo): HousePhotoAnalysis
+    {
+        $zone = (string) $photo->zone;
+
+        // Solishtirish uchun oldingi kuzatuv (shu honadon + shu zona, undan oldingi).
+        $previous = HousePhoto::query()
+            ->where('house_id', $photo->house_id)
+            ->where('zone', $zone)
+            ->where('id', '!=', $photo->id)
+            ->where('captured_at', '<=', $photo->captured_at)
+            ->orderByDesc('captured_at')
             ->first();
 
-        // 1) Baseline yo'q -> solishtirib bo'lmaydi
-        if ($baseline === null) {
-            return $this->store($daily, null, [
-                'same_house' => null,
-                'confidence' => null,
-                'cheating_suspected' => false,
-                'changes' => [],
-                'daily_work' => null,
-                'progress_percent' => null,
+        $state = $this->zoneState($photo->house_id, $zone);
+        $prevStatus = $state->status;
+        $hasPrevious = $previous !== null;
+
+        if (! MahallaZones::isZone($zone)) {
+            return $this->finalize($photo, $previous, $state, [
                 'decision' => 'flagged',
-                'decision_reason' => 'Бошланғич (baseline) расм топилмади — солиштириб бўлмайди.',
-                'raw_response' => null,
+                'decision_reason' => 'Zona aniqlanmagan.',
+                'is_change' => false,
             ]);
         }
 
-        // 2) API kaliti yo'q -> pending (yuklаш ишлайверади, кейин қайта ишланади)
-        $apiKey = config('mahalla.ai.api_key');
-        if (empty($apiKey)) {
-            return $this->store($daily, $baseline, [
-                'same_house' => null,
-                'confidence' => null,
-                'cheating_suspected' => false,
-                'changes' => [],
-                'daily_work' => null,
-                'progress_percent' => null,
-                'decision' => 'pending',
-                'decision_reason' => 'AI калити созланмаган — тахлил кутилмоқда.',
-                'raw_response' => null,
+        // API kaliti yo'q -> masul hodim tekshiruvi (pipeline yakunlanadi)
+        if (empty(config('mahalla.ai.api_key'))) {
+            return $this->finalize($photo, $previous, $state, [
+                'decision' => 'flagged',
+                'decision_reason' => 'AI калити созланмаган — масул ходим текшируви.',
+                'is_change' => false,
+                'suggested_status' => $prevStatus,
             ]);
         }
 
-        try {
-            $result = $this->callClaude($baseline, $daily);
-        } catch (Throwable $e) {
-            Log::warning('PhotoAnalyzer Claude xato', ['photo' => $daily->id, 'err' => $e->getMessage()]);
+        // AI chaqiruvi (xato bo'lsa -> job qayta uradi)
+        $result = $this->callClaude($photo, $previous, $zone, $prevStatus, $hasPrevious);
 
-            return $this->store($daily, $baseline, [
-                'same_house' => null,
-                'confidence' => null,
-                'cheating_suspected' => false,
-                'changes' => [],
-                'daily_work' => null,
-                'progress_percent' => null,
-                'decision' => 'pending',
-                'decision_reason' => 'AI сўрови хатоси: '.mb_substr($e->getMessage(), 0, 180),
-                'raw_response' => null,
-            ]);
-        }
+        [$decision, $reason, $isChange, $newStatus] = $this->decide($result, $photo, $hasPrevious);
 
-        // 3) Qaror mantiqi
-        [$decision, $reason] = $this->decide($result, $daily);
-
-        $analysis = $this->store($daily, $baseline, [
-            'same_house' => $result['same_house'] ?? null,
+        return $this->finalize($photo, $previous, $state, [
+            'same_house' => $result['same_location'] ?? null,
             'confidence' => $result['confidence'] ?? null,
             'cheating_suspected' => (bool) ($result['cheating_suspected'] ?? false),
-            'changes' => $result['changes'] ?? [],
-            'daily_work' => $result['daily_work'] ?? null,
+            'changes' => [
+                'before' => $result['before_description'] ?? null,
+                'after' => $result['after_description'] ?? null,
+            ],
+            'daily_work' => ($result['change_description'] ?? null) ?: ($result['after_description'] ?? null),
             'progress_percent' => $result['progress_percent'] ?? null,
+            'suggested_status' => $result['suggested_status'] ?? null,
+            'is_change' => $isChange,
             'decision' => $decision,
             'decision_reason' => $reason,
+            'apply_status' => $newStatus, // null -> holat o'zgarmaydi
             'raw_response' => $result['_raw'] ?? null,
         ]);
+    }
 
-        // Auto-tasdiq bo'lsa honadon progress/statusni yangilash
-        if ($decision === 'auto_confirmed' && isset($result['progress_percent'])) {
-            $this->applyProgress($house, (int) $result['progress_percent']);
+    /**
+     * Qaror mantiqi: [decision, reason, is_change, apply_status].
+     *
+     * @param  array<string, mixed>  $r
+     * @return array{0:string,1:string,2:bool,3:?string}
+     */
+    private function decide(array $r, HousePhoto $photo, bool $hasPrevious): array
+    {
+        $min = (float) config('mahalla.ai.auto_confirm_min_confidence', 0.75);
+        $conf = (float) ($r['confidence'] ?? 0);
+        $same = (bool) ($r['same_location'] ?? false);
+        $quality = (bool) ($r['quality_ok'] ?? false);
+        $cheat = (bool) ($r['cheating_suspected'] ?? false);
+        $changed = (bool) ($r['changed'] ?? false);
+        $suggested = $r['suggested_status'] ?? null;
+        if (! is_string($suggested) || ! MahallaZones::isStatus($suggested)) {
+            $suggested = null;
         }
+
+        if ($photo->geofence_ok === false) {
+            return ['flagged', 'GPS уйдан геозонадан ташқарида (75м).', false, null];
+        }
+        if ($cheat || ! $same) {
+            return ['flagged', 'AI: бошқа жой/алдаш шубҳаси.', false, null];
+        }
+        if (! $quality) {
+            return ['flagged', 'AI: расм сифати паст/тушунарсиз.', false, null];
+        }
+
+        // Birinchi kuzatuv (baseline): holatni o'rnatadi, lekin o'zgarish EMAS.
+        if (! $hasPrevious) {
+            if ($suggested !== null && $conf >= $min) {
+                return ['auto_confirmed', "AI бошланғич ҳолатни аниқлади (confidence={$conf}).", false, $suggested];
+            }
+
+            return ['flagged', "AI ишончи паст (confidence={$conf}) — масул ходим текшируви.", false, null];
+        }
+
+        // Keyingi kuzatuvlar: aniq o'zgarish + yuqori ishonch -> avto-tasdiq.
+        if ($changed && $suggested !== null && $conf >= $min) {
+            return ['auto_confirmed', "AI аниқ ўзгаришни тасдиқлади (confidence={$conf}).", true, $suggested];
+        }
+
+        // Ikkilangan yoki o'zgarishsiz -> masul hodim.
+        $why = $changed ? "ишонч паст (confidence={$conf})" : 'ўзгариш аниқланмади';
+
+        return ['flagged', "AI: {$why} — масул ходим текшируви.", false, null];
+    }
+
+    private function zoneState(string $houseId, string $zone): HouseZoneState
+    {
+        return HouseZoneState::firstOrCreate(
+            ['house_id' => $houseId, 'zone' => $zone],
+            ['status' => MahallaZones::DEFAULT_STATUS],
+        );
+    }
+
+    /**
+     * Tahlilni saqlash + zona holatini yangilash (faqat auto-tasdiqda status o'zgaradi).
+     *
+     * @param  array<string, mixed>  $attrs
+     */
+    private function finalize(HousePhoto $photo, ?HousePhoto $previous, HouseZoneState $state, array $attrs): HousePhotoAnalysis
+    {
+        $applyStatus = $attrs['apply_status'] ?? null;
+        $isChange = (bool) ($attrs['is_change'] ?? false);
+        unset($attrs['apply_status']);
+
+        $analysis = HousePhotoAnalysis::updateOrCreate(
+            ['house_photo_id' => $photo->id],
+            [
+                'baseline_photo_id' => $previous?->id,
+                'zone' => $photo->zone,
+                'prev_status' => $state->status,
+                ...$attrs,
+            ],
+        );
+
+        // Kuzatuv har doim qayd etiladi; status FAQAT auto-tasdiqda o'zgaradi.
+        $stateUpdate = [
+            'last_photo_id' => $photo->id,
+            'last_observed_at' => $photo->captured_at ?? Carbon::now(),
+        ];
+        if ($applyStatus !== null) {
+            $stateUpdate['status'] = $applyStatus;
+            if (isset($attrs['progress_percent']) && is_numeric($attrs['progress_percent'])) {
+                $stateUpdate['progress_percent'] = max(0, min(100, (int) $attrs['progress_percent']));
+            }
+            if ($isChange) {
+                $stateUpdate['last_changed_at'] = Carbon::now();
+            }
+        }
+        $state->update($stateUpdate);
+
+        $this->provisioner->recomputeHouse($photo->house_id);
 
         return $analysis;
     }
 
     /**
-     * @return array{0: string, 1: string}
-     */
-    private function decide(array $r, HousePhoto $daily): array
-    {
-        $minConf = (float) config('mahalla.ai.auto_confirm_min_confidence', 0.85);
-        $conf = (float) ($r['confidence'] ?? 0);
-        $sameHouse = (bool) ($r['same_house'] ?? false);
-        $cheating = (bool) ($r['cheating_suspected'] ?? false);
-
-        if (! $sameHouse) {
-            return ['flagged', 'AI: бошқа уй суратга олинган (same_house=false).'];
-        }
-        if ($cheating) {
-            return ['flagged', 'AI: алдаш шубҳаси (cheating_suspected=true).'];
-        }
-        if ($daily->geofence_ok === false) {
-            return ['flagged', 'GPS уйдан геозонадан ташқарида.'];
-        }
-        if ($conf < $minConf) {
-            return ['flagged', "AI ишончи паст (confidence={$conf} < {$minConf})."];
-        }
-
-        return ['auto_confirmed', "AI автоматик тасдиқлади (confidence={$conf})."];
-    }
-
-    private function applyProgress(House $house, int $percent): void
-    {
-        $percent = max(0, min(100, $percent));
-        $status = $percent >= 100 ? 'completed' : ($percent > 0 ? 'in_progress' : 'not_started');
-
-        $house->update([
-            'progress_percent' => $percent,
-            'status' => $status,
-        ]);
-    }
-
-    /**
-     * Claude Vision API chaqiruvi. Ikki rasm + structured JSON so'rovi.
+     * Claude Vision chaqiruvi. Oldingi (bo'lsa) + hozirgi rasm + zona promti.
+     * HTTP xatoda ->throw() (job qayta uradi).
      *
      * @return array<string, mixed>
      */
-    private function callClaude(HousePhoto $baseline, HousePhoto $daily): array
+    private function callClaude(HousePhoto $photo, ?HousePhoto $previous, string $zone, ?string $prevStatus, bool $hasPrevious): array
     {
-        $model = (string) config('mahalla.ai.model');
         $baseUrl = rtrim((string) config('mahalla.ai.base_url'), '/');
+        $prompt = ZonePrompts::build($zone, $prevStatus, $hasPrevious);
 
-        $prompt = <<<'TXT'
-Сен уй-жой таъмири мониторинги учун расмларни таҳлил қиласан.
-Биринчи расм — БОШЛАНҒИЧ (baseline) ҳолат. Иккинчи расм — БУГУНГИ ҳолат.
-Иккиси ҳам БИР УЙ бўлиши керак.
-
-Қуйидаги JSON форматида ФАҚАТ JSON қайтар (изоҳсиз):
-{
-  "same_house": true|false,        // иккала расм бир уйми?
-  "confidence": 0.0-1.0,           // бир уй эканига ишонч
-  "cheating_suspected": true|false,// бошқа уй/алдаш шубҳаси
-  "changes": ["..."],              // кўринган ўзгаришлар рўйхати (қисқа)
-  "daily_work": "...",             // бугун бажарилган иш тавсифи
-  "progress_percent": 0-100        // умумий таъмир прогресси
-}
-TXT;
+        $content = [];
+        if ($previous !== null) {
+            $content[] = ['type' => 'text', 'text' => 'ОЛДИНГИ ҳолат:'];
+            $content[] = $this->imageBlock($previous);
+            $content[] = ['type' => 'text', 'text' => 'БУГУНГИ ҳолат:'];
+            $content[] = $this->imageBlock($photo);
+        } else {
+            $content[] = ['type' => 'text', 'text' => 'ҲОЗИРГИ ҳолат:'];
+            $content[] = $this->imageBlock($photo);
+        }
+        $content[] = ['type' => 'text', 'text' => $prompt];
 
         $response = Http::withHeaders([
             'x-api-key' => (string) config('mahalla.ai.api_key'),
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
-        ])->timeout(120)->post("{$baseUrl}/v1/messages", [
-            'model' => $model,
-            'max_tokens' => 1024,
-            'messages' => [[
-                'role' => 'user',
-                'content' => [
-                    ['type' => 'text', 'text' => 'БОШЛАНҒИЧ (baseline):'],
-                    $this->imageBlock($baseline),
-                    ['type' => 'text', 'text' => 'БУГУНГИ:'],
-                    $this->imageBlock($daily),
-                    ['type' => 'text', 'text' => $prompt],
-                ],
-            ]],
-        ]);
+        ])->timeout((int) config('mahalla.ai.timeout', 60))
+            ->post("{$baseUrl}/v1/messages", [
+                'model' => (string) config('mahalla.ai.model'),
+                'max_tokens' => (int) config('mahalla.ai.max_tokens', 1500),
+                'messages' => [['role' => 'user', 'content' => $content]],
+            ]);
 
-        $response->throw();
-        $text = $response->json('content.0.text', '');
+        $response->throw(); // 4xx/5xx -> RequestException (job hal qiladi)
+
+        $text = (string) $response->json('content.0.text', '');
         $parsed = $this->extractJson($text);
         $parsed['_raw'] = ['text' => $text, 'usage' => $response->json('usage')];
 
@@ -206,11 +246,7 @@ TXT;
 
         return [
             'type' => 'image',
-            'source' => [
-                'type' => 'base64',
-                'media_type' => $media,
-                'data' => base64_encode($bytes),
-            ],
+            'source' => ['type' => 'base64', 'media_type' => $media, 'data' => base64_encode((string) $bytes)],
         ];
     }
 
@@ -227,16 +263,5 @@ TXT;
         }
 
         return [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $attrs
-     */
-    private function store(HousePhoto $daily, ?HousePhoto $baseline, array $attrs): HousePhotoAnalysis
-    {
-        return HousePhotoAnalysis::updateOrCreate(
-            ['house_photo_id' => $daily->id],
-            [...$attrs, 'baseline_photo_id' => $baseline?->id],
-        );
     }
 }

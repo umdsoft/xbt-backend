@@ -27,7 +27,7 @@ class House extends Model
     protected $connection = 'mahalla';
 
     protected $fillable = [
-        'district_id', 'mahalla_id', 'street_id',
+        'building_id', 'district_id', 'mahalla_id', 'street_id',
         'cadastral_number', 'lat', 'lng', 'address', 'owner_name',
         'status', 'progress_percent', 'last_photo_date',
     ];
@@ -58,6 +58,16 @@ class House extends Model
     public function photos(): HasMany
     {
         return $this->hasMany(HousePhoto::class);
+    }
+
+    public function zoneStates(): HasMany
+    {
+        return $this->hasMany(HouseZoneState::class);
+    }
+
+    public function building(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Mahalla\Models\Master\Building::class);
     }
 
     public function baselinePhoto(): HasMany
