@@ -29,6 +29,7 @@ class StoreMahallaUserRequest extends FormRequest
             'login' => ['required', 'string', 'max:100', 'unique:auth.users,login'],
             'password' => ['required', 'string', 'min:6', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\-\s()]{7,30}$/', 'unique:auth.users,phone'],
             'mahalla_id' => ['nullable', 'uuid', 'exists:master.mahallas,id'],
             'position' => ['nullable', 'string', Rule::in(array_keys(MahallaAccess::POSITIONS))],
             'street_ids' => ['array'],

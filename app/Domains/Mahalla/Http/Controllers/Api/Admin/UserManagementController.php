@@ -64,6 +64,7 @@ class UserManagementController extends Controller
                 'login' => $data['login'],
                 'password' => $data['password'], // 'hashed' cast — avtomatik hash
                 'name' => $data['name'],
+                'phone' => $data['phone'] ?? null,
                 'is_active' => true,
             ]);
 
@@ -119,6 +120,9 @@ class UserManagementController extends Controller
             $user = User::query()->findOrFail($id);
             if (array_key_exists('name', $data)) {
                 $user->name = $data['name'];
+            }
+            if (array_key_exists('phone', $data)) {
+                $user->phone = $data['phone'];
             }
             if (! empty($data['password'])) {
                 $user->password = $data['password']; // 'hashed' cast
@@ -202,7 +206,7 @@ class UserManagementController extends Controller
             ->where('usa.role', 'deputat')
             ->whereNull('u.deleted_at')
             ->orderBy('u.login')
-            ->get(['u.id', 'u.login', 'u.name', 'u.is_active', 'u.last_login_at']);
+            ->get(['u.id', 'u.login', 'u.name', 'u.phone', 'u.is_active', 'u.last_login_at']);
     }
 
     /**
@@ -248,7 +252,7 @@ class UserManagementController extends Controller
     private function userItem(string $id): ?array
     {
         $u = DB::connection('auth')->table('users')->where('id', $id)
-            ->first(['id', 'login', 'name', 'is_active', 'last_login_at']);
+            ->first(['id', 'login', 'name', 'phone', 'is_active', 'last_login_at']);
 
         if ($u === null) {
             return null;
@@ -272,6 +276,7 @@ class UserManagementController extends Controller
             'id' => $authRow->id,
             'login' => $authRow->login,
             'name' => $authRow->name,
+            'phone' => $authRow->phone,
             'is_active' => (bool) $authRow->is_active,
             'last_login_at' => $authRow->last_login_at
                 ? Carbon::parse($authRow->last_login_at)->toIso8601String()
