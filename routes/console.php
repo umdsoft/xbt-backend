@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
+use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
 use App\Domains\Mahalla\Console\Commands\ImportMahallaIndicatorsCommand;
 use App\Domains\Mahalla\Console\Commands\RenameMahallaCommand;
 use App\Domains\Mahalla\Console\Commands\ImportNonResidentialCommand;
@@ -27,4 +28,5 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(ImportNonResidentialCommand::class);
     $artisan->resolve(RenameMahallaCommand::class);
     $artisan->resolve(ImportMahallaIndicatorsCommand::class);
+    $artisan->resolve(AddMahallaAliasCommand::class);
 });

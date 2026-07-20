@@ -18,6 +18,9 @@ class MahallaMatcher
     /** @var array<string, string>|null  normalized => mahalla_id */
     private ?array $index = null;
 
+    /** @var array<string, string>  bo'shliqsiz normalized => mahalla_id */
+    private array $compact = [];
+
     private ?string $districtId = null;
 
     /**
@@ -45,17 +48,27 @@ class MahallaMatcher
         if ($this->districtId !== $districtId) {
             $this->districtId = $districtId;
             $this->index = null;
+            $this->compact = [];
         }
 
         return $this;
     }
 
-    /** Nomga mos mahalla `id` sini qaytaradi yoki `null`. */
+    /**
+     * Nomga mos mahalla `id` sini qaytaradi yoki `null`.
+     *
+     * Bo'shliqsiz solishtiruv ham sinaladi: manbalar bir xil nomni goh
+     * qo'shib, goh ajratib yozadi — "КУМЁП" va "ҚУМ - ЁП", "ЯНГИ ЙУЛ" va
+     * "ЯНГИЙЎЛ". Bular bir xil mahalla, faqat yozilishi har xil.
+     */
     public function match(string $name): ?string
     {
         $this->load();
+        $n = self::normalize($name);
 
-        return $this->index[self::normalize($name)] ?? null;
+        return $this->index[$n]
+            ?? $this->compact[str_replace(' ', '', $n)]
+            ?? null;
     }
 
     private function load(): void
@@ -65,6 +78,7 @@ class MahallaMatcher
         }
 
         $this->index = [];
+        $this->compact = [];
 
         $mahallas = DB::connection('master')->table('mahallas')
             ->when($this->districtId, fn ($q) => $q->where('district_id', $this->districtId))
@@ -73,7 +87,9 @@ class MahallaMatcher
         foreach ($mahallas as $m) {
             foreach ([$m->name_cyr, $m->name_lat] as $n) {
                 if ($n) {
-                    $this->index[self::normalize((string) $n)] = $m->id;
+                    $key = self::normalize((string) $n);
+                    $this->index[$key] = $m->id;
+                    $this->compact[str_replace(' ', '', $key)] = $m->id;
                 }
             }
         }
@@ -87,6 +103,7 @@ class MahallaMatcher
 
         foreach ($aliases as $a) {
             $this->index[$a->normalized] ??= $a->mahalla_id;
+            $this->compact[str_replace(' ', '', $a->normalized)] ??= $a->mahalla_id;
         }
     }
 }
