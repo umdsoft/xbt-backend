@@ -124,6 +124,46 @@ class RaisCadastreTest extends TestCase
         ));
     }
 
+    /**
+     * BO'SHLIQ: `overview` endpointini HTTP darajasida sinamaganim uchun
+     * u prod'da 500 bergan edi (`object_types.is_active` ustuni yo'q).
+     * Servis testlari o'tgan, chunki ular kontrollerni chetlab o'tadi.
+     */
+    public function test_overview_endpoint_returns_full_mahalla_data(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/rais/overview')
+            ->assertOk()
+            ->assertJsonStructure([
+                'mahalla' => ['id', 'name', 'soato', 'district' => ['id', 'name']],
+                'households', 'social_objects', 'recent_changes',
+                'object_types' => [['id', 'code', 'name', 'is_social']],
+            ])
+            ->json();
+
+        $this->assertNotEmpty($body['object_types'], 'Тур рўйхати бўш - танлаб бўлмайди');
+        $this->assertArrayHasKey('indicators', $body);
+    }
+
+    public function test_buildings_endpoint_works_for_rais(): void
+    {
+        $this->actingAs($this->makeRaisWithMahalla(), 'sanctum')
+            ->getJson('/api/mahalla/rais/buildings')
+            ->assertOk()
+            ->assertJsonStructure(['total', 'items']);
+    }
+
+    /** Profilida mahalla ko'rsatilmagan rais tushunarli xabar oladi, 500 emas. */
+    public function test_rais_without_mahalla_gets_clear_message(): void
+    {
+        $this->actingAs($this->makeUser('rais'), 'sanctum')
+            ->getJson('/api/mahalla/rais/overview')
+            ->assertStatus(409)
+            ->assertJsonStructure(['message']);
+    }
+
     public function test_viewer_role_cannot_reach_rais_endpoints(): void
     {
         // `viloyat` — ko'rish roli. Kadastr tuzatish YOZISH amali, shuning
@@ -167,6 +207,22 @@ class RaisCadastreTest extends TestCase
         }
 
         return [(string) $ids[0], (string) $ids[1]];
+    }
+
+    /** Mahallaga biriktirilgan rais — `mahalla.users` profilida mahalla bo'lishi shart. */
+    private function makeRaisWithMahalla(): User
+    {
+        $user = $this->makeUser('rais');
+        [$mahallaId] = $this->twoMahallas();
+        $districtId = DB::connection('master')->table('mahallas')->where('id', $mahallaId)->value('district_id');
+
+        DB::connection('mahalla')->table('users')->insert([
+            'id' => $user->id, 'name' => 'Синов раис', 'login' => 'r_'.substr((string) $user->id, 0, 8),
+            'password' => bcrypt('secret'), 'district_id' => $districtId, 'mahalla_id' => $mahallaId,
+            'position' => 'rais', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return $user;
     }
 
     /** Foydalanuvchi markaziy `auth` sxemasida, roli `user_system_access` da. */

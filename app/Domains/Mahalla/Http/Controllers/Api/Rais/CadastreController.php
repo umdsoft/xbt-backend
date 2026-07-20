@@ -54,8 +54,9 @@ class CadastreController extends Controller
             'social_objects' => $data['social_objects'],
             'zones' => $data['rows'],
             'recent_changes' => $this->cadastre->recentChanges($mahallaId),
+            // `object_types` da `is_active` ustuni YO'Q — ro'yxat qisqa va
+            // to'liq ishlatiladi, o'chirilgan tur tushunchasi kiritilmagan.
             'object_types' => DB::connection('master')->table('object_types')
-                ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get(['id', 'code', 'name_cyr as name', 'is_social']),
         ]);
