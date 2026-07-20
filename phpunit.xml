@@ -23,8 +23,18 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!--
+            DB_CONNECTION / DB_DATABASE ATAYLAB belgilanmagan — testlar .env dagi
+            dev bazasida (kbt) yuradi.
+
+            SQLite ishlatib bo'lmaydi: auth/master/mahalla ulanishlari
+            config/database.php da qattiq `pgsql` drayveriga bog'langan va
+            migratsiyalarda PostGIS turlari bor.
+
+            XAVFSIZLIK: har test `DatabaseTransactions` bilan o'raladi va oxirida
+            QAYTARILADI. `RefreshDatabase` ishlatish TAQIQLANGAN — tests/TestCase.php
+            dagi darvoza uni to'xtatadi.
+        -->
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

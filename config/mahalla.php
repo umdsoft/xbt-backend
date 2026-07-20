@@ -32,8 +32,19 @@ return [
          * kuzatuv "masul hodim tekshiruvi" (flagged) holatiga o'tadi — pipeline
          * baribir yakunlanadi (local test uchun ham qulay).
          */
+        /*
+         * 'claude' -> Anthropic bulut API (pullik)
+         * 'local'  -> LAN'dagi GPU ish stansiyasi (AI-node) — bepul, maxfiy
+         */
         'driver' => env('MAHALLA_AI_DRIVER', 'claude'),
         'api_key' => env('ANTHROPIC_API_KEY'),
+
+        /*
+         * LOKAL AI-NODE (driver=local). Rasm LAN'dan chiqmaydi.
+         * node_token — AI-node bilan umumiy maxfiy kalit (X-AI-Token).
+         */
+        'node_url' => env('MAHALLA_AI_NODE_URL', 'http://192.168.0.61:8077'),
+        'node_token' => env('MAHALLA_AI_NODE_TOKEN', ''),
         'model' => env('MAHALLA_AI_MODEL', 'claude-sonnet-5'), // vision-capable
         'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
         'max_tokens' => (int) env('MAHALLA_AI_MAX_TOKENS', 1500),
@@ -58,5 +69,24 @@ return [
          * o'zi tasdiqlaydi. Aks holda (ikkilangan yoki o'zgarishsiz) -> masul hodim.
          */
         'auto_confirm_min_confidence' => (float) env('MAHALLA_AI_MIN_CONFIDENCE', 0.75),
+
+        /*
+         * VLM "rasm tushunarsiz" desa-yu, obyektiv (OpenCV) sifat darvozasi
+         * o'tgan bo'lsa — darhol flag qilmaymiz, shu qiymatga ishonch talabini
+         * ko'taramiz. Katta qiymat = ehtiyotkorroq (ko'proq qo'lda tekshiruv).
+         */
+        'quality_doubt_penalty' => (float) env('MAHALLA_AI_QUALITY_DOUBT_PENALTY', 0.15),
+    ],
+
+    /*
+     * Ko'rsatiladigan vaqt mintaqasi. Ilova UTC da ishlaydi; "bugun" va
+     * "shu hafta" chegaralari MAHALLIY vaqt bo'yicha olinishi shart, aks holda
+     * mahalliy 00:00-05:00 oralig'idagi o'zgarishlar kechagi kunga tushadi.
+     */
+    'timezone' => env('MAHALLA_TIMEZONE', 'Asia/Tashkent'),
+
+    'executive' => [
+        // Hozircha faqat Shovot ochiladi; kod barcha tumanlar uchun tayyor.
+        'default_district_soato' => env('MAHALLA_EXECUTIVE_DISTRICT', '1733230'),
     ],
 ];

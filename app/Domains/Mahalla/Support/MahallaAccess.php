@@ -26,8 +26,17 @@ class MahallaAccess
      */
     private const PERMISSIONS = [
         'admin' => ['*'],
+        // Raҳbariyat: FAQAT ko'rish. photos.upload va `*` ataylab yo'q.
+        'viloyat' => ['dashboard.view', 'reports.view', 'houses.view', 'analyses.view'],
         'deputat' => ['houses.view', 'photos.view', 'photos.upload', 'analyses.view', 'dashboard.view'],
     ];
+
+    /**
+     * Rahbariyat dashboard'ini ko'ra oladigan rollar.
+     *
+     * @var array<int, string>
+     */
+    public const VIEWER_ROLES = ['admin', 'viloyat'];
 
     /**
      * Mahalla-5ligi lavozimlari (tavsifiy yorliq — huquqqa ta'sir qilmaydi).
@@ -100,16 +109,22 @@ class MahallaAccess
 
     /**
      * Geo ko'lam (RBAC filtr uchun). Bir xil ko'cha-scope: har bir operatsion
-     * (non-admin) user FAQAT o'ziga biriktirilgan ko'chalar honadonlarini ko'radi.
-     * Admin — hammasini (isAdmin). District/mahalla faqat kontekst uchun saqlanadi,
-     * filtrlashni ko'chalar (streetIds) boshqaradi.
+     * (non-admin, non-viloyat) user FAQAT o'ziga biriktirilgan ko'chalar
+     * honadonlarini ko'radi. Admin va viloyat — hammasini (canSeeAll); ular
+     * orasidagi farq BOSHQARUV huquqida (isAdmin), KO'RISH doirasida emas.
+     * District/mahalla faqat kontekst uchun saqlanadi, filtrlashni ko'chalar
+     * (streetIds) boshqaradi.
      */
     public function scopeFor(User $user): MahallaScope
     {
         $role = $this->roleFor($user);
 
         if ($role === 'admin') {
-            return new MahallaScope(true, null, null, [], false);
+            return new MahallaScope(true, null, null, [], false, true);
+        }
+
+        if ($role === 'viloyat') {
+            return new MahallaScope(false, null, null, [], false, true);
         }
 
         $profile = MahallaProfile::find($user->id);
@@ -123,6 +138,7 @@ class MahallaAccess
             $profile?->mahalla_id,
             $streetIds,
             true,
+            false,
         );
     }
 }

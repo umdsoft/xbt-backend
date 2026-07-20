@@ -46,8 +46,9 @@ class ObservationAnalyzer
         $obs->prev_observation_id = $previous?->id;
         $obs->prev_status = $prevStatus;
 
-        // API kaliti yo'q -> masul hodim tekshiruvi
-        if (empty(config('mahalla.ai.api_key'))) {
+        // Bulut drayveri uchun kalit shart; lokal AI-node uchun emas.
+        $driver = (string) config('mahalla.ai.driver', 'claude');
+        if ($driver === 'claude' && empty(config('mahalla.ai.api_key'))) {
             return $this->finalize($obs, $state, [
                 'decision' => 'flagged',
                 'decision_reason' => 'AI калити созланмаган — масул ходим текшируви.',
@@ -67,8 +68,10 @@ class ObservationAnalyzer
             ? $previous->photos()->orderBy('angle')->orderBy('created_at')->get()
             : collect();
 
-        // AI (xato -> job retry qiladi)
-        $result = $this->callClaude($current, $prevPhotos, $zone, $prevStatus, $hasPrevious);
+        // AI (xato -> job retry qiladi). Drayver: lokal AI-node yoki Anthropic.
+        $result = $driver === 'local'
+            ? $this->callLocalNode($current, $prevPhotos, $zone, $prevStatus)
+            : $this->callClaude($current, $prevPhotos, $zone, $prevStatus, $hasPrevious);
 
         [$decision, $reason, $isChange, $newStatus] = $this->decide($result, $obs, $hasPrevious);
 
@@ -113,11 +116,36 @@ class ObservationAnalyzer
         if ($obs->is_on_site === false) {
             return ['flagged', 'GPS уйдан геозонадан ташқарида (75м).', false, null];
         }
+
+        // LOKAL CV DARVOZASI: sifat/joy tekshirilgan va o'zgarish topilmagan ->
+        // AVTO-QABUL (masul hodimga yubormaymiz). Masshtabda kunlik ~90% kuzatuv
+        // o'zgarishsiz bo'ladi; ularni qo'lda ko'rish imkonsiz. Review'ga faqat
+        // anomaliya (dublikat/boshqa joy/yomon sifat) va AI ikkilanishi boradi.
+        if (($r['_meta']['gate'] ?? null) === 'no_change') {
+            $why = $r['reasoning'] ?: 'ўзгариш аниқланмади';
+
+            return ['auto_confirmed', 'CV: '.$why, false, null];
+        }
+
         if ($cheat || ! $same) {
             return ['flagged', 'AI: бошқа жой/алдаш шубҳаси.', false, null];
         }
+
+        // SIFAT ikki qatlamli. Lokal node OBYEKTIV sifatni (blur/yorug'lik) o'zi
+        // tekshiradi va o'tmasa VLM'ga umuman yubormaydi — ya'ni bu yergacha
+        // `gate='vlm'` bo'lib kelgan rasm obyektiv sinovdan o'tgan. VLM'ning
+        // `quality_ok` bahosi esa SEMANTIK ("sahnani tushundimmi").
+        //
+        // Semantik shubhani yolg'iz o'zini flag sababi qilsak, real fotolarda
+        // (soya, keng rakurs, g'ayrioddiy burchak) masul hodimga yolg'on oqim
+        // ketadi. Shuning uchun: obyektiv darvoza o'tgan bo'lsa shubha
+        // avtomatik flag emas, ishonch chegarasini KO'TARADI — VLM chindan
+        // ikkilanayotgan bo'lsa confidence baribir past chiqadi va flag bo'ladi.
         if (! $quality) {
-            return ['flagged', 'AI: расм сифати паст/тушунарсиз.', false, null];
+            if (($r['_meta']['gate'] ?? null) !== 'vlm') {
+                return ['flagged', 'AI: расм сифати паст/тушунарсиз.', false, null];
+            }
+            $min = min(0.95, $min + (float) config('mahalla.ai.quality_doubt_penalty', 0.15));
         }
 
         if (! $hasPrevious) {
@@ -175,6 +203,52 @@ class ObservationAnalyzer
         $this->provisioner->recomputeHouse($obs->house_id);
 
         return $obs;
+    }
+
+    /**
+     * LOKAL AI-NODE (LAN'dagi GPU ish stansiyasi) chaqiruvi.
+     *
+     * Node o'zi OpenCV darvozasini bajaradi (sifat/anti-cheat/o'zgarish) va faqat
+     * zarur bo'lsa VLM'ni ishlatadi. Javob Claude drayveri bilan AYNAN bir shaklda,
+     * ustiga `_meta.gate` — qaysi bosqichda hal bo'lgani (qaror mantig'i uchun).
+     *
+     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $current
+     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $prev
+     * @return array<string, mixed>
+     */
+    private function callLocalNode($current, $prev, string $zone, ?string $prevStatus): array
+    {
+        $url = rtrim((string) config('mahalla.ai.node_url'), '/').'/analyze';
+        $disk = (string) config('mahalla.photos_disk', 'local');
+        $max = (int) config('mahalla.ai.max_angles', 4);
+
+        $req = Http::connectTimeout(10)->timeout((int) config('mahalla.ai.timeout', 180));
+        if ($token = (string) config('mahalla.ai.node_token')) {
+            $req = $req->withHeaders(['X-AI-Token' => $token]);
+        }
+
+        $i = 0;
+        foreach ($current->take($max) as $p) {
+            $req = $req->attach('current', (string) Storage::disk($disk)->get($p->image_path), 'cur'.($i++).'.jpg');
+        }
+        $i = 0;
+        foreach ($prev->take($max) as $p) {
+            $req = $req->attach('previous', (string) Storage::disk($disk)->get($p->image_path), 'prev'.($i++).'.jpg');
+        }
+
+        $response = $req->post($url, [
+            'zone' => $zone,
+            'prev_status' => $prevStatus ?? '',
+        ]);
+        $response->throw(); // 4xx/5xx -> job qayta uradi
+
+        $parsed = $response->json();
+        if (! is_array($parsed)) {
+            throw new \RuntimeException('AI-node javobi noto\'g\'ri shaklda.');
+        }
+        $parsed['_raw'] = ['node' => $parsed['_meta'] ?? null];
+
+        return $parsed;
     }
 
     /**

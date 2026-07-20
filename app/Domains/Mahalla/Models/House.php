@@ -77,15 +77,16 @@ class House extends Model
 
     /**
      * Geo ko'lam bo'yicha honadonlarni filtrlash (RBAC). Bir xil ko'cha-scope:
-     * admin — hammasi; boshqa har bir user FAQAT biriktirilgan ko'chalari
-     * honadonlarini ko'radi. Biriktiruv bo'lmasa — hech narsa (bo'sh whereIn).
-     * District/mahalla filtrlari ixtiyoriy (endi ishlatilmaydi, buzilmaydi).
+     * admin va viloyat — hammasi; boshqa har bir user FAQAT biriktirilgan
+     * ko'chalari honadonlarini ko'radi. Biriktiruv bo'lmasa — hech narsa
+     * (bo'sh whereIn). District/mahalla filtrlari ixtiyoriy (endi ishlatilmaydi,
+     * buzilmaydi).
      *
      * @param  Builder<House>  $query
      */
     public function scopeVisibleTo(Builder $query, MahallaScope $scope): Builder
     {
-        if ($scope->isAdmin) {
+        if ($scope->canSeeAll) {
             return $query;
         }
 

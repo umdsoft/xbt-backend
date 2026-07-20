@@ -19,6 +19,13 @@ final class MahallaScope
         public readonly ?string $mahallaId,
         public readonly array $streetIds,
         public readonly bool $restrictToStreets,
+        /*
+         * KO'RISH doirasi — BOSHQARUV huquqidan ajratilgan. `viloyat` roli
+         * barcha honadonlarni ko'radi (canSeeAll=true), lekin admin EMAS
+         * (isAdmin=false): user yarata olmaydi, kuzatuv tasdiqlay olmaydi.
+         * Ikkalasini bitta bayroq bilan ifodalash kelajakda xatoga olib keladi.
+         */
+        public readonly bool $canSeeAll = false,
     ) {
     }
 }

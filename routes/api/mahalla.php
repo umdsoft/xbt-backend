@@ -9,6 +9,9 @@ use App\Domains\Mahalla\Http\Controllers\Api\Admin\ReviewController;
 use App\Domains\Mahalla\Http\Controllers\Api\Admin\UserManagementController;
 use App\Domains\Mahalla\Http\Controllers\Api\ContextController;
 use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoController;
@@ -37,6 +40,48 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
         Route::post('/houses/{house}/photos', [PhotoUploadController::class, 'store'])->name('houses.photos.store');
 
         Route::get('/photos/{photo}', [PhotoController::class, 'show'])->name('photos.show');
+
+        /*
+         * RAHBARIYAT (viloyat hokimi o'rinbosari) — FAQAT KO'RISH.
+         * `mahalla.viewer`: admin + viloyat. Boshqaruv endpointlari
+         * o'z gvardiyasida (`mahalla.admin`) qoladi.
+         */
+        Route::prefix('executive')
+            ->name('executive.')
+            ->middleware('mahalla.viewer')
+            ->group(function () {
+                /*
+                 * whereUuid(...): {district}/{mahalla} to'g'ridan-to'g'ri
+                 * findOrFail() ga uzatiladi. Noto'g'ri formatdagi qiymat
+                 * (masalan "not-a-valid-uuid") cheklovsiz PostgreSQL drayveriga
+                 * yetib borib, u yerda QueryException (22P02/25P02) sifatida
+                 * portlaydi — findOrFail() faqat ModelNotFoundException'ni
+                 * (404) tutadi, drayver xatosini emas. Natijada 500 va javobda
+                 * stack trace + xom SQL + baza ulanish tafsilotlari sizib chiqadi.
+                 * Format cheklovi bunday satrni marshrutlashda rad etib, toza
+                 * 404 qaytaradi — so'rov bazaga umuman yetib bormaydi.
+                 * {district?} ixtiyoriy bo'lib qoladi: cheklov faqat qiymat
+                 * BERILGANDA tekshiriladi, parametrsiz so'rov standart tumanga
+                 * (Shovot) tushishda davom etadi.
+                 */
+                Route::get('/districts/{district?}', DistrictDashboardController::class)
+                    ->name('district')
+                    ->whereUuid('district');
+                /*
+                 * `{district}` bu yerda MAJBURIY — asosiy `districts/{district?}`
+                 * dan farqli. Laravel ixtiyoriy marshrut parametrini faqat URL
+                 * OXIRIDA qo'llab-quvvatlaydi, ya'ni `{district?}/geojson`
+                 * ko'rinishi ishlamaydi. Bu muammo emas: frontend chegaralarni
+                 * jadval yuklangandan KEYIN so'raydi, demak tuman `id` si
+                 * allaqachon qo'lida bo'ladi.
+                 */
+                Route::get('/districts/{district}/geojson', DistrictGeoJsonController::class)
+                    ->whereUuid('district')
+                    ->name('district.geojson');
+                Route::get('/mahallas/{mahalla}', MahallaDashboardController::class)
+                    ->name('mahalla')
+                    ->whereUuid('mahalla');
+            });
 
         /*
          * ADMIN boshqaruv API — faqat super-admin (`mahalla.admin` gvardiyasi).
