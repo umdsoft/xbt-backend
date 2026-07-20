@@ -29,3 +29,12 @@ Thumbs.db
 # Deploy artifacts / dev-only
 /database/*.sqlite
 /DEPLOY-AUDIT.md
+
+# Davlat ma'lumot fayllari — REPOGA TUSHMASIN.
+# `оила` varag'ida PINFL, pasport, telefon, tug'ilgan sana bor (148 771 kishi).
+# Repo ochiq: github.com/umdsoft/xbt-backend
+docs/*.xlsx
+docs/*.xls
+docs/*.csv
+docs/*.kmz
+docs/*.kml
