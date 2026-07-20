@@ -164,6 +164,55 @@ class RaisCadastreTest extends TestCase
             ->assertJsonStructure(['message']);
     }
 
+    /**
+     * BO'SHLIQ: `WorklistController` faqat `streetIds` bo'yicha filtrlagan va
+     * `restrictToStreets` ni e'tiborga olmagan. Rais ko'chaga biriktirilmagani
+     * uchun unga BO'SH ro'yxat qaytardi — xato yo'q, natija ham yo'q.
+     */
+    public function test_rais_sees_own_mahalla_households_in_worklist(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mahallaId = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+
+        $expected = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', $mahallaId)
+            ->where('type', 'residential')
+            ->whereNotNull('street_id')
+            ->count();
+
+        if ($expected === 0) {
+            $this->markTestSkipped('Маҳаллада турар-жой биноси йўқ');
+        }
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/worklist')
+            ->assertOk()
+            ->json();
+
+        $this->assertSame($expected, $body['meta']['total'], 'Раис ўз маҳалласининг ҲАММА хонадонини кўриши керак');
+    }
+
+    /** Ro'yxat va bitta yozuv bir xil qamrovda: aks holda IDOR. */
+    public function test_rais_cannot_open_building_from_another_mahalla(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mine = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+
+        $foreign = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', '!=', $mine)
+            ->where('type', 'residential')
+            ->whereNotNull('street_id')
+            ->value('id');
+
+        if ($foreign === null) {
+            $this->markTestSkipped('Бошқа маҳаллада турар-жой биноси йўқ');
+        }
+
+        $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/buildings/'.$foreign)
+            ->assertNotFound();
+    }
+
     public function test_viewer_role_cannot_reach_rais_endpoints(): void
     {
         // `viloyat` — ko'rish roli. Kadastr tuzatish YOZISH amali, shuning

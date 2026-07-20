@@ -30,11 +30,28 @@ class WorklistController extends Controller
 
         $q = Building::query()->where('type', 'residential')->whereNotNull('street_id');
 
-        if (! $scope->isAdmin) {
-            if ($scope->streetIds === []) {
+        /*
+         * Qamrov ikki xil bo'lishi mumkin va ikkalasi ham hisobga olinishi kerak:
+         *
+         *   restrictToStreets = true  -> deputat: faqat biriktirilgan ko'chalar
+         *   restrictToStreets = false -> rais: butun mahalla
+         *
+         * Ilgari faqat birinchisi bor edi. Rais ko'chaga biriktirilmagani
+         * uchun `streetIds` bo'sh chiqib, unga BO'SH ro'yxat qaytardi — xato
+         * yo'q, natija ham yo'q. Bunday nuqson jimgina o'tadi.
+         */
+        if (! $scope->isAdmin && ! $scope->canSeeAll) {
+            if ($scope->restrictToStreets) {
+                if ($scope->streetIds === []) {
+                    return response()->json(['data' => [], 'meta' => ['total' => 0, 'current_page' => 1, 'last_page' => 1]]);
+                }
+                $q->whereIn('street_id', $scope->streetIds);
+            } elseif ($scope->mahallaId !== null) {
+                $q->where('mahalla_id', $scope->mahallaId);
+            } else {
+                // Qamrovi noma'lum foydalanuvchiga hech nima ko'rsatilmaydi.
                 return response()->json(['data' => [], 'meta' => ['total' => 0, 'current_page' => 1, 'last_page' => 1]]);
             }
-            $q->whereIn('street_id', $scope->streetIds);
         }
 
         if ($request->filled('street_id')) {
@@ -170,15 +187,25 @@ class WorklistController extends Controller
     }
 
     /**
-     * Deputat faqat o'z ko'chalaridagi binoni ko'ra oladi.
+     * Bitta binoga ruxsat — ro'yxatdagi bilan BIR XIL qoida bo'yicha.
+     *
+     * Ro'yxat va bitta yozuv har doim bir xil qamrovda bo'lishi kerak: aks
+     * holda ro'yxatda ko'rinmagan bino `id` bo'yicha ochilib qolardi
+     * (klassik IDOR).
      */
     private function authorizeBuilding(Request $request, Building $building): void
     {
         $scope = app(MahallaAccess::class)->scopeFor($request->user());
-        if ($scope->isAdmin) {
+
+        if ($scope->isAdmin || $scope->canSeeAll) {
             return;
         }
-        if ($building->street_id === null || ! in_array($building->street_id, $scope->streetIds, true)) {
+
+        $allowed = $scope->restrictToStreets
+            ? ($building->street_id !== null && in_array($building->street_id, $scope->streetIds, true))
+            : ($scope->mahallaId !== null && (string) $building->mahalla_id === $scope->mahallaId);
+
+        if (! $allowed) {
             throw new NotFoundHttpException('Бино топилмади ёки рухсат йўқ.');
         }
     }
