@@ -440,11 +440,17 @@ class ExecutiveDashboardTest extends TestCase
                 'mahalla' => ['id', 'name', 'district' => ['id', 'name']],
                 'period' => ['today', 'week_start', 'timezone'],
                 'households',
+                'social_objects',
                 'rows' => ['*' => ['zone', 'label', 'households', 'week', 'today']],
                 'dynamics' => ['*' => ['date', 'count']],
                 'zone_status' => ['*' => ['zone', 'label', 'households', 'statuses', 'unobserved']],
                 'recent_changes',
             ]);
+
+        // `indicators` `null` bo'lishi mumkin (ko'rsatkich yuklanmagan
+        // mahalla), lekin KALIT har doim bo'lishi shart — aks holda frontend
+        // `undefined` bilan ishlaydi va sahifa jimgina bo'sh chiqadi.
+        $this->assertArrayHasKey('indicators', $response->json());
 
         $json = $response->json();
 

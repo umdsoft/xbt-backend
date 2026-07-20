@@ -178,6 +178,7 @@ final class ExecutiveStats
             ->count();
 
         $changes = $this->changesByZone($mahallaId, $period);
+        $indicators = $this->indicatorsForMahalla($mahallaId);
 
         $rows = [];
         foreach (MahallaZones::zoneCodes() as $zone) {
@@ -191,7 +192,43 @@ final class ExecutiveStats
             ];
         }
 
-        return ['households' => $households, 'rows' => $rows];
+        return [
+            'households' => $households,
+            'rows' => $rows,
+            'indicators' => $indicators,
+            'social_objects' => $this->socialObjectsForMahalla($mahallaId),
+        ];
+    }
+
+    /**
+     * Bitta mahalla ko'rsatkichlari — tuman kesimidagi mantiq bilan bir xil.
+     *
+     * Tuman jadvali `indicatorsByMahalla()` orqali barcha mahallani birdan
+     * o'qiydi. Bu yerda bitta kerak, lekin qoida BIR XIL bo'lishi shart:
+     * ikki sahifa bir mahalla uchun boshqa raqam ko'rsatsa, ishonch yo'qoladi.
+     * Shuning uchun alohida so'rov emas, o'sha metod filtrlanadi.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function indicatorsForMahalla(string $mahallaId): ?array
+    {
+        $districtId = DB::connection('master')->table('mahallas')
+            ->where('id', $mahallaId)->value('district_id');
+
+        if ($districtId === null) {
+            return null;
+        }
+
+        return $this->indicatorsByMahalla((string) $districtId)[$mahallaId] ?? null;
+    }
+
+    private function socialObjectsForMahalla(string $mahallaId): int
+    {
+        return (int) DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.mahalla_id', $mahallaId)
+            ->where('t.is_social', true)
+            ->count();
     }
 
     /**

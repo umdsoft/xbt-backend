@@ -43,6 +43,8 @@ class MahallaDashboardController extends Controller
                 'timezone' => $period['timezone'],
             ],
             'households' => $data['households'],
+            'indicators' => $data['indicators'],
+            'social_objects' => $data['social_objects'],
             'rows' => $data['rows'],
             'dynamics' => $this->mahallaStats->dynamics((string) $model->id),
             'zone_status' => $this->mahallaStats->zoneStatus((string) $model->id, $data['households']),
