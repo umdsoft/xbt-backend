@@ -11,6 +11,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\ContextController;
 use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
@@ -41,6 +42,24 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
         Route::post('/houses/{house}/photos', [PhotoUploadController::class, 'store'])->name('houses.photos.store');
 
         Route::get('/photos/{photo}', [PhotoController::class, 'show'])->name('photos.show');
+
+        /*
+         * МАҲАЛЛА РАИСИ — ўз маҳалласи доирасида кўради ВА тузатади.
+         *
+         * Marshrutlarda `{mahalla}` YO'Q: qamrov foydalanuvchi profilidan
+         * olinadi. Parametr bo'lsa uni almashtirib boshqa mahallani ochish
+         * mumkin bo'lardi.
+         */
+        Route::prefix('rais')
+            ->name('rais.')
+            ->middleware('mahalla.rais')
+            ->group(function () {
+                Route::get('/overview', [CadastreController::class, 'overview'])->name('overview');
+                Route::get('/buildings', [CadastreController::class, 'buildings'])->name('buildings');
+                Route::patch('/buildings/{building}', [CadastreController::class, 'classify'])
+                    ->name('buildings.classify')
+                    ->whereUuid('building');
+            });
 
         /*
          * RAHBARIYAT (viloyat hokimi o'rinbosari) — FAQAT KO'RISH.

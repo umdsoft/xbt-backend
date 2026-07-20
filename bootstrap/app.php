@@ -33,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'system.access' => \App\Http\Middleware\EnsureSystemAccess::class,
             'mahalla.admin' => \App\Domains\Mahalla\Http\Middleware\EnsureMahallaAdmin::class,
             'mahalla.viewer' => \App\Domains\Mahalla\Http\Middleware\EnsureMahallaViewer::class,
+            'mahalla.rais' => \App\Domains\Mahalla\Http\Middleware\EnsureMahallaRais::class,
             'hr.context' => \App\Domains\Hr\Http\Middleware\EnsureHrContext::class,
             'hr.can' => \App\Domains\Hr\Http\Middleware\HrPermission::class,
         ]);

@@ -29,6 +29,22 @@ class MahallaAccess
         // Raҳbariyat: FAQAT ko'rish. photos.upload va `*` ataylab yo'q.
         'viloyat' => ['dashboard.view', 'reports.view', 'houses.view', 'analyses.view'],
         'deputat' => ['houses.view', 'photos.view', 'photos.upload', 'analyses.view', 'dashboard.view'],
+        /*
+         * Маҳалла раиси — ўз маҳалласининг ҲАММАСИНИ кўради.
+         *
+         * `deputat` dan farqi: ko'chalar bilan cheklanmaydi. Rais mahalladagi
+         * har bir hovli va binoni biladigan odam, shuning uchun qamrovi butun
+         * mahalla.
+         *
+         * `buildings.classify` — kadastr binosining turini tuzatish. Bu unga
+         * beriladi, chunki kadastr yozuvi to'liq emas va uni haqiqat bilan
+         * solishtira oladigan yagona odam shu. Lekin FAQAT qayta tasniflash:
+         * yangi bino qo'sha olmaydi.
+         */
+        'rais' => [
+            'houses.view', 'photos.view', 'photos.upload', 'analyses.view',
+            'dashboard.view', 'buildings.classify',
+        ],
     ];
 
     /**
@@ -131,6 +147,25 @@ class MahallaAccess
         $streetIds = $profile !== null
             ? $profile->streetAssignments()->pluck('street_id')->all()
             : [];
+
+        /*
+         * Rais ko'chalar bilan CHEKLANMAYDI — butun mahallasini ko'radi.
+         *
+         * `restrictToStreets = false` bo'lgani uchun `mahallaId` endi
+         * haqiqiy filtr bo'ladi (kontekst emas). Profilida mahalla
+         * ko'rsatilmagan rais hech narsa ko'rmaydi — bu to'g'ri: qamrovi
+         * noma'lum foydalanuvchiga butun tumanni ochish xavfli.
+         */
+        if ($role === 'rais') {
+            return new MahallaScope(
+                false,
+                $profile?->district_id,
+                $profile?->mahalla_id,
+                $streetIds,
+                false,
+                false,
+            );
+        }
 
         return new MahallaScope(
             false,
