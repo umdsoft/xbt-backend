@@ -213,6 +213,33 @@ class RaisCadastreTest extends TestCase
             ->assertNotFound();
     }
 
+    /** Xarita uchun chegara va ijtimoiy nuqtalar javobda bo'lishi shart. */
+    public function test_overview_carries_boundary_and_social_points(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/rais/overview')
+            ->assertOk()
+            ->assertJsonStructure(['boundary' => ['type', 'features'], 'social_points'])
+            ->json();
+
+        $this->assertSame('FeatureCollection', $body['boundary']['type']);
+
+        // Chegarasi bor mahallada aynan BITTA feature bo'lishi kerak —
+        // ko'p bo'lsa boshqa mahalla ham tushib qolgan.
+        $mahallaId = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+        $hasBoundary = DB::connection('master')->table('mahallas')
+            ->where('id', $mahallaId)->whereNotNull('boundary')->exists();
+
+        $this->assertCount($hasBoundary ? 1 : 0, $body['boundary']['features']);
+
+        foreach ($body['social_points'] as $p) {
+            $this->assertNotNull($p['lat']);
+            $this->assertNotNull($p['lng']);
+        }
+    }
+
     public function test_viewer_role_cannot_reach_rais_endpoints(): void
     {
         // `viloyat` — ko'rish roli. Kadastr tuzatish YOZISH amali, shuning

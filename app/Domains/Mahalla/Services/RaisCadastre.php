@@ -139,6 +139,70 @@ class RaisCadastre
     }
 
     /**
+     * Маҳалла чегараси — харита учун.
+     *
+     * Tuman geojson'i bilan bir xil soddalashtirish (0.0003 ≈ 33 m): bitta
+     * mahalla uchun ham xom geometriya ortiqcha, ekranda farqi ko'rinmaydi.
+     *
+     * Javob GeoJSON `FeatureCollection` shaklida — `FeatureMap` tuman
+     * xaritasi bilan bir xil formatni kutadi, alohida holat kerak emas.
+     *
+     * @return array{type: string, features: array<int, array<string, mixed>>}
+     */
+    public function boundary(string $mahallaId): array
+    {
+        $row = DB::connection('master')->table('mahallas')
+            ->where('id', $mahallaId)
+            ->whereNotNull('boundary')
+            ->selectRaw('id, name_cyr, ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, ?)) as geom', [0.0003])
+            ->first();
+
+        if ($row === null) {
+            return ['type' => 'FeatureCollection', 'features' => []];
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => [[
+                'type' => 'Feature',
+                'properties' => ['id' => $row->id, 'name' => $row->name_cyr],
+                'geometry' => json_decode((string) $row->geom, true),
+            ]],
+        ];
+    }
+
+    /**
+     * Маҳалладаги БАРЧА ижтимоий объектлар — харитага қўйиш учун.
+     *
+     * Jadval suzgichidan MUSTAQIL: rais qidiruv yozganda xaritadagi obyektlar
+     * yo'qolib qolmasligi kerak. Ular kontekst — "mahallamda nima bor" degan
+     * savolga javob, qidiruv natijasi emas.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function socialPoints(string $mahallaId): array
+    {
+        return DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.mahalla_id', $mahallaId)
+            ->where('t.is_social', true)
+            ->whereNotNull('b.lat')
+            ->whereNotNull('b.lng')
+            ->orderBy('t.sort_order')
+            ->get(['b.id', 'b.lat', 'b.lng', 'b.purpose', 'b.address', 't.code', 't.name_cyr'])
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'lat' => (float) $r->lat,
+                'lng' => (float) $r->lng,
+                'title' => $r->purpose ?: $r->name_cyr,
+                'subtitle' => $r->address,
+                'type_code' => $r->code,
+                'type_name' => $r->name_cyr,
+            ])
+            ->all();
+    }
+
+    /**
      * Mahalladagi so'nggi tuzatishlar — kim nimani o'zgartirgani ko'rinib tursin.
      *
      * @return array<int, array<string, mixed>>

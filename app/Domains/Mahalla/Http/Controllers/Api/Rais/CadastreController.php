@@ -53,6 +53,11 @@ class CadastreController extends Controller
             'indicators' => $data['indicators'],
             'social_objects' => $data['social_objects'],
             'zones' => $data['rows'],
+            // Xarita uchun: o'z chegarasi va ustidagi ijtimoiy obyektlar.
+            // Ikkalasi ham bitta javobda — rais sahifasi ochilishi bilan
+            // xarita to'liq ko'rinsin, ketma-ket so'rov kutmasin.
+            'boundary' => $this->cadastre->boundary($mahallaId),
+            'social_points' => $this->cadastre->socialPoints($mahallaId),
             'recent_changes' => $this->cadastre->recentChanges($mahallaId),
             // `object_types` da `is_active` ustuni YO'Q — ro'yxat qisqa va
             // to'liq ishlatiladi, o'chirilgan tur tushunchasi kiritilmagan.
