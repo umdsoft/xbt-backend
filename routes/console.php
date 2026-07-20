@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
+use App\Domains\Mahalla\Console\Commands\ImportNonResidentialCommand;
 use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Foundation\Inspiring;
@@ -21,4 +22,5 @@ Artisan::command('inspire', function () {
 ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(MakeViewerCommand::class);
     $artisan->resolve(CyrillicizeMahallaNamesCommand::class);
+    $artisan->resolve(ImportNonResidentialCommand::class);
 });
