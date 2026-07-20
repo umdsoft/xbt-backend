@@ -26,6 +26,24 @@ abstract class TestCase extends BaseTestCase
      */
     protected function setUp(): void
     {
+        // ISHLAB CHIQARISHDA UMUMAN YURMAYDI.
+        //
+        // `phpunit.xml` bazani ataylab qotirmaydi — testlar `.env` dagi bazani
+        // ishlatadi (lokalda bu dev bazasi). Ammo bir xil kod serverda ham
+        // turadi, u yerda esa `.env` PROD bazasini ko'rsatadi. Ya'ni serverda
+        // tasodifan `php artisan test` yozilsa, testlar ishlab chiqarish
+        // ma'lumotiga yozardi.
+        //
+        // DIQQAT: `env('APP_ENV')` bu yerda YARAMAYDI — `phpunit.xml` uni
+        // `testing` deb ustidan yozadi, ya'ni serverda ham `testing` qaytaradi.
+        // Shuning uchun haqiqiy muhit `.env` faylidan bevosita o'qiladi.
+        if ($this->deploymentEnv() === 'production') {
+            $this->fail(
+                'Тестлар ишлаб чиқариш муҳитида юритилмайди: улар .env даги '.
+                'базага ёзади. Тестларни фақат локал муҳитда юритинг.'
+            );
+        }
+
         $forbidden = [RefreshDatabase::class, DatabaseMigrations::class, DatabaseTruncation::class];
         $used = class_uses_recursive(static::class);
 
@@ -39,5 +57,26 @@ abstract class TestCase extends BaseTestCase
         }
 
         parent::setUp();
+    }
+
+    /**
+     * Haqiqiy joylashtirish muhiti — `.env` faylidan bevosita, `phpunit.xml`
+     * ustidan yozgan qiymatni chetlab o'tib.
+     */
+    private function deploymentEnv(): string
+    {
+        $path = dirname(__DIR__).'/.env';
+        if (! is_file($path)) {
+            return 'unknown';
+        }
+
+        $raw = (string) file_get_contents($path);
+
+        // `\r` ni ham tozalash SHART: CRLF qatorlarda `(.*)` uni ushlab qoladi
+        // va "production\r" === "production" solishtiruvi jimgina false beradi,
+        // ya'ni darvoza ishlayotgandek ko'rinib, aslida hech qachon yopilmaydi.
+        return preg_match('/^APP_ENV=(.*)$/m', $raw, $m) === 1
+            ? trim($m[1], " \t\r\n\"'")
+            : 'unknown';
     }
 }
