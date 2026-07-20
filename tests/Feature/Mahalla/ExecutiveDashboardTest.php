@@ -289,11 +289,16 @@ class ExecutiveDashboardTest extends TestCase
         $districtId = $this->districtId();
         $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
 
+        // FAOL mahallalar sanaladi: nofaol (tugatilgan/qayta tashkil etilgan)
+        // mahalla jadvalda ko'rinmasligi kerak, aks holda rahbar uni "ish
+        // qilinmagan hudud" deb tushunardi.
         $expected = DB::connection('master')->table('mahallas')
-            ->where('district_id', $districtId)->count();
+            ->where('district_id', $districtId)
+            ->where('is_active', true)
+            ->count();
 
         $this->assertCount($expected, $stats['rows'],
-            'kuzatuvi yo\'q mahalla ham jadvalda nol bilan ko\'rinishi kerak');
+            'kuzatuvi yo\'q FAOL mahalla ham jadvalda nol bilan ko\'rinishi kerak');
 
         foreach ($stats['rows'] as $row) {
             $this->assertArrayHasKey('yard', $row['zones']);

@@ -61,8 +61,12 @@ final class ExecutiveStats
         $changes = $this->changesByMahallaZone($districtId, $period);
         $changed = $this->changedByMahalla($districtId, $period);
 
+        // Nofaol mahalla jadvalda ham, ЖАМИ hisobida ham ko'rinmaydi —
+        // aks holda tugatilgan/qayta tashkil etilgan mahalla rahbarni
+        // "ish qilinmagan hudud" deb chalg'itardi.
         $mahallas = DB::connection('master')->table('mahallas')
             ->where('district_id', $districtId)
+            ->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name_cyr')
             ->get(['id', 'name_cyr']);
 

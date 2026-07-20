@@ -34,6 +34,9 @@ class DistrictGeoJsonController extends Controller
 
         $rows = DB::connection('master')->table('mahallas')
             ->where('district_id', $model->id)
+            // Jadval bilan bir xil filtr — aks holda xaritada jadvalda
+            // yo'q poligon paydo bo'lib, raqamlarsiz kulrang turib qolardi.
+            ->where('is_active', true)
             ->whereNotNull('boundary')
             ->orderBy('sort_order')->orderBy('name_cyr')
             ->selectRaw('id, name_cyr, ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, ?)) as geom',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
 use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Foundation\Inspiring;
@@ -17,4 +18,7 @@ Artisan::command('inspire', function () {
 // FASAD emas, `Illuminate\Console\Application::starting()` kerak — fasad
 // (`Illuminate\Support\Facades\Artisan`) `Kernel` kontraktiga bog'lanadi, u
 // `starting()` metodiga ega emas (u faqat konsol `Application` sinfida bor).
-ConsoleApplication::starting(fn ($artisan) => $artisan->resolve(MakeViewerCommand::class));
+ConsoleApplication::starting(function ($artisan) {
+    $artisan->resolve(MakeViewerCommand::class);
+    $artisan->resolve(CyrillicizeMahallaNamesCommand::class);
+});
