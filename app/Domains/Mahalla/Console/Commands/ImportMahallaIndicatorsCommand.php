@@ -21,7 +21,10 @@ use Illuminate\Support\Str;
  *   population     — aholi soni
  *   households     — xonadon soni
  *   families       — oila soni
- *   poor_families  — kambag'al oilalar
+ *   social_registry_families — "Ижтимоий реестр"даги oilalar
+ *   social_registry_members  — reestrdagi oila a'zolari
+ *   social_registry_rate     — qamrov (%)
+ *   poor_families  — kambag'al oilalar (reestrdagilarning bir qismi)
  *   poverty_rate   — kambag'allik darajasi (%)
  *   ogir           — og'ir mahalla (1/0, ha/yo'q)
  *   yangi_uzbekiston — dasturda (1/0)
@@ -94,6 +97,9 @@ class ImportMahallaIndicatorsCommand extends Command
                     'population' => $this->num($r['population'] ?? null),
                     'households' => $this->num($r['households'] ?? null),
                     'families' => $this->num($r['families'] ?? null),
+                    'social_registry_families' => $this->num($r['social_registry_families'] ?? null),
+                    'social_registry_members' => $this->num($r['social_registry_members'] ?? null),
+                    'social_registry_rate' => $this->dec($r['social_registry_rate'] ?? null),
                     'poor_families' => $this->num($r['poor_families'] ?? null),
                     'poverty_rate' => $this->dec($r['poverty_rate'] ?? null),
                     'is_ogir' => $this->bool($r['ogir'] ?? null),
