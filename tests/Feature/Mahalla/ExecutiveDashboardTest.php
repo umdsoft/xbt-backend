@@ -428,6 +428,56 @@ class ExecutiveDashboardTest extends TestCase
      * `'dynamics' => ...` qatori vaqtincha izohga olinganda shu test YIQILADI
      * (batafsil: `.superpowers/sdd/task-3-report.md`).
      */
+    public function test_social_objects_endpoint_returns_types_and_list(): void
+    {
+        $user = $this->makeUser('viloyat');
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts/'.$this->districtId().'/social-objects')
+            ->assertOk()
+            ->assertJsonStructure([
+                'total',
+                'types' => [['code', 'name', 'count']],
+                'objects' => [['id', 'type_code', 'type_name', 'address', 'purpose']],
+            ])
+            ->json();
+
+        // Turlar yig'indisi ro'yxat uzunligiga teng bo'lishi kerak. Teng
+        // bo'lmasa suzgich "15 ta maktab" deb yozib, 12 tasini ko'rsatadi —
+        // xato jimgina o'tib ketadi.
+        $this->assertSame(
+            array_sum(array_column($body['types'], 'count')),
+            $body['total'],
+            'Турлар йиғиндиси умумий сонга тенг бўлиши керак',
+        );
+        $this->assertCount($body['total'], $body['objects']);
+    }
+
+    /**
+     * Boshqa tumanning mahallasi so'ralsa bo'sh ro'yxat qaytadi.
+     *
+     * Aks holda `?mahalla=` orqali istalgan mahalla obyektlarini boshqa
+     * tuman URL'i bilan o'qib olish mumkin bo'lardi.
+     */
+    public function test_social_objects_reject_mahalla_from_another_district(): void
+    {
+        $user = $this->makeUser('viloyat');
+
+        $foreign = DB::connection('master')->table('mahallas')
+            ->where('district_id', '!=', $this->districtId())
+            ->value('id');
+
+        if ($foreign === null) {
+            $this->markTestSkipped('Базада бошқа туман маҳалласи йўқ');
+        }
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts/'.$this->districtId()
+                .'/social-objects?mahalla='.$foreign)
+            ->assertOk()
+            ->assertJson(['total' => 0, 'types' => [], 'objects' => []]);
+    }
+
     public function test_viloyat_can_open_mahalla_executive_endpoint(): void
     {
         $user = $this->makeUser('viloyat');

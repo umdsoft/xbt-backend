@@ -10,6 +10,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Admin\UserManagementController;
 use App\Domains\Mahalla\Http\Controllers\Api\ContextController;
 use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
@@ -66,6 +67,13 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                  */
                 Route::get('/districts/{district?}', DistrictDashboardController::class)
                     ->name('district')
+                    ->whereUuid('district');
+
+                // Panelda "113" raqami ochilganda — ijtimoiy obyektlar ro'yxati.
+                // `{district}` majburiy: Laravel ixtiyoriy parametrni faqat
+                // URL oxirida qo'llab-quvvatlaydi.
+                Route::get('/districts/{district}/social-objects', SocialObjectsController::class)
+                    ->name('district.social-objects')
                     ->whereUuid('district');
                 /*
                  * `{district}` bu yerda MAJBURIY — asosiy `districts/{district?}`

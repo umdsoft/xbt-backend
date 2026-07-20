@@ -222,6 +222,67 @@ final class ExecutiveStats
         return $this->indicatorsByMahalla((string) $districtId)[$mahallaId] ?? null;
     }
 
+    /**
+     * Ijtimoiy obyektlar ro'yxati — tur kesimida va to'liq ro'yxat bilan.
+     *
+     * Panelda "113" raqami turadi; rahbarning keyingi savoli har doim
+     * "qaysilari?" bo'ladi. Shuning uchun raqam ochiladigan qilingan.
+     *
+     * Ro'yxat butunligicha yuboriladi (Shovotda 113 ta, eng katta tumanda
+     * ham yuzlab) — sahifalash qo'shish uni ochib ko'rishni sekinlashtiradi,
+     * foydasi esa yo'q.
+     *
+     * @return array{total: int, types: array<int, array<string, mixed>>,
+     *               objects: array<int, array<string, mixed>>}
+     */
+    public function socialObjects(string $districtId, ?string $mahallaId = null): array
+    {
+        $base = fn () => DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.district_id', $districtId)
+            ->where('t.is_social', true)
+            ->when($mahallaId !== null, fn ($q) => $q->where('b.mahalla_id', $mahallaId));
+
+        $types = $base()
+            ->groupBy('t.code', 't.name_cyr', 't.sort_order')
+            ->orderBy('t.sort_order')
+            ->selectRaw('t.code, t.name_cyr as name, count(*) as n')
+            ->get()
+            ->map(fn ($r) => ['code' => $r->code, 'name' => $r->name, 'count' => (int) $r->n])
+            ->all();
+
+        $objects = $base()
+            ->leftJoin('mahallas as m', 'm.id', '=', 'b.mahalla_id')
+            ->orderBy('t.sort_order')
+            ->orderBy('m.name_cyr')
+            ->get([
+                'b.id', 't.code as type_code', 't.name_cyr as type_name',
+                'm.id as mahalla_id', 'm.name_cyr as mahalla_name',
+                'b.address', 'b.purpose', 'b.lat', 'b.lng',
+            ])
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type_code' => $r->type_code,
+                'type_name' => $r->type_name,
+                'mahalla' => $r->mahalla_id === null
+                    ? null
+                    : ['id' => $r->mahalla_id, 'name' => $r->mahalla_name],
+                'address' => $r->address,
+                // Kadastrdagi asl yozuv — tur noto'g'ri tasniflangan bo'lsa
+                // shu yerdan ko'rinadi va tuzatish mumkin.
+                'purpose' => $r->purpose,
+                'lat' => $r->lat === null ? null : (float) $r->lat,
+                'lng' => $r->lng === null ? null : (float) $r->lng,
+            ])
+            ->all();
+
+        return [
+            'total' => count($objects),
+            'types' => $types,
+            'objects' => $objects,
+        ];
+    }
+
     private function socialObjectsForMahalla(string $mahallaId): int
     {
         return (int) DB::connection('master')->table('buildings as b')
