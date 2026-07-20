@@ -72,6 +72,7 @@ class ImportMahallaIndicatorsCommand extends Command
 
         $ok = 0;
         $miss = [];
+        $unknownDistricts = [];
 
         foreach ($rows as $r) {
             $name = trim((string) ($r['mahalla'] ?? ''));
@@ -79,9 +80,23 @@ class ImportMahallaIndicatorsCommand extends Command
                 continue;
             }
 
+            // `district` ustuni bo'lsa har qator o'z tumani doirasida
+            // qidiriladi — bitta fayl butun viloyatni ko'tara oladi. Bir xil
+            // mahalla nomi turli tumanlarda uchraydi ("Гулистон" beshta
+            // tumanda bor), shuning uchun tumansiz qidirish xato juftlik beradi.
+            $rowDistrict = trim((string) ($r['district'] ?? ''));
+            if ($rowDistrict !== '') {
+                $resolved = $this->resolveDistrict($rowDistrict);
+                if ($resolved === null) {
+                    $unknownDistricts[$rowDistrict] = true;
+                    continue;
+                }
+                $matcher->forDistrict($resolved);
+            }
+
             $id = $matcher->match($name);
             if ($id === null) {
-                $miss[] = $name;
+                $miss[] = ($rowDistrict !== '' ? "{$rowDistrict} / " : '').$name;
                 continue;
             }
 
@@ -92,22 +107,7 @@ class ImportMahallaIndicatorsCommand extends Command
 
             DB::connection('master')->table('mahalla_indicators')->updateOrInsert(
                 ['mahalla_id' => $id, 'period' => $period],
-                [
-                    'id' => (string) Str::uuid(),
-                    'population' => $this->num($r['population'] ?? null),
-                    'households' => $this->num($r['households'] ?? null),
-                    'families' => $this->num($r['families'] ?? null),
-                    'social_registry_families' => $this->num($r['social_registry_families'] ?? null),
-                    'social_registry_members' => $this->num($r['social_registry_members'] ?? null),
-                    'social_registry_rate' => $this->dec($r['social_registry_rate'] ?? null),
-                    'poor_families' => $this->num($r['poor_families'] ?? null),
-                    'poverty_rate' => $this->dec($r['poverty_rate'] ?? null),
-                    'is_ogir' => $this->bool($r['ogir'] ?? null),
-                    'is_yangi_uzbekiston' => $this->bool($r['yangi_uzbekiston'] ?? null),
-                    'source' => basename($path),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
+                $this->payload($r, $path),
             );
         }
 
@@ -116,16 +116,136 @@ class ImportMahallaIndicatorsCommand extends Command
         $this->line("  давр            : {$period}");
         $this->line('  мос келди       : '.$ok.' / '.count($rows));
 
+        if ($unknownDistricts !== []) {
+            $this->newLine();
+            $this->warn('НОМАЪЛУМ ТУМАНЛАР ('.count($unknownDistricts).' та) — қаторлари ўтказиб юборилди:');
+            foreach (array_keys($unknownDistricts) as $d) {
+                $this->line("  {$d}");
+            }
+        }
+
         if ($miss !== []) {
             $this->newLine();
             $this->warn('МОС КЕЛМАГАН НОМЛАР ('.count($miss).' та) — базада топилмади:');
-            foreach ($miss as $n) {
+            foreach (array_slice($miss, 0, 30) as $n) {
                 $this->line("  {$n}");
+            }
+            if (count($miss) > 30) {
+                $this->line('  ... яна '.(count($miss) - 30).' та');
             }
             $this->line('  (ном ўзгарган бўлса: php artisan mahalla:rename <soato> "<янги ном>" --apply)');
         }
 
         return self::SUCCESS;
+    }
+
+    /** @var array<string, string|null>  normallashtirilgan nom/soato => district_id */
+    private array $districtCache = [];
+
+    /**
+     * CSV ustuni => baza ustuni va uni o'qish usuli.
+     *
+     * @var array<string, array{0: string, 1: string}>
+     */
+    private const FIELDS = [
+        'population' => ['population', 'num'],
+        'households' => ['households', 'num'],
+        'families' => ['families', 'num'],
+        'social_registry_families' => ['social_registry_families', 'num'],
+        'social_registry_members' => ['social_registry_members', 'num'],
+        'social_registry_rate' => ['social_registry_rate', 'dec'],
+        'state_supported_families' => ['state_supported_families', 'num'],
+        'state_supported_members' => ['state_supported_members', 'num'],
+        'poor_families' => ['poor_families', 'num'],
+        'poor_members' => ['poor_members', 'num'],
+        'poverty_rate' => ['poverty_rate', 'dec'],
+        'borderline_families' => ['borderline_families', 'num'],
+        'borderline_members' => ['borderline_members', 'num'],
+        'ogir' => ['is_ogir', 'bool'],
+        'yangi_uzbekiston' => ['is_yangi_uzbekiston', 'bool'],
+    ];
+
+    /**
+     * Faqat CSV da BOR ustunlarni yozadi.
+     *
+     * Muhim: yo'q ustun `null` bilan ustidan yozilmaydi. Manbalar bo'lak-bo'lak
+     * keladi — viloyat fayli oila va kambag'allikni beradi, og'ir mahalla ro'yxati
+     * esa aholi sonini va maqom belgisini. Ikkinchisini import qilish birinchisini
+     * o'chirib yuborsa, har safar hamma faylni qayta yuklash kerak bo'lardi.
+     *
+     * @param  array<string, string>  $row
+     * @return array<string, mixed>
+     */
+    private function payload(array $row, string $path): array
+    {
+        $out = [
+            'id' => (string) Str::uuid(),
+            'source' => basename($path),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        foreach (self::FIELDS as $csvKey => [$column, $caster]) {
+            if (array_key_exists($csvKey, $row)) {
+                $out[$column] = $this->{$caster}($row[$csvKey]);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Tuman nomini yoki SOATO kodini `district_id` ga aylantiradi.
+     *
+     * Fayllarda tuman goh kod bilan ("1733230"), goh nom bilan ("ШОВОТ
+     * ТУМАНИ") keladi.
+     *
+     * DIQQAT: "тумани"/"шаҳри" qo'shimchasini TASHLAB BO'LMAYDI. Xorazmda
+     * "Урганч тумани" (56 mahalla) va "Урганч шаҳар" (40 mahalla) — ikki
+     * boshqa hudud, xuddi shunday Хива. Qo'shimcha tashlansa ikkalasi
+     * "урганч" ga aylanadi va shahar mahallalari tuman ichidan qidiriladi.
+     * Shuning uchun qo'shimcha bitta belgiga keltiriladi: "т" yoki "ш".
+     */
+    private function resolveDistrict(string $raw): ?string
+    {
+        $key = self::districtKey($raw);
+
+        if (array_key_exists($key, $this->districtCache)) {
+            return $this->districtCache[$key];
+        }
+
+        if (ctype_digit(trim($raw))) {
+            return $this->districtCache[$key] = DB::connection('master')->table('districts')
+                ->where('soato_code', trim($raw))->value('id');
+        }
+
+        $id = null;
+        foreach (DB::connection('master')->table('districts')->get(['id', 'name_cyr', 'name_lat']) as $d) {
+            foreach ([$d->name_cyr, $d->name_lat] as $n) {
+                if ($n !== null && self::districtKey((string) $n) === $key) {
+                    $id = $d->id;
+                    break 2;
+                }
+            }
+        }
+
+        return $this->districtCache[$key] = $id;
+    }
+
+    /** Hudud nomini turi bilan birga yagona kalitga keltiradi. */
+    private static function districtKey(string $raw): string
+    {
+        $s = mb_strtolower(trim($raw));
+        $s = (string) preg_replace('/\b(шаҳри|шахри|шаҳар|шахар|shahri|shahar)\b/u', ' ~ш ', $s);
+        $s = (string) preg_replace('/\b(тумани|туман|tumani|tuman)\b/u', ' ~т ', $s);
+
+        // Turi ko'rsatilmagan bo'lsa tuman deb qabul qilinadi — manbalarda
+        // shahar har doim aniq belgilanadi, tuman esa tushib qolishi mumkin.
+        if (! str_contains($s, '~')) {
+            $s .= ' ~т';
+        }
+
+        return str_replace(' ', '', MahallaMatcher::fold($s));
     }
 
     /**

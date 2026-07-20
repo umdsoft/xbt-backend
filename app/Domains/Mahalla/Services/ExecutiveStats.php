@@ -188,51 +188,67 @@ final class ExecutiveStats
         return ['households' => $households, 'rows' => $rows];
     }
 
+    /** Butun son sifatida o'qiladigan ko'rsatkichlar. */
+    private const INT_INDICATORS = [
+        'population', 'households', 'families',
+        'social_registry_families', 'social_registry_members',
+        'state_supported_families', 'state_supported_members',
+        'poor_families', 'poor_members',
+        'borderline_families', 'borderline_members',
+    ];
+
+    /** Kasr son sifatida o'qiladiganlar. */
+    private const DEC_INDICATORS = ['social_registry_rate', 'poverty_rate'];
+
     /**
-     * Mahalla bo'yicha rasmiy ko'rsatkichlar — eng oxirgi mavjud davr.
+     * Mahalla bo'yicha rasmiy ko'rsatkichlar — HAR USTUN uchun oxirgi ma'lum qiymat.
      *
-     * Har mahalla uchun bir necha davr saqlanishi mumkin (choraklik yangilanish).
-     * `DISTINCT ON` PostgreSQL'da har guruhdan birinchi qatorni oladi —
-     * `ORDER BY` bilan birga ishlatilganda "eng oxirgisi" degani.
+     * "Eng oxirgi davr qatorini olish" ishlamaydi. Ko'rsatkichlar turli manbadan
+     * turli qadamda keladi: kambag'allik oyiga ikki marta yangilanadi, aholi soni
+     * esa yiliga bir marta. Oxirgi davr qatorida aholi ustuni bo'sh bo'lib chiqadi
+     * va panel "ma'lumot yo'q" deb ko'rsatadi — holbuki u oldingi davrda bor.
      *
-     * Barcha mahallada ma'lumot bo'lishi shart emas: hozircha aholi va xonadon
-     * faqat 16 og'ir mahallada bor, oila va kambag'allik esa hammasida.
-     * Shuning uchun `null` — kutilgan holat, xato emas.
+     * Shuning uchun har ustun mustaqil ravishda o'zining eng so'nggi TO'LDIRILGAN
+     * qiymatini oladi. `array_agg(... order by period desc) filter (where ... is
+     * not null)` — PostgreSQL'da shuning eng ixcham ifodasi.
+     *
+     * `period` esa qaysi sanaga tegishli ekanini bildiradi — eng katta davr.
      *
      * @return array<string, array<string, mixed>>
      */
     private function indicatorsByMahalla(string $districtId): array
     {
+        $cols = [];
+        foreach ([...self::INT_INDICATORS, ...self::DEC_INDICATORS] as $c) {
+            $cols[] = "(array_agg(i.{$c} order by i.period desc) filter (where i.{$c} is not null))[1] as {$c}";
+        }
+        foreach (['is_ogir', 'is_yangi_uzbekiston'] as $c) {
+            $cols[] = "bool_or(i.{$c}) as {$c}";
+        }
+
         $rows = DB::connection('master')
             ->table('mahalla_indicators as i')
             ->join('mahallas as m', 'm.id', '=', 'i.mahalla_id')
             ->where('m.district_id', $districtId)
-            ->orderBy('i.mahalla_id')
-            ->orderByDesc('i.period')
+            ->groupBy('i.mahalla_id')
             ->select(DB::connection('master')->raw(
-                'distinct on (i.mahalla_id) i.mahalla_id, i.period, i.population,
-                 i.households, i.families, i.social_registry_families,
-                 i.social_registry_rate, i.poor_families, i.poverty_rate,
-                 i.is_ogir, i.is_yangi_uzbekiston'
+                'i.mahalla_id, max(i.period) as period, '.implode(', ', $cols)
             ))
             ->get();
 
         $out = [];
         foreach ($rows as $r) {
-            $out[$r->mahalla_id] = [
-                'period' => $r->period,
-                'population' => $r->population === null ? null : (int) $r->population,
-                'households' => $r->households === null ? null : (int) $r->households,
-                'families' => $r->families === null ? null : (int) $r->families,
-                'social_registry_families' => $r->social_registry_families === null
-                    ? null : (int) $r->social_registry_families,
-                'social_registry_rate' => $r->social_registry_rate === null
-                    ? null : (float) $r->social_registry_rate,
-                'poor_families' => $r->poor_families === null ? null : (int) $r->poor_families,
-                'poverty_rate' => $r->poverty_rate === null ? null : (float) $r->poverty_rate,
-                'is_ogir' => (bool) $r->is_ogir,
-                'is_yangi_uzbekiston' => (bool) $r->is_yangi_uzbekiston,
-            ];
+            $item = ['period' => $r->period];
+            foreach (self::INT_INDICATORS as $c) {
+                $item[$c] = $r->{$c} === null ? null : (int) $r->{$c};
+            }
+            foreach (self::DEC_INDICATORS as $c) {
+                $item[$c] = $r->{$c} === null ? null : (float) $r->{$c};
+            }
+            $item['is_ogir'] = (bool) $r->is_ogir;
+            $item['is_yangi_uzbekiston'] = (bool) $r->is_yangi_uzbekiston;
+
+            $out[$r->mahalla_id] = $item;
         }
 
         return $out;

@@ -72,9 +72,12 @@ Buning amaliy ma'nosi — **hech qayerda «Shovot» yozilmaydi**:
 ```
 social_contracts
   id, house_id -> houses, mahalla_id, contract_type_id -> master.contract_types
-  contract_number, signed_at, amount, status, notes
+  contract_number, signed_at, status, notes
   created_by -> users (mahalla raisi), created_at, updated_at, deleted_at
   UNIQUE (mahalla_id, contract_number)
+
+  Summa ustuni YO'Q — foydalanuvchi qarori. Shartnoma bu yerda hujjat
+  sifatida saqlanadi, moliyaviy hisob-kitob vositasi sifatida emas.
 
 contract_files
   id, contract_id -> social_contracts, path, original_name, mime, size_bytes
@@ -176,9 +179,34 @@ Mavjud qoidalar saqlanadi va yangi kodga ham tegishli:
 - Har bir yangi rol uchun **qamrov testi**: boshqa mahalla ma'lumotiga murojaat 403 qaytarishi shart. Bu «yozilsa yaxshi» emas — avvalgi auditda aynan shu sinf xatosi topilgan.
 - Fayl yuklashda: noto'g'ri `mime`, hajm oshib ketishi, begona mahalla shartnomasini yuklab olishga urinish.
 
-## 8. Ochiq savollar
+## 8. Ma'lumot manbalari
 
-1. **Shartnoma summasi** kerakmi? Diagrammada ko'rsatilmagan. Kerak bo'lsa — valyuta va sana bilan (so'm qadrsizlanadi, tarixiy taqqoslash uchun).
-2. **Mikroloyiha byudjeti** qayerdan: mahalla, tuman, viloyat? Manba ustuni kerak bo'lishi mumkin.
-3. **Shartnoma holati** qanday qiymatlarni oladi (imzolangan / bajarilmoqda / yakunlangan / bekor qilingan)?
-4. Qolgan 36 mahalla uchun aholi va xonadon soni — hozircha faqat 16 og'ir mahallada bor.
+`База 15.07.2026.xlsx` asosiy manba bo'lib qoldi. U beradigan narsa:
+
+| Ko'rsatkich | Qamrov | Izoh |
+|---|---|---|
+| Жами оилалар сони | 509 mahalla | butun viloyat |
+| Ижтимоий реестр (3 toifa) | 509 mahalla | ikki sanada — dinamika |
+| Аҳоли сони | **yo'q** | faylda bunday ustun mavjud emas |
+
+Xonadon soni kadastrdan (`master.buildings`), oila soni Bazadan — foydalanuvchi
+belgilagan tartib shu.
+
+**Shaxsiy ma'lumot ogohlantirishi:** faylning `оила` va `оила таркиб`
+varaqlarida 148 771 kishining PINFL, pasport raqami, telefoni va tug'ilgan
+sanasi bor. Bu fayl `.gitignore` da va **hech qachon repoga tushmasligi
+kerak** — `github.com/umdsoft/xbt-backend` ochiq.
+
+Agar shu shaxsiy ma'lumot bilan ishlash kerak bo'lsa (masalan, xonadonni
+oilaga bog'lash), u alohida dizayn talab qiladi: shifrlangan saqlash,
+murojaat jurnali, faqat zarur maydonlar. Hozirgi qamrovga kirmaydi.
+
+## 9. Ochiq savollar
+
+1. **Аҳоли сони** qayerdan olinadi? Bazada bunday ustun yo'q — hozir faqat
+   16 og'ir mahallada bor (alohida hujjatdan). Qolgan 493 mahalla bo'sh.
+2. **Mikroloyiha byudjeti** qayerdan: mahalla, tuman, viloyat?
+3. **Shartnoma holati** qanday qiymatlarni oladi (imzolangan / bajarilmoqda /
+   yakunlangan / bekor qilingan)?
+4. Nomi mos kelmagan **27 mahalla** (viloyat bo'yicha) — alias talab qiladi.
+   Shovot to'liq (52/52), qolgan tumanlar 94.7%.

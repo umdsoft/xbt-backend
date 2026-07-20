@@ -21,6 +21,9 @@ class MahallaMatcher
     /** @var array<string, string>  bo'shliqsiz normalized => mahalla_id */
     private array $compact = [];
 
+    /** @var array<string, string|false>  unli yig'ilgan kalit => mahalla_id (false = ikkitalik) */
+    private array $folded = [];
+
     private ?string $districtId = null;
 
     /**
@@ -42,6 +45,35 @@ class MahallaMatcher
         return trim((string) preg_replace('/\s+/u', ' ', $s));
     }
 
+    /**
+     * Unli tebranishini yig'adi, undosh skeletni saqlaydi.
+     *
+     * O'zbek kirill imlosida bir xil nom turli manbada boshqacha unli bilan
+     * yoziladi: РАВОТ/РОВОТ, МАЙЛИ/МОЙЛИ, АШХОБОД/АШХАБОД, САХТИЯН/САХТИЁН,
+     * МЕРОБЛАР/МИРОБЛАР. Undoshlar esa deyarli o'zgarmaydi.
+     *
+     * Shuning uchun unlilar uch guruhga yig'iladi (а-о, е-и-й-ё-я-э, у-ў-ю) va
+     * ketma-ket unlilar bittaga qisqartiriladi (ОХУНБОБОЕВ / ОХУНБОБОЙЕВ).
+     *
+     * DIQQAT: bu ATAYLAB qo'pol. У АНЖИРЧИ va ТАНДИРЧИ ni birlashtirmaydi —
+     * undosh skeleti boshqa. Lekin ikki mahalla tasodifan bir kalitga tushishi
+     * mumkin, shuning uchun `load()` da faqat YAGONA kalitlar saqlanadi.
+     */
+    public static function fold(string $name): string
+    {
+        $s = self::normalize($name);
+        $s = (string) preg_replace('/\b(шахарчаси|шаҳарчаси|шфй|кфй|қфй)\b/u', ' ', $s);
+        $s = strtr($s, [
+            'о' => 'а',
+            'и' => 'е', 'й' => 'е', 'ё' => 'е', 'я' => 'е', 'э' => 'е', 'ы' => 'е',
+            'ў' => 'у', 'ю' => 'у',
+        ]);
+        $s = str_replace(' ', '', $s);
+
+        // Ketma-ket unlilarni bittaga tushirish: "баеев" -> "бав".
+        return (string) preg_replace('/[аеу]+/u', '$0', preg_replace('/([аеу])[аеу]+/u', '$1', $s));
+    }
+
     /** Tuman doirasida qidiradi (bir xil nom turli tumanlarda uchraydi). */
     public function forDistrict(string $districtId): static
     {
@@ -49,6 +81,7 @@ class MahallaMatcher
             $this->districtId = $districtId;
             $this->index = null;
             $this->compact = [];
+            $this->folded = [];
         }
 
         return $this;
@@ -66,9 +99,17 @@ class MahallaMatcher
         $this->load();
         $n = self::normalize($name);
 
-        return $this->index[$n]
-            ?? $this->compact[str_replace(' ', '', $n)]
-            ?? null;
+        $hit = $this->index[$n] ?? $this->compact[str_replace(' ', '', $n)] ?? null;
+        if ($hit !== null) {
+            return $hit;
+        }
+
+        // Oxirgi chora: unli yig'ilgan kalit. `false` — shu kalitga tumanda
+        // bir nechta mahalla tushgan, ya'ni qaysi biri ekani noaniq. Bunday
+        // holatda taxmin qilishdan ko'ra topilmadi deyish to'g'ri.
+        $f = $this->folded[self::fold($name)] ?? null;
+
+        return $f === false ? null : $f;
     }
 
     private function load(): void
@@ -90,6 +131,7 @@ class MahallaMatcher
                     $key = self::normalize((string) $n);
                     $this->index[$key] = $m->id;
                     $this->compact[str_replace(' ', '', $key)] = $m->id;
+                    $this->addFolded(self::fold((string) $n), $m->id);
                 }
             }
         }
@@ -104,6 +146,24 @@ class MahallaMatcher
         foreach ($aliases as $a) {
             $this->index[$a->normalized] ??= $a->mahalla_id;
             $this->compact[str_replace(' ', '', $a->normalized)] ??= $a->mahalla_id;
+            $this->addFolded(self::fold($a->normalized), $a->mahalla_id);
+        }
+    }
+
+    /**
+     * Yig'ilgan kalitni qo'shadi; ikkinchi mahalla tushsa kalitni yaroqsiz
+     * qiladi (`false`) — noaniq kalit bo'yicha taxmin qilinmaydi.
+     */
+    private function addFolded(string $key, string $mahallaId): void
+    {
+        if ($key === '') {
+            return;
+        }
+
+        if (! array_key_exists($key, $this->folded)) {
+            $this->folded[$key] = $mahallaId;
+        } elseif ($this->folded[$key] !== $mahallaId) {
+            $this->folded[$key] = false;
         }
     }
 }
