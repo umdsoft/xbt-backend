@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Services;
 
+use App\Domains\Mahalla\Support\ExecutiveCache;
 use App\Domains\Mahalla\Support\MahallaZones;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -237,6 +238,15 @@ final class ExecutiveStats
      */
     public function socialObjects(string $districtId, ?string $mahallaId = null): array
     {
+        return ExecutiveCache::remember(
+            "social-objects:{$districtId}:".($mahallaId ?? 'all'),
+            fn () => $this->buildSocialObjects($districtId, $mahallaId),
+        );
+    }
+
+    /** @return array{total: int, types: array<int, mixed>, objects: array<int, mixed>} */
+    private function buildSocialObjects(string $districtId, ?string $mahallaId): array
+    {
         $base = fn () => DB::connection('master')->table('buildings as b')
             ->join('object_types as t', 't.id', '=', 'b.object_type_id')
             ->where('b.district_id', $districtId)
@@ -411,6 +421,15 @@ final class ExecutiveStats
      */
     private function indicatorsByMahalla(string $districtId): array
     {
+        return ExecutiveCache::remember(
+            "indicators:{$districtId}",
+            fn () => $this->buildIndicators($districtId),
+        );
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function buildIndicators(string $districtId): array
+    {
         $cols = [];
         foreach ([...self::INT_INDICATORS, ...self::DEC_INDICATORS] as $c) {
             $cols[] = "(array_agg(i.{$c} order by i.period desc) filter (where i.{$c} is not null))[1] as {$c}";
@@ -453,6 +472,15 @@ final class ExecutiveStats
      * @return array<string, int>
      */
     private function householdsByMahalla(string $districtId): array
+    {
+        return ExecutiveCache::remember(
+            "households:{$districtId}",
+            fn () => $this->buildHouseholds($districtId),
+        );
+    }
+
+    /** @return array<string, int> */
+    private function buildHouseholds(string $districtId): array
     {
         $rows = DB::connection('master')->table('buildings')
             ->where('district_id', $districtId)

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Cache;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -57,6 +58,16 @@ abstract class TestCase extends BaseTestCase
         }
 
         parent::setUp();
+
+        // Kesh har test uchun tozalanadi.
+        //
+        // Testlarda `array` drayveri ishlatiladi — u jarayon xotirasida
+        // yashaydi va BITTA yugurishdagi barcha testlar orasida saqlanadi.
+        // Ya'ni A testi keshlagan qiymatni B testi ko'radi. Hozircha
+        // keshlanadigan ma'lumotni (kadastr binolari, ko'rsatkichlar) hech
+        // bir test o'zgartirmaydi, lekin ertaga shunday test yozilsa
+        // sabab topib bo'lmaydigan beqarorlik paydo bo'lardi.
+        Cache::flush();
     }
 
     /**

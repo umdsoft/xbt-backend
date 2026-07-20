@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
 use App\Domains\Mahalla\Models\Master\District;
+use App\Domains\Mahalla\Support\ExecutiveCache;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -32,8 +33,22 @@ class DistrictGeoJsonController extends Controller
     {
         $model = District::on('master')->findOrFail($district);
 
+        // Chegaralar deyarli o'zgarmaydi, lekin har so'rovda PostGIS
+        // soddalashtirish qayta ishlaydi va 46 KB JSON qayta yig'iladi.
+        // Kesh ikkalasini ham olib tashlaydi.
+        $payload = ExecutiveCache::remember(
+            "geojson:{$model->id}",
+            fn () => $this->build((string) $model->id),
+        );
+
+        return response()->json($payload);
+    }
+
+    /** @return array{type: string, features: array<int, array<string, mixed>>} */
+    private function build(string $districtId): array
+    {
         $rows = DB::connection('master')->table('mahallas')
-            ->where('district_id', $model->id)
+            ->where('district_id', $districtId)
             // Jadval bilan bir xil filtr — aks holda xaritada jadvalda
             // yo'q poligon paydo bo'lib, raqamlarsiz kulrang turib qolardi.
             ->where('is_active', true)
@@ -52,6 +67,6 @@ class DistrictGeoJsonController extends Controller
             ];
         }
 
-        return response()->json(['type' => 'FeatureCollection', 'features' => $features]);
+        return ['type' => 'FeatureCollection', 'features' => $features];
     }
 }
