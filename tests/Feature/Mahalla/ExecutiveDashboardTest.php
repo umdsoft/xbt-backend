@@ -188,6 +188,57 @@ class ExecutiveDashboardTest extends TestCase
         $this->assertGreaterThan($operational, $stats['totals']['households']);
     }
 
+    /**
+     * Kadastr maxraji va rasmiy xonadon soni ATAYLAB ikki xil qiymat.
+     *
+     * Kadastr jismoniy binoni sanaydi (bir hovlida bir nechta bo'ladi), reestr
+     * esa ma'muriy xo'jalikni. Kimdir "raqamlar mos kelmayapti" deb ularni
+     * tenglashtirib qo'ymasligi uchun farq test bilan mahkamlanadi.
+     */
+    public function test_cadastre_and_registry_household_counts_stay_separate(): void
+    {
+        $districtId = $this->districtId();
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
+
+        $withIndicators = array_values(array_filter(
+            $stats['rows'],
+            fn ($r) => $r['indicators'] !== null && $r['indicators']['households'] !== null,
+        ));
+
+        if ($withIndicators === []) {
+            $this->markTestSkipped('Bu tumanda rasmiy xonadon ko\'rsatkichi hali yuklanmagan');
+        }
+
+        foreach ($withIndicators as $row) {
+            $this->assertIsInt($row['households'], 'kadastr maxraji');
+            $this->assertIsInt($row['indicators']['households'], 'rasmiy xonadon soni');
+        }
+
+        $cadastre = array_sum(array_column($withIndicators, 'households'));
+        $registry = array_sum(array_column(array_column($withIndicators, 'indicators'), 'households'));
+
+        $this->assertNotSame($cadastre, $registry,
+            'Ikki manba tenglashib qolgan — biri ikkinchisidan hisoblanayotgan bo\'lishi mumkin');
+    }
+
+    public function test_indicators_are_null_when_mahalla_has_no_data(): void
+    {
+        $districtId = $this->districtId();
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
+
+        // `null` — kutilgan holat: ko'rsatkich har mahallaga yuklanmagan
+        // bo'lishi mumkin. Kalit HAR DOIM bo'lishi kerak, aks holda frontend
+        // undefined bilan ishlaydi.
+        foreach ($stats['rows'] as $row) {
+            $this->assertArrayHasKey('indicators', $row);
+            if ($row['indicators'] !== null) {
+                $this->assertArrayHasKey('poverty_rate', $row['indicators']);
+                $this->assertArrayHasKey('is_ogir', $row['indicators']);
+                $this->assertIsBool($row['indicators']['is_ogir']);
+            }
+        }
+    }
+
     public function test_same_house_changing_twice_counts_once(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();

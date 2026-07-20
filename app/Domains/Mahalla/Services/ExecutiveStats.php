@@ -60,6 +60,7 @@ final class ExecutiveStats
         $households = $this->householdsByMahalla($districtId);
         $changes = $this->changesByMahallaZone($districtId, $period);
         $changed = $this->changedByMahalla($districtId, $period);
+        $indicators = $this->indicatorsByMahalla($districtId);
 
         // Nofaol mahalla jadvalda ham, ЖАМИ hisobida ham ko'rinmaydi —
         // aks holda tugatilgan/qayta tashkil etilgan mahalla rahbarni
@@ -95,6 +96,10 @@ final class ExecutiveStats
                 // xonadon soni. `zones` yig'indisidan farqli: bitta uy to'rtta
                 // zonada o'zgarsa ham bu yerda 1 (jadvaldagi cell'lar 1 dan bo'ladi).
                 'changed' => $changed[$m->id] ?? ['week' => 0, 'today' => 0],
+                // Rasmiy ko'rsatkichlar (aholi, oila, kambag'allik). Yuqoridagi
+                // `households` bilan ATAYLAB aralashtirilmaydi: u kadastr binosi,
+                // bu ma'muriy xo'jalik — turli narsani sanaydi.
+                'indicators' => $indicators[$m->id] ?? null,
             ];
         }
 
@@ -181,6 +186,56 @@ final class ExecutiveStats
         }
 
         return ['households' => $households, 'rows' => $rows];
+    }
+
+    /**
+     * Mahalla bo'yicha rasmiy ko'rsatkichlar — eng oxirgi mavjud davr.
+     *
+     * Har mahalla uchun bir necha davr saqlanishi mumkin (choraklik yangilanish).
+     * `DISTINCT ON` PostgreSQL'da har guruhdan birinchi qatorni oladi —
+     * `ORDER BY` bilan birga ishlatilganda "eng oxirgisi" degani.
+     *
+     * Barcha mahallada ma'lumot bo'lishi shart emas: hozircha aholi va xonadon
+     * faqat 16 og'ir mahallada bor, oila va kambag'allik esa hammasida.
+     * Shuning uchun `null` — kutilgan holat, xato emas.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function indicatorsByMahalla(string $districtId): array
+    {
+        $rows = DB::connection('master')
+            ->table('mahalla_indicators as i')
+            ->join('mahallas as m', 'm.id', '=', 'i.mahalla_id')
+            ->where('m.district_id', $districtId)
+            ->orderBy('i.mahalla_id')
+            ->orderByDesc('i.period')
+            ->select(DB::connection('master')->raw(
+                'distinct on (i.mahalla_id) i.mahalla_id, i.period, i.population,
+                 i.households, i.families, i.social_registry_families,
+                 i.social_registry_rate, i.poor_families, i.poverty_rate,
+                 i.is_ogir, i.is_yangi_uzbekiston'
+            ))
+            ->get();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[$r->mahalla_id] = [
+                'period' => $r->period,
+                'population' => $r->population === null ? null : (int) $r->population,
+                'households' => $r->households === null ? null : (int) $r->households,
+                'families' => $r->families === null ? null : (int) $r->families,
+                'social_registry_families' => $r->social_registry_families === null
+                    ? null : (int) $r->social_registry_families,
+                'social_registry_rate' => $r->social_registry_rate === null
+                    ? null : (float) $r->social_registry_rate,
+                'poor_families' => $r->poor_families === null ? null : (int) $r->poor_families,
+                'poverty_rate' => $r->poverty_rate === null ? null : (float) $r->poverty_rate,
+                'is_ogir' => (bool) $r->is_ogir,
+                'is_yangi_uzbekiston' => (bool) $r->is_yangi_uzbekiston,
+            ];
+        }
+
+        return $out;
     }
 
     /**
