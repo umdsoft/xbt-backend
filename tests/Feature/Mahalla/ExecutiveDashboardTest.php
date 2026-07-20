@@ -372,6 +372,49 @@ class ExecutiveDashboardTest extends TestCase
     }
 
     /**
+     * Rahbariyat paneli aynan shu kalitlarga tayanadi.
+     *
+     * Kontroller `$data['rows']` va `$data['summary']` ni butunligicha uzatadi,
+     * ya'ni servisdagi o'zgarish HTTP javobiga to'g'ridan-to'g'ri chiqadi.
+     * Kelishuv shu darajada mahkamlanadi: kalit nomi o'zgarsa yoki tushib
+     * qolsa, panelda jimgina "—" paydo bo'ladi va buni hech kim sezmasligi
+     * mumkin — sahifa baribir ochilaveradi.
+     */
+    public function test_executive_response_carries_dashboard_fields(): void
+    {
+        $user = $this->makeUser('viloyat');
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts/'.$this->districtId())
+            ->assertOk()
+            ->assertJsonStructure([
+                'summary' => [
+                    'population', 'households', 'families', 'poor_families', 'poverty_rate',
+                    'social_objects', 'contracts', 'projects_done',
+                    'ogir_mahallas', 'yangi_uzbekiston_mahallas',
+                ],
+                'rows' => [[
+                    'mahalla' => ['id', 'name'],
+                    'households', 'social_objects', 'contracts', 'projects_done',
+                ]],
+            ])
+            ->json();
+
+        // Kartochkadagi kambag'allik darajasi mahallalar o'rtachasi EMAS,
+        // jami kambag'al / jami oila bo'lishi kerak: o'rtacha olish 300 oilali
+        // mahalladagi 10% ni 1 500 oilalidagi 1% bilan teng ko'rsatardi.
+        $s = $body['summary'];
+        if (($s['families'] ?? 0) > 0 && $s['poor_families'] !== null) {
+            $this->assertEqualsWithDelta(
+                round($s['poor_families'] / $s['families'] * 100, 2),
+                $s['poverty_rate'],
+                0.01,
+                'Kambag\'allik darajasi yig\'indidan hisoblanishi kerak',
+            );
+        }
+    }
+
+    /**
      * BO'SHLIQ (3-vazifa ko'rigi): `MahallaDashboardController` javobiga
      * `dynamics`, `zone_status`, `recent_changes` qo'shilgan edi, lekin ularni
      * HTTP darajasida tekshiruvchi test yo'q edi — mavjud mahalla testlari

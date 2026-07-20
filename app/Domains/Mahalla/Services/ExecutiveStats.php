@@ -61,6 +61,9 @@ final class ExecutiveStats
         $changes = $this->changesByMahallaZone($districtId, $period);
         $changed = $this->changedByMahalla($districtId, $period);
         $indicators = $this->indicatorsByMahalla($districtId);
+        $social = $this->socialObjectsByMahalla($districtId);
+        $contracts = $this->countByMahalla('social_contracts', $districtId);
+        $projects = $this->countByMahalla('micro_projects', $districtId, ['status' => 'done']);
 
         // Nofaol mahalla jadvalda ham, ЖАМИ hisobida ham ko'rinmaydi —
         // aks holda tugatilgan/qayta tashkil etilgan mahalla rahbarni
@@ -100,6 +103,9 @@ final class ExecutiveStats
                 // `households` bilan ATAYLAB aralashtirilmaydi: u kadastr binosi,
                 // bu ma'muriy xo'jalik — turli narsani sanaydi.
                 'indicators' => $indicators[$m->id] ?? null,
+                'social_objects' => $social[$m->id] ?? 0,
+                'contracts' => $contracts[$m->id] ?? 0,
+                'projects_done' => $projects[$m->id] ?? 0,
             ];
         }
 
@@ -107,7 +113,7 @@ final class ExecutiveStats
             'rows' => $rows,
             'totals' => ['households' => $totalHouseholds, 'zones' => $totals],
             'unassigned_households' => $this->unassignedHouseholds($districtId),
-            'summary' => $this->summary($districtId, $period, count($mahallas)),
+            'summary' => $this->summary($districtId, $period, count($mahallas)) + $this->overview($rows),
             'ranking' => $this->ranking($rows),
         ];
     }
@@ -186,6 +192,95 @@ final class ExecutiveStats
         }
 
         return ['households' => $households, 'rows' => $rows];
+    }
+
+    /**
+     * Rahbariyat kartochkalari uchun tuman yig'indisi.
+     *
+     * Kambag'allik darajasi qatorlar bo'yicha O'RTACHA OLINMAYDI — u
+     * mahallalarning kattaligini hisobga olmaydi va 300 oilali mahalladagi
+     * 10% bilan 1 500 oilalidagi 1% ni teng ko'rsatadi. To'g'ri hisob:
+     * jami kambag'al / jami oila.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, mixed>
+     */
+    private function overview(array $rows): array
+    {
+        $sum = function (string $key, ?string $inner = null) use ($rows): ?int {
+            $total = 0;
+            $seen = false;
+            foreach ($rows as $r) {
+                $v = $inner === null ? ($r[$key] ?? null) : ($r[$key][$inner] ?? null);
+                if ($v !== null) {
+                    $total += (int) $v;
+                    $seen = true;
+                }
+            }
+
+            return $seen ? $total : null;
+        };
+
+        $families = $sum('indicators', 'families');
+        $poor = $sum('indicators', 'poor_families');
+
+        return [
+            'population' => $sum('indicators', 'population'),
+            'households' => $sum('households'),
+            'families' => $families,
+            'poor_families' => $poor,
+            'poverty_rate' => ($families !== null && $families > 0 && $poor !== null)
+                ? round($poor / $families * 100, 2)
+                : null,
+            'social_objects' => $sum('social_objects'),
+            'contracts' => $sum('contracts'),
+            'projects_done' => $sum('projects_done'),
+            'ogir_mahallas' => count(array_filter($rows, fn ($r) => $r['indicators']['is_ogir'] ?? false)),
+            'yangi_uzbekiston_mahallas' => count(array_filter(
+                $rows, fn ($r) => $r['indicators']['is_yangi_uzbekiston'] ?? false
+            )),
+        ];
+    }
+
+    /**
+     * Mahalla bo'yicha ijtimoiy obyektlar soni (maktab, bog'cha, QVP...).
+     *
+     * Qaysi tur ijtimoiy sanalishi `object_types.is_social` da — kodda emas,
+     * shuning uchun yangi tur qo'shilsa bu yer o'zgarmaydi.
+     *
+     * @return array<string, int>
+     */
+    private function socialObjectsByMahalla(string $districtId): array
+    {
+        return DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.district_id', $districtId)
+            ->where('t.is_social', true)
+            ->whereNotNull('b.mahalla_id')
+            ->groupBy('b.mahalla_id')
+            ->selectRaw('b.mahalla_id, count(*) as n')
+            ->pluck('n', 'mahalla_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * Mahalla kesimida qator soni (shartnoma, mikroloyiha).
+     *
+     * @param  array<string, string>  $where
+     * @return array<string, int>
+     */
+    private function countByMahalla(string $table, string $districtId, array $where = []): array
+    {
+        return DB::connection('mahalla')->table($table)
+            ->where('district_id', $districtId)
+            ->whereNull('deleted_at')
+            ->where($where)
+            ->groupBy('mahalla_id')
+            ->selectRaw('mahalla_id, count(*) as n')
+            ->pluck('n', 'mahalla_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
     }
 
     /** Butun son sifatida o'qiladigan ko'rsatkichlar. */
