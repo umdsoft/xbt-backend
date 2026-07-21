@@ -7,6 +7,7 @@ use App\Domains\Hr\Http\Controllers\Api\CatalogController;
 use App\Domains\Hr\Http\Controllers\Api\CitizenAppealController;
 use App\Domains\Hr\Http\Controllers\Api\ControlPlanController;
 use App\Domains\Hr\Http\Controllers\Api\DashboardController;
+use App\Domains\Hr\Http\Controllers\Api\MeController;
 use App\Domains\Hr\Http\Controllers\Api\EmployeeController;
 use App\Domains\Hr\Http\Controllers\Api\ExportController;
 use App\Domains\Hr\Http\Controllers\Api\HokimYordamchisiController;
@@ -33,6 +34,7 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
     ->group(function () {
         // Dashboard (rol/tenantga qarab turli rejim)
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/me', MeController::class)->name('me');
 
         // Super-admin / viloyat-admin uchun tenant tanlovi
         Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
