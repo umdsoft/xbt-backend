@@ -7,8 +7,8 @@ namespace App\Domains\Mahalla\Http\Controllers\Api\Hokim;
 use App\Domains\Mahalla\Services\ExecutiveStats;
 use App\Domains\Mahalla\Services\MicroProjectService;
 use App\Domains\Mahalla\Services\RaisCadastre;
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Support\MahallaAccess;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,14 +21,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Qamrov (`mahallaId`) foydalanuvchi profilidan. So'rovdan mahalla qabul
  * qilinmaydi. Har amal (list/show/update/file) mahallani o'zi tekshiradi.
  */
-class ProjectController extends Controller
+class ProjectController extends MahallaPanelController
 {
     public function __construct(
-        private readonly MahallaAccess $access,
+        MahallaAccess $access,
         private readonly MicroProjectService $projects,
         private readonly RaisCadastre $cadastre,
         private readonly ExecutiveStats $stats,
-    ) {}
+    ) {
+        parent::__construct($access);
+    }
 
     /** Mahalla konteksti: ko'rsatkichlar, xarita, loyiha holatlari. */
     public function overview(Request $request): JsonResponse
@@ -226,15 +228,4 @@ class ProjectController extends Controller
         ]);
     }
 
-    private function mahallaId(Request $request): ?string
-    {
-        return $this->access->scopeFor($request->user())->mahallaId;
-    }
-
-    private function noMahalla(): JsonResponse
-    {
-        return response()->json([
-            'message' => 'Профилингизда маҳалла кўрсатилмаган. Администраторга мурожаат қилинг.',
-        ], 409);
-    }
 }

@@ -35,6 +35,13 @@ class ExecutiveCache
     private const TTL_SECONDS = 86400;
 
     /**
+     * Versiya raqami request davomida bir marta o'qiladi (memoizatsiya).
+     * `database` kesh drayverida har `remember()` ilgari 2× cache so'rov qilardi
+     * (versiya + qiymat); endi versiya so'rovi bir marta. `flush()` uni yangilaydi.
+     */
+    private static ?int $versionMemo = null;
+
+    /**
      * @template T
      *
      * @param  Closure(): T  $fn
@@ -53,7 +60,9 @@ class ExecutiveCache
      */
     public static function flush(): void
     {
-        Cache::forever(self::VERSION_KEY, self::version() + 1);
+        $next = self::version() + 1;
+        Cache::forever(self::VERSION_KEY, $next);
+        self::$versionMemo = $next; // memoni ham yangilaymiz (shu request'da eskirmasin)
     }
 
     private static function key(string $key): string
@@ -63,6 +72,6 @@ class ExecutiveCache
 
     private static function version(): int
     {
-        return (int) Cache::rememberForever(self::VERSION_KEY, fn () => 1);
+        return self::$versionMemo ??= (int) Cache::rememberForever(self::VERSION_KEY, fn () => 1);
     }
 }

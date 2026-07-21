@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Http\Controllers\Api\Rais;
 
 use App\Domains\Mahalla\Services\ContractService;
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Support\MahallaAccess;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,12 +20,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * qabul qilinmaydi — parametr bo'lsa boshqa mahallaga shartnoma yuklash
  * mumkin bo'lardi.
  */
-class ContractController extends Controller
+class ContractController extends MahallaPanelController
 {
     public function __construct(
-        private readonly MahallaAccess $access,
+        MahallaAccess $access,
         private readonly ContractService $contracts,
-    ) {}
+    ) {
+        parent::__construct($access);
+    }
 
     /** Xonadonlar ro'yxati — har biriga shartnoma soni bilan. */
     public function households(Request $request): JsonResponse
@@ -128,15 +130,4 @@ class ContractController extends Controller
         return Storage::disk($meta['disk'])->download($meta['path'], $meta['name']);
     }
 
-    private function mahallaId(Request $request): ?string
-    {
-        return $this->access->scopeFor($request->user())->mahallaId;
-    }
-
-    private function noMahalla(): JsonResponse
-    {
-        return response()->json([
-            'message' => 'Профилингизда маҳалла кўрсатилмаган. Администраторга мурожаат қилинг.',
-        ], 409);
-    }
 }

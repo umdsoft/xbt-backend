@@ -6,8 +6,8 @@ namespace App\Domains\Mahalla\Http\Controllers\Api\Rais;
 
 use App\Domains\Mahalla\Services\ExecutiveStats;
 use App\Domains\Mahalla\Services\RaisCadastre;
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Support\MahallaAccess;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,13 +19,15 @@ use Illuminate\Support\Facades\DB;
  * `mahallaId`. So'rovdan mahalla qabul qilinmaydi — aks holda rais
  * parametrni almashtirib boshqa mahallani ochib olardi.
  */
-class CadastreController extends Controller
+class CadastreController extends MahallaPanelController
 {
     public function __construct(
-        private readonly MahallaAccess $access,
+        MahallaAccess $access,
         private readonly RaisCadastre $cadastre,
         private readonly ExecutiveStats $stats,
-    ) {}
+    ) {
+        parent::__construct($access);
+    }
 
     /** Mahalla haqida umumiy ma'lumot: ko'rsatkichlar, obyektlar, tuzatishlar. */
     public function overview(Request $request): JsonResponse
@@ -130,15 +132,4 @@ class CadastreController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function mahallaId(Request $request): ?string
-    {
-        return $this->access->scopeFor($request->user())->mahallaId;
-    }
-
-    private function noMahalla(): JsonResponse
-    {
-        return response()->json([
-            'message' => 'Профилингизда маҳалла кўрсатилмаган. Администраторга мурожаат қилинг.',
-        ], 409);
-    }
 }
