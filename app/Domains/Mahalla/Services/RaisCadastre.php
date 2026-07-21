@@ -22,6 +22,10 @@ use Illuminate\Support\Str;
  */
 class RaisCadastre
 {
+    public function __construct(private readonly StreetAggregates $aggregates)
+    {
+    }
+
     /**
      * Mahalladagi binolar — turi bo'yicha yoki matn bo'yicha qidirish.
      *
@@ -162,15 +166,11 @@ class RaisCadastre
      */
     public function streetsBreakdown(string $mahallaId): array
     {
-        $streets = DB::connection('master')->table('streets')
-            ->where('mahalla_id', $mahallaId)
-            ->where('is_active', true)
-            ->orderBy('sort_order')->orderBy('name')
-            ->get(['id', 'name']);
+        $streets = $this->aggregates->activeStreets($mahallaId);
 
         $streetIds = $streets->pluck('id')->all();
 
-        $households = $this->countByStreet($streetIds, 'residential', null);
+        $households = $this->aggregates->residentialByStreet($streetIds);
         $social = $this->socialByStreet($streetIds);
         $changed = $this->changedByStreet($streetIds);
         $contracts = $this->contractsByStreet($mahallaId);
@@ -204,26 +204,6 @@ class RaisCadastre
         }
 
         return ['rows' => $rows, 'totals' => $totals];
-    }
-
-    /**
-     * @param  array<int, string>  $streetIds
-     * @return array<string, int>
-     */
-    private function countByStreet(array $streetIds, string $type, ?bool $social): array
-    {
-        if ($streetIds === []) {
-            return [];
-        }
-
-        return DB::connection('master')->table('buildings')
-            ->whereIn('street_id', $streetIds)
-            ->where('type', $type)
-            ->groupBy('street_id')
-            ->selectRaw('street_id, count(*) as n')
-            ->pluck('n', 'street_id')
-            ->map(fn ($n) => (int) $n)
-            ->all();
     }
 
     /**

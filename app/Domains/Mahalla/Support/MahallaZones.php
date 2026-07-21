@@ -62,6 +62,17 @@ final class MahallaZones
         return array_keys(self::STATUSES);
     }
 
+    /**
+     * "Bajarilgan" deb hisoblanadigan zona holatlari (obodonlashtirish jamlanmasi
+     * uchun yagona manba). `good` = dastlab yaxshi (ish shart emas — bajarilgan kabi).
+     *
+     * @return array<int, string>
+     */
+    public static function doneStatusCodes(): array
+    {
+        return ['completed', 'good'];
+    }
+
     public static function isZone(string $code): bool
     {
         return array_key_exists($code, self::ZONES);

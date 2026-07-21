@@ -21,8 +21,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ObodStats
 {
-    /** "Bajarilgan" deb hisoblanadigan zona holatlari. */
-    private const DONE_STATUSES = ['completed', 'good'];
+    public function __construct(private readonly StreetAggregates $aggregates)
+    {
+    }
 
     /**
      * @return array<string, mixed>
@@ -33,14 +34,10 @@ class ObodStats
         $zoneCodes = array_column($zones, 'code');
         $zoneCount = count($zones);
 
-        $streets = DB::connection('master')->table('streets')
-            ->where('mahalla_id', $mahallaId)
-            ->where('is_active', true)
-            ->orderBy('sort_order')->orderBy('name')
-            ->get(['id', 'name']);
+        $streets = $this->aggregates->activeStreets($mahallaId);
         $streetIds = $streets->pluck('id')->all();
 
-        $households = $this->householdsByStreet($streetIds);
+        $households = $this->aggregates->residentialByStreet($streetIds);
         $done = $this->doneByStreetZone($streetIds, $zoneCodes);   // [street_id][zone] = n
         $respByStreet = $this->responsibleByStreet($streetIds);    // street_id => object|null
 
@@ -142,26 +139,6 @@ class ObodStats
     }
 
     /**
-     * @param  array<int, string>  $streetIds
-     * @return array<string, int>
-     */
-    private function householdsByStreet(array $streetIds): array
-    {
-        if ($streetIds === []) {
-            return [];
-        }
-
-        return DB::connection('master')->table('buildings')
-            ->whereIn('street_id', $streetIds)
-            ->where('type', 'residential')
-            ->groupBy('street_id')
-            ->selectRaw('street_id, count(*) as n')
-            ->pluck('n', 'street_id')
-            ->map(fn ($n) => (int) $n)
-            ->all();
-    }
-
-    /**
      * Ko'cha × zona bo'yicha "bajarilgan" (completed/good) xonadonlar soni.
      *
      * @param  array<int, string>  $streetIds
@@ -177,7 +154,7 @@ class ObodStats
         $rows = DB::connection('mahalla')->table('house_zone_states as z')
             ->join('houses as h', 'h.id', '=', 'z.house_id')
             ->whereIn('h.street_id', $streetIds)
-            ->whereIn('z.status', self::DONE_STATUSES)
+            ->whereIn('z.status', MahallaZones::doneStatusCodes())
             ->whereIn('z.zone', $zoneCodes)
             ->whereNull('h.deleted_at')
             ->groupBy('h.street_id', 'z.zone')
