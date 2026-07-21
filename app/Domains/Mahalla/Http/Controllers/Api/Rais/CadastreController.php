@@ -87,6 +87,7 @@ class CadastreController extends Controller
             'q' => ['nullable', 'string', 'max:120'],
             'type' => ['nullable', 'string', 'max:40'],
             'unclassified' => ['nullable', 'boolean'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         return response()->json($this->cadastre->buildings(
@@ -94,6 +95,7 @@ class CadastreController extends Controller
             $validated['q'] ?? null,
             $validated['type'] ?? null,
             (bool) ($validated['unclassified'] ?? false),
+            (int) ($validated['page'] ?? 1),
         ));
     }
 

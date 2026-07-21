@@ -13,6 +13,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardControll
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
 use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
+use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
@@ -71,6 +72,30 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                     ->name('contracts.destroy')->whereUuid('contract');
                 Route::get('/contracts/file/{file}', [ContractController::class, 'download'])
                     ->name('contracts.download')->whereUuid('file');
+            });
+
+        /*
+         * ҲОКИМ ЁРДАМЧИСИ — ўз маҳалласида микролойиҳаларни юритади.
+         */
+        Route::prefix('hokim')
+            ->name('hokim.')
+            ->middleware('mahalla.hokim')
+            ->group(function () {
+                Route::get('/overview', [ProjectController::class, 'overview'])->name('overview');
+                Route::get('/projects', [ProjectController::class, 'index'])->name('projects');
+                Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+                Route::get('/projects/{project}', [ProjectController::class, 'show'])
+                    ->name('projects.show')->whereUuid('project');
+                Route::patch('/projects/{project}', [ProjectController::class, 'update'])
+                    ->name('projects.update')->whereUuid('project');
+                Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])
+                    ->name('projects.destroy')->whereUuid('project');
+                Route::post('/projects/{project}/updates', [ProjectController::class, 'addUpdate'])
+                    ->name('projects.updates')->whereUuid('project');
+                Route::post('/projects/{project}/files', [ProjectController::class, 'uploadFile'])
+                    ->name('projects.files')->whereUuid('project');
+                Route::get('/projects/file/{file}', [ProjectController::class, 'downloadFile'])
+                    ->name('projects.download')->whereUuid('file');
             });
 
         /*

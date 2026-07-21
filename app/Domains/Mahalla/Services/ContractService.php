@@ -39,14 +39,23 @@ class ContractService
         ?string $streetId = null,
         ?bool $onlyWithout = null,
         ?string $search = null,
-        int $limit = 300,
+        int $page = 1,
+        int $perPage = 40,
     ): array {
         $counts = $this->contractCountByBuilding($mahallaId);
+
+        // "Shartnomasizlar" suzgichi bino bo'yicha, so'rovda emas — shartnoma
+        // boshqa sxemada (mahalla), bino esa master'da, ular bir so'rovda
+        // join qilinmaydi. Shuning uchun filtr shu yerda, keshdagi son bo'yicha.
+        $withoutIds = $onlyWithout === true
+            ? array_keys(array_filter($counts, fn ($n) => $n > 0))
+            : [];
 
         $base = fn () => DB::connection('master')->table('buildings')
             ->where('buildings.mahalla_id', $mahallaId)
             ->where('buildings.type', 'residential')
             ->when($streetId !== null, fn ($q) => $q->where('buildings.street_id', $streetId))
+            ->when($withoutIds !== [], fn ($q) => $q->whereNotIn('buildings.id', $withoutIds))
             ->when($search !== null && $search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(fn ($x) => $x->where('buildings.address', 'ilike', $like)
@@ -54,38 +63,38 @@ class ContractService
             });
 
         $total = (int) $base()->count();
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $lastPage));
 
         $rows = $base()
             ->leftJoin('streets as s', 's.id', '=', 'buildings.street_id')
             ->orderBy('s.name')->orderBy('buildings.address')
-            ->limit($limit)
+            ->forPage($page, $perPage)
             ->get([
                 'buildings.id', 'buildings.kadastr', 'buildings.address',
                 'buildings.house_number', 's.id as street_id', 's.name as street_name',
             ]);
 
-        $items = [];
-        foreach ($rows as $r) {
-            $n = $counts[$r->id] ?? 0;
-            if ($onlyWithout === true && $n > 0) {
-                continue;
-            }
-
-            $items[] = [
-                'id' => $r->id,
-                'kadastr' => $r->kadastr,
-                'address' => $r->address,
-                'house_number' => $r->house_number,
-                'street' => $r->street_id === null ? null
-                    : ['id' => $r->street_id, 'name' => $r->street_name],
-                'contract_count' => $n,
-            ];
-        }
+        $items = $rows->map(fn ($r) => [
+            'id' => $r->id,
+            'kadastr' => $r->kadastr,
+            'address' => $r->address,
+            'house_number' => $r->house_number,
+            'street' => $r->street_id === null ? null
+                : ['id' => $r->street_id, 'name' => $r->street_name],
+            'contract_count' => $counts[$r->id] ?? 0,
+        ])->all();
 
         return [
             'total' => $total,
             'with_contract' => count(array_filter($counts, fn ($n) => $n > 0)),
             'items' => $items,
+            'meta' => [
+                'total' => $total,
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+            ],
         ];
     }
 

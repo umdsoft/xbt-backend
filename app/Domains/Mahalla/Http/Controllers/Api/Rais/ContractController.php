@@ -39,6 +39,7 @@ class ContractController extends Controller
             'street' => ['nullable', 'uuid'],
             'q' => ['nullable', 'string', 'max:120'],
             'without' => ['nullable', 'boolean'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         return response()->json($this->contracts->households(
@@ -46,6 +47,7 @@ class ContractController extends Controller
             $v['street'] ?? null,
             (bool) ($v['without'] ?? false) ?: null,
             $v['q'] ?? null,
+            (int) ($v['page'] ?? 1),
         ));
     }
 

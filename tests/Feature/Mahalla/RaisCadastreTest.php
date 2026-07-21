@@ -24,6 +24,10 @@ class RaisCadastreTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /** Ko'p sxemali: har ulanish alohida qaytarilishi kerak, aks holda
+     *  sinov ma'lumoti umumiy dev bazaga sizib qoladi. */
+    protected array $connectionsToTransact = ['pgsql', 'auth', 'master', 'mahalla'];
+
     public function test_rais_sees_only_own_mahalla_buildings(): void
     {
         [$mine, $other] = $this->twoMahallas();

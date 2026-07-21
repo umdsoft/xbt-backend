@@ -32,7 +32,8 @@ class RaisCadastre
         ?string $search = null,
         ?string $typeCode = null,
         bool $onlyUnclassified = false,
-        int $limit = 200,
+        int $page = 1,
+        int $perPage = 40,
     ): array {
         $base = fn () => DB::connection('master')->table('buildings as b')
             ->leftJoin('object_types as t', 't.id', '=', 'b.object_type_id')
@@ -54,11 +55,13 @@ class RaisCadastre
             });
 
         $total = (int) $base()->count();
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $lastPage));
 
         $items = $base()
             ->orderByRaw('t.sort_order nulls first')
             ->orderBy('b.address')
-            ->limit($limit)
+            ->forPage($page, $perPage)
             ->get([
                 'b.id', 'b.kadastr', 'b.address', 'b.purpose', 'b.lat', 'b.lng',
                 'b.object_type_id', 't.code as type_code', 't.name_cyr as type_name',
@@ -79,7 +82,16 @@ class RaisCadastre
             ])
             ->all();
 
-        return ['total' => $total, 'items' => $items];
+        return [
+            'total' => $total,
+            'items' => $items,
+            'meta' => [
+                'total' => $total,
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+            ],
+        ];
     }
 
     /**

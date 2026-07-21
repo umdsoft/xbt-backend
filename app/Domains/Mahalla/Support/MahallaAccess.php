@@ -43,7 +43,18 @@ class MahallaAccess
          */
         'rais' => [
             'houses.view', 'photos.view', 'photos.upload', 'analyses.view',
-            'dashboard.view', 'buildings.classify',
+            'dashboard.view', 'buildings.classify', 'contracts.manage',
+        ],
+        /*
+         * Ҳоким ёрдамчиси — ўз маҳалласида микролойиҳаларни юритади.
+         *
+         * Rais dan farqi: uning ishi obodonlashtirish loyihalari (yo'l, suv,
+         * ijtimoiy obyekt ta'miri...). U ham butun mahallasini ko'radi, lekin
+         * kadastr tuzatish yoki shartnoma uning ishi emas — har rol o'z
+         * vazifasi bilan cheklanadi.
+         */
+        'hokim-yordamchisi' => [
+            'houses.view', 'analyses.view', 'dashboard.view', 'projects.manage',
         ],
     ];
 
@@ -156,7 +167,9 @@ class MahallaAccess
          * ko'rsatilmagan rais hech narsa ko'rmaydi — bu to'g'ri: qamrovi
          * noma'lum foydalanuvchiga butun tumanni ochish xavfli.
          */
-        if ($role === 'rais') {
+        // Rais va hokim yordamchisi — ikkalasi ham butun mahallasini ko'radi,
+        // ko'chalar bilan cheklanmaydi. Vazifalari boshqacha, lekin qamrovi bir.
+        if ($role === 'rais' || $role === 'hokim-yordamchisi') {
             return new MahallaScope(
                 false,
                 $profile?->district_id,
