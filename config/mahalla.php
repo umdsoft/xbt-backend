@@ -26,6 +26,10 @@ return [
      */
     'photos_disk' => env('MAHALLA_PHOTOS_DISK', 'local'),
 
+    // Ижтимоий шартнома PDF файллари — МАXФИЙ диск (URL орқали очиб бўлмайди).
+    // Шартномада шахсий маълумот бор, шунинг учун 'public' эмас.
+    'contracts_disk' => env('MAHALLA_CONTRACTS_DISK', 'local'),
+
     'ai' => [
         /*
          * Tahlil provayderi. 'claude' -> Anthropic Vision API. Kalit bo'lmasa,

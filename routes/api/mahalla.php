@@ -12,6 +12,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
@@ -59,6 +60,17 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 Route::patch('/buildings/{building}', [CadastreController::class, 'classify'])
                     ->name('buildings.classify')
                     ->whereUuid('building');
+
+                // Ижтимоий шартнома — хонадон кесимида.
+                Route::get('/contracts/households', [ContractController::class, 'households'])->name('contracts.households');
+                Route::get('/contracts/building/{building}', [ContractController::class, 'show'])
+                    ->name('contracts.show')->whereUuid('building');
+                Route::post('/contracts/building/{building}', [ContractController::class, 'store'])
+                    ->name('contracts.store')->whereUuid('building');
+                Route::delete('/contracts/{contract}', [ContractController::class, 'destroy'])
+                    ->name('contracts.destroy')->whereUuid('contract');
+                Route::get('/contracts/file/{file}', [ContractController::class, 'download'])
+                    ->name('contracts.download')->whereUuid('file');
             });
 
         /*

@@ -8,6 +8,7 @@ use App\Domains\Mahalla\Services\RaisCadastre;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -320,6 +321,73 @@ class RaisCadastreTest extends TestCase
         ]);
 
         return $user;
+    }
+
+    // --- Ижтимоий шартнома ---
+
+    public function test_rais_uploads_contract_and_coverage_updates(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mahallaId = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+        $building = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', $mahallaId)->where('type', 'residential')->value('id');
+
+        if ($building === null) {
+            $this->markTestSkipped('Маҳаллада турар-жой биноси йўқ');
+        }
+
+        $this->actingAs($rais, 'sanctum')
+            ->postJson('/api/mahalla/rais/contracts/building/'.$building, [
+                'contract_number' => 'TEST-'.substr((string) Str::uuid(), 0, 8),
+                'file' => UploadedFile::fake()->create('shartnoma.pdf', 100, 'application/pdf'),
+            ])
+            ->assertCreated();
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/rais/contracts/households')
+            ->assertOk()->json();
+
+        $this->assertSame(1, $body['with_contract'], 'Хонадон қамрови янгиланмади');
+    }
+
+    /** Faqat PDF qabul qilinadi — boshqa fayl rad etiladi. */
+    public function test_contract_rejects_non_pdf(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mahallaId = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+        $building = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', $mahallaId)->where('type', 'residential')->value('id');
+
+        if ($building === null) {
+            $this->markTestSkipped('Маҳаллада турар-жой биноси йўқ');
+        }
+
+        $this->actingAs($rais, 'sanctum')
+            ->postJson('/api/mahalla/rais/contracts/building/'.$building, [
+                'contract_number' => 'TEST-JPG',
+                'file' => UploadedFile::fake()->create('rasm.jpg', 100, 'image/jpeg'),
+            ])
+            ->assertStatus(422);
+    }
+
+    /** Begona mahalla xonadoniga shartnoma yuklab bo'lmaydi. */
+    public function test_contract_rejects_building_from_another_mahalla(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mine = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+        $foreign = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', '!=', $mine)->where('type', 'residential')->value('id');
+
+        if ($foreign === null) {
+            $this->markTestSkipped('Бошқа маҳаллада турар-жой биноси йўқ');
+        }
+
+        $this->actingAs($rais, 'sanctum')
+            ->postJson('/api/mahalla/rais/contracts/building/'.$foreign, [
+                'contract_number' => 'TEST-FOREIGN',
+                'file' => UploadedFile::fake()->create('shartnoma.pdf', 100, 'application/pdf'),
+            ])
+            ->assertStatus(422);
     }
 
     /** Foydalanuvchi markaziy `auth` sxemasida, roli `user_system_access` da. */

@@ -67,6 +67,11 @@ class CadastreController extends Controller
             'object_types' => DB::connection('master')->table('object_types')
                 ->orderBy('sort_order')
                 ->get(['id', 'code', 'name_cyr as name', 'is_social']),
+            // Shartnoma turlari — yuklash oynasi uchun.
+            'contract_types' => DB::connection('master')->table('contract_types')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'code', 'name_cyr as name']),
         ]);
     }
 

@@ -161,27 +161,33 @@ class RaisCadastre
         $households = $this->countByStreet($streetIds, 'residential', null);
         $social = $this->socialByStreet($streetIds);
         $changed = $this->changedByStreet($streetIds);
+        $contracts = $this->contractsByStreet($mahallaId);
 
         $rows = [];
-        $totals = ['households' => 0, 'social_objects' => 0, 'changed_week' => 0];
+        $totals = ['households' => 0, 'social_objects' => 0, 'changed_week' => 0, 'contracts' => 0];
 
         foreach ($streets as $s) {
             $hh = $households[$s->id] ?? 0;
             $so = $social[$s->id] ?? 0;
             $ch = $changed[$s->id] ?? 0;
+            // Qamrov = shartnoma IMZOLAGAN xonadon (DISTINCT bino), nechta
+            // shartnoma emas: bitta uyda bir necha shartnoma bo'lishi mumkin,
+            // lekin u bitta qamralgan xonadon.
+            $ct = $contracts[$s->id] ?? 0;
 
             $totals['households'] += $hh;
             $totals['social_objects'] += $so;
             $totals['changed_week'] += $ch;
+            $totals['contracts'] += $ct;
 
             $rows[] = [
                 'street' => ['id' => $s->id, 'name' => $s->name],
                 'households' => $hh,
                 'social_objects' => $so,
                 'changed_week' => $ch,
-                // Qamrov = shu haftada o'zgargan / jami xonadon. Tuman
-                // reytingidagi bilan bir xil mantiq, faqat ko'cha darajasida.
-                'percent' => $hh > 0 ? round($ch / $hh * 100, 1) : 0.0,
+                'contracts' => $ct,
+                // Shartnoma qamrovi: imzolagan xonadon / jami xonadon.
+                'percent' => $hh > 0 ? round($ct / $hh * 100, 1) : 0.0,
             ];
         }
 
@@ -225,6 +231,25 @@ class RaisCadastre
             ->groupBy('b.street_id')
             ->selectRaw('b.street_id, count(*) as n')
             ->pluck('n', 'b.street_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * Shartnoma imzolagan xonadonlar — ko'cha kesimida (DISTINCT bino).
+     *
+     * @return array<string, int>
+     */
+    private function contractsByStreet(string $mahallaId): array
+    {
+        return DB::connection('mahalla')->table('social_contracts')
+            ->where('mahalla_id', $mahallaId)
+            ->whereNull('deleted_at')
+            ->whereNotNull('street_id')
+            ->whereNotNull('building_id')
+            ->groupBy('street_id')
+            ->selectRaw('street_id, count(distinct building_id) as n')
+            ->pluck('n', 'street_id')
             ->map(fn ($n) => (int) $n)
             ->all();
     }

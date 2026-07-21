@@ -63,7 +63,9 @@ final class ExecutiveStats
         $changed = $this->changedByMahalla($districtId, $period);
         $indicators = $this->indicatorsByMahalla($districtId);
         $social = $this->socialObjectsByMahalla($districtId);
-        $contracts = $this->countByMahalla('social_contracts', $districtId);
+        // Shartnoma "qamrovi" — imzolagan XONADON soni (DISTINCT bino), nechta
+        // shartnoma emas: bitta uyda bir necha shartnoma bo'lishi mumkin.
+        $contracts = $this->contractHouseholdsByMahalla($districtId);
         $projects = $this->countByMahalla('micro_projects', $districtId, ['status' => 'done']);
 
         // Nofaol mahalla jadvalda ham, ЖАМИ hisobida ham ko'rinmaydi —
@@ -373,7 +375,25 @@ final class ExecutiveStats
     }
 
     /**
-     * Mahalla kesimida qator soni (shartnoma, mikroloyiha).
+     * Mahalla kesimida shartnoma imzolagan xonadon soni (DISTINCT bino).
+     *
+     * @return array<string, int>
+     */
+    private function contractHouseholdsByMahalla(string $districtId): array
+    {
+        return DB::connection('mahalla')->table('social_contracts')
+            ->where('district_id', $districtId)
+            ->whereNull('deleted_at')
+            ->whereNotNull('building_id')
+            ->groupBy('mahalla_id')
+            ->selectRaw('mahalla_id, count(distinct building_id) as n')
+            ->pluck('n', 'mahalla_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * Mahalla kesimida qator soni (mikroloyiha).
      *
      * @param  array<string, string>  $where
      * @return array<string, int>
