@@ -64,6 +64,9 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::get('control-plans/{controlPlan}/export', [ControlPlanController::class, 'export'])->name('control-plans.export');
 
             Route::get('control-plans', [ControlPlanController::class, 'index'])->name('control-plans.index');
+            // Forma katalogi (users + organizations) — {id} resource'dan OLDIN, aks holda
+            // 'create' UUID sifatida qabul qilinib route-model binding 500 beradi.
+            Route::get('control-plans/create', [ControlPlanController::class, 'create'])->name('control-plans.create');
             Route::post('control-plans', [ControlPlanController::class, 'store'])->name('control-plans.store');
             Route::get('control-plans/{id}', [ControlPlanController::class, 'show'])->name('control-plans.show');
             Route::get('control-plans/{id}/edit', [ControlPlanController::class, 'edit'])->name('control-plans.edit');

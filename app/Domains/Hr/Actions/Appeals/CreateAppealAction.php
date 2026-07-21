@@ -26,7 +26,7 @@ class CreateAppealAction
     ) {}
 
     /** @param array<string, mixed> $data */
-    public function execute(array $data, ?int $createdBy = null): CitizenAppeal
+    public function execute(array $data, ?string $createdBy = null): CitizenAppeal
     {
         return DB::transaction(function () use ($data, $createdBy) {
             $appeal = CitizenAppeal::create([

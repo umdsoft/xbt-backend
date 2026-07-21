@@ -9,7 +9,7 @@ use App\Domains\Hr\Models\YoshlarYetakchisi;
 class CreateYyAction
 {
     /** @param array<string, mixed> $data */
-    public function execute(array $data, int $createdBy): YoshlarYetakchisi
+    public function execute(array $data, string $createdBy): YoshlarYetakchisi
     {
         return YoshlarYetakchisi::create([
             ...$data,

@@ -9,7 +9,7 @@ use App\Domains\Hr\Models\HokimYordamchisi;
 class CreateHyAction
 {
     /** @param array<string, mixed> $data */
-    public function execute(array $data, int $createdBy): HokimYordamchisi
+    public function execute(array $data, string $createdBy): HokimYordamchisi
     {
         return HokimYordamchisi::create([
             ...$data,
