@@ -58,6 +58,9 @@ class CadastreController extends Controller
             // xarita to'liq ko'rinsin, ketma-ket so'rov kutmasin.
             'boundary' => $this->cadastre->boundary($mahallaId),
             'social_points' => $this->cadastre->socialPoints($mahallaId),
+            // Ko'chalar kesimi — bosh panel jadvali (tuman panelidagi
+            // mahallalar kesimiga o'xshash, faqat ko'cha darajasida).
+            'streets' => $this->cadastre->streetsBreakdown($mahallaId),
             'recent_changes' => $this->cadastre->recentChanges($mahallaId),
             // `object_types` da `is_active` ustuni YO'Q — ro'yxat qisqa va
             // to'liq ishlatiladi, o'chirilgan tur tushunchasi kiritilmagan.

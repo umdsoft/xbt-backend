@@ -240,6 +240,27 @@ class RaisCadastreTest extends TestCase
         }
     }
 
+    /** Bosh panel ko'chalar kesimini beradi — yig'indi qatorlar bilan mos. */
+    public function test_overview_carries_street_breakdown(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/rais/overview')
+            ->assertOk()
+            ->assertJsonStructure([
+                'streets' => [
+                    'rows' => [['street' => ['id', 'name'], 'households', 'social_objects', 'changed_week', 'percent']],
+                    'totals' => ['households', 'social_objects', 'changed_week'],
+                ],
+            ])
+            ->json();
+
+        // Ko'chalar xonadoni yig'indisi totals bilan mos kelishi kerak.
+        $sum = array_sum(array_column($body['streets']['rows'], 'households'));
+        $this->assertSame($sum, $body['streets']['totals']['households']);
+    }
+
     public function test_viewer_role_cannot_reach_rais_endpoints(): void
     {
         // `viloyat` — ko'rish roli. Kadastr tuzatish YOZISH amali, shuning

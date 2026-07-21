@@ -139,6 +139,123 @@ class RaisCadastre
     }
 
     /**
+     * Кўчалар кесими — раис бош панели учун.
+     *
+     * Tuman jadvali mahallalar kesimini bergani kabi, rais paneli ko'chalar
+     * kesimini beradi: har ko'cha uchun xonadon (kadastr), ijtimoiy obyekt va
+     * shu haftadagi o'zgarish. Rais "qaysi ko'chada ish qanday?" degan savolga
+     * javob oladi.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, totals: array<string, int>}
+     */
+    public function streetsBreakdown(string $mahallaId): array
+    {
+        $streets = DB::connection('master')->table('streets')
+            ->where('mahalla_id', $mahallaId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name']);
+
+        $streetIds = $streets->pluck('id')->all();
+
+        $households = $this->countByStreet($streetIds, 'residential', null);
+        $social = $this->socialByStreet($streetIds);
+        $changed = $this->changedByStreet($streetIds);
+
+        $rows = [];
+        $totals = ['households' => 0, 'social_objects' => 0, 'changed_week' => 0];
+
+        foreach ($streets as $s) {
+            $hh = $households[$s->id] ?? 0;
+            $so = $social[$s->id] ?? 0;
+            $ch = $changed[$s->id] ?? 0;
+
+            $totals['households'] += $hh;
+            $totals['social_objects'] += $so;
+            $totals['changed_week'] += $ch;
+
+            $rows[] = [
+                'street' => ['id' => $s->id, 'name' => $s->name],
+                'households' => $hh,
+                'social_objects' => $so,
+                'changed_week' => $ch,
+                // Qamrov = shu haftada o'zgargan / jami xonadon. Tuman
+                // reytingidagi bilan bir xil mantiq, faqat ko'cha darajasida.
+                'percent' => $hh > 0 ? round($ch / $hh * 100, 1) : 0.0,
+            ];
+        }
+
+        return ['rows' => $rows, 'totals' => $totals];
+    }
+
+    /**
+     * @param  array<int, string>  $streetIds
+     * @return array<string, int>
+     */
+    private function countByStreet(array $streetIds, string $type, ?bool $social): array
+    {
+        if ($streetIds === []) {
+            return [];
+        }
+
+        return DB::connection('master')->table('buildings')
+            ->whereIn('street_id', $streetIds)
+            ->where('type', $type)
+            ->groupBy('street_id')
+            ->selectRaw('street_id, count(*) as n')
+            ->pluck('n', 'street_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $streetIds
+     * @return array<string, int>
+     */
+    private function socialByStreet(array $streetIds): array
+    {
+        if ($streetIds === []) {
+            return [];
+        }
+
+        return DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->whereIn('b.street_id', $streetIds)
+            ->where('t.is_social', true)
+            ->groupBy('b.street_id')
+            ->selectRaw('b.street_id, count(*) as n')
+            ->pluck('n', 'b.street_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * Shu haftada o'zgargan xonadonlar — ko'cha kesimida (DISTINCT uy).
+     *
+     * @param  array<int, string>  $streetIds
+     * @return array<string, int>
+     */
+    private function changedByStreet(array $streetIds): array
+    {
+        if ($streetIds === []) {
+            return [];
+        }
+
+        $weekStart = \Illuminate\Support\Carbon::now('Asia/Tashkent')->startOfWeek()->utc();
+
+        return DB::connection('mahalla')->table('zone_observations as o')
+            ->join('houses as h', 'h.id', '=', 'o.house_id')
+            ->whereIn('h.street_id', $streetIds)
+            ->where('o.is_change', true)
+            ->where('o.observed_at', '>=', $weekStart)
+            ->groupBy('h.street_id')
+            ->selectRaw('h.street_id, count(distinct o.house_id) as n')
+            ->pluck('n', 'street_id')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
      * Маҳалла чегараси — харита учун.
      *
      * Tuman geojson'i bilan bir xil soddalashtirish (0.0003 ≈ 33 m): bitta
