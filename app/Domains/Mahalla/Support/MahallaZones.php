@@ -13,23 +13,12 @@ namespace App\Domains\Mahalla\Support;
  */
 final class MahallaZones
 {
-    /**
-     * Zona kodi => nomi (Kirill) — OBODONLASHTIRISH iш turlari.
-     *
-     * DIQQAT: kodlar (facade/kitchen/toilet/yard) TARIXIY barqaror — mavjud
-     * observation/photo yozuvlari shu kodlarga bog'langan, shuning uchun
-     * o'zgartirilmaydi (migratsiya/data-loss bo'lmasin). Faqat KO'RSATILADIGAN
-     * nom (label) va AI kriteriyasi (ZonePrompts) obodonlashtirishga moslandi:
-     *   facade → Фасад,  yard → Томирқа,  kitchen → Хона-таҳона,  toilet → Эҳота-дарвоза.
-     * Tartib ham rahbar eskiziga mos (Фасад, Томирқа, Хона-таҳона, Эҳота-дарвоза).
-     *
-     * @var array<string, string>
-     */
+    /** @var array<string, string> zona kodi => nomi (Kirill) */
     public const ZONES = [
-        'facade' => 'Фасад',
-        'yard' => 'Томирқа',
-        'kitchen' => 'Хона-таҳона',
-        'toilet' => 'Эҳота-дарвоза',
+        'facade' => 'Уй фасади',
+        'kitchen' => 'Ошхона',
+        'toilet' => 'Ҳожатхона',
+        'yard' => 'Томорқа',
     ];
 
     /**
