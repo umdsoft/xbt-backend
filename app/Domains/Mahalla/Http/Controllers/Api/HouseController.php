@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class HouseController extends Controller
@@ -19,37 +20,74 @@ class HouseController extends Controller
     }
 
     /**
-     * Ish ro'yxati: ko'lamdagi honadonlar + bugungi holat.
+     * Honadonlar ro'yxati — KADASTR binolari asosida.
+     *
+     * DIQQAT: manba `master.buildings` (kadastr), operatsion `houses` jadvali
+     * EMAS. `houses` dangasa to'ldiriladi — u faqat kuzatuv boshlanganda
+     * (birinchi surat) yoziladi, shuning uchun deyarli bo'sh. Undan o'qish
+     * "mahallaga bog'langan xonadonlar chiqmayapti" degan holatga olib kelardi:
+     * mahallada 598 xonadon bor, jadval esa 1 tasini ko'rsatardi.
+     *
+     * Endi barcha turar-joy binosi ko'rinadi, kuzatuv holati (bor bo'lsa)
+     * ustiga qo'yiladi.
      */
     public function index(Request $request): JsonResponse
     {
         $scope = $this->access->scopeFor($request->user());
         $today = now()->toDateString();
 
-        $houses = House::query()
-            ->visibleTo($scope)
-            ->with(['mahalla:id,name_cyr', 'street:id,name'])
-            ->withCount([
-                'photos as has_baseline' => fn ($q) => $q->where('type', 'baseline'),
-                'photos as uploaded_today' => fn ($q) => $q->where('type', 'daily')->where('taken_date', $today),
-            ])
-            ->orderBy('street_id')
-            ->get()
-            ->map(fn (House $h) => [
-                'id' => $h->id,
-                'address' => $h->address,
-                'cadastral_number' => $h->cadastral_number,
-                'owner_name' => $h->owner_name,
-                'status' => $h->status,
-                'progress_percent' => $h->progress_percent,
-                'mahalla' => $h->mahalla?->name_cyr,
-                'street' => $h->street?->name,
-                'has_baseline' => $h->has_baseline > 0,
-                'uploaded_today' => $h->uploaded_today > 0,
+        $q = DB::connection('master')->table('buildings as b')
+            ->leftJoin('streets as s', 's.id', '=', 'b.street_id')
+            ->where('b.type', 'residential');
+
+        // Qamrov: deputat — ko'chalar; rais — butun mahalla; admin/viloyat — hamma.
+        if (! $scope->isAdmin && ! $scope->canSeeAll) {
+            if ($scope->restrictToStreets) {
+                if ($scope->streetIds === []) {
+                    return response()->json(['houses' => [], 'today' => $today]);
+                }
+                $q->whereIn('b.street_id', $scope->streetIds);
+            } elseif ($scope->mahallaId !== null) {
+                $q->where('b.mahalla_id', $scope->mahallaId);
+            } else {
+                return response()->json(['houses' => [], 'today' => $today]);
+            }
+        }
+
+        $buildings = $q->orderBy('s.name')->orderBy('b.house_number')
+            ->limit(2000)
+            ->get([
+                'b.id', 'b.kadastr', 'b.address', 'b.house_number',
+                's.name as street_name', 'b.mahalla_name',
             ]);
 
+        // Kuzatuv holati operatsion `houses` dan — bino bo'yicha bog'lanadi.
+        $houses = House::whereIn('building_id', $buildings->pluck('id'))
+            ->get(['id', 'building_id', 'status', 'progress_percent', 'last_photo_date'])
+            ->keyBy('building_id');
+
+        $rows = $buildings->map(function ($b) use ($houses, $today) {
+            $h = $houses->get($b->id);
+
+            return [
+                // Navigatsiya operatsion house'ga: kuzatuv boshlanmagan bo'lsa
+                // `house_id` null — frontend uni "boshlanmagan" deb ko'rsatadi.
+                'id' => $h?->id,
+                'building_id' => $b->id,
+                'address' => $b->address ?: trim(($b->street_name ?? '').' '.($b->house_number ?? '')),
+                'cadastral_number' => $b->kadastr,
+                'owner_name' => null,
+                'status' => $h?->status ?? 'not_started',
+                'progress_percent' => $h?->progress_percent ?? 0,
+                'mahalla' => $b->mahalla_name,
+                'street' => $b->street_name,
+                'has_baseline' => $h !== null,
+                'uploaded_today' => $h?->last_photo_date?->toDateString() === $today,
+            ];
+        });
+
         return response()->json([
-            'houses' => $houses,
+            'houses' => $rows,
             'today' => $today,
         ]);
     }

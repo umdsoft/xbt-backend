@@ -193,6 +193,38 @@ class RaisCadastreTest extends TestCase
         $this->assertSame($expected, $body['meta']['total'], 'Раис ўз маҳалласининг ҲАММА хонадонини кўриши керак');
     }
 
+    /**
+     * "Хонадонлар" саҳифаси (`/api/mahalla/houses`) кадастр бинолариДАН
+     * ўқийди, деярли бўш `houses` жадвалидан ЭМАС.
+     *
+     * BO'SHLIQ: bu endpoint operatsion `houses` jadvalidan o'qirdi, u dangasa
+     * to'ldiriladi va deyarli bo'sh — natijada "mahallaga bog'langan xonadonlar
+     * chiqmayapti". Endi kadastr binolaridan.
+     */
+    public function test_houses_page_lists_cadastre_buildings(): void
+    {
+        $rais = $this->makeRaisWithMahalla();
+        $mahallaId = DB::connection('mahalla')->table('users')->where('id', $rais->id)->value('mahalla_id');
+
+        $expected = DB::connection('master')->table('buildings')
+            ->where('mahalla_id', $mahallaId)->where('type', 'residential')->count();
+
+        if ($expected === 0) {
+            $this->markTestSkipped('Маҳаллада турар-жой биноси йўқ');
+        }
+
+        $body = $this->actingAs($rais, 'sanctum')
+            ->getJson('/api/mahalla/houses')
+            ->assertOk()
+            ->json();
+
+        // Operatsion `houses` jadvali bo'sh bo'lsa ham, ro'yxat kadastrdan
+        // to'ladi. min() — 2000 lik cheklov tufayli.
+        $this->assertSame(min($expected, 2000), count($body['houses']),
+            'Хонадонлар рўйхати кадастр бинолариДАН тўлиши керак');
+        $this->assertArrayHasKey('building_id', $body['houses'][0]);
+    }
+
     /** Ro'yxat va bitta yozuv bir xil qamrovda: aks holda IDOR. */
     public function test_rais_cannot_open_building_from_another_mahalla(): void
     {
