@@ -40,7 +40,19 @@ class EloquentEmployeeRepository implements EmployeeRepositoryInterface
     public function update(string $id, EmployeeDTO $dto): Employee
     {
         $employee = Employee::findOrFail($id);
-        $employee->update($dto->toArray());
+
+        $data = $dto->toArray();
+
+        // Maxfiy maydonlar (ЖШШИР, паспорт) frontendga qaytarilmaydi — shu sababli
+        // tahrirlashda ular odatda bo'sh keladi. Bo'sh (null) bo'lsa, mavjud qiymatni
+        // saqlaymiz — aks holda har tahrirlashda tasodifan o'chib ketardi (data-loss).
+        foreach (['jshshir', 'passport_series', 'passport_number'] as $secret) {
+            if (($data[$secret] ?? null) === null) {
+                unset($data[$secret]);
+            }
+        }
+
+        $employee->update($data);
 
         /** @var Employee */
         return $employee->fresh(['department', 'position', 'birthRegion', 'birthDistrict']);
