@@ -16,6 +16,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
 use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\ExecutiveProjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObodDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
@@ -149,6 +150,10 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 // Mahalla ichidagi Ободонлаштириш kesimi (masъul × ko'cha × iш turi)
                 Route::get('/mahallas/{mahalla}/obod', ObodDashboardController::class)
                     ->name('mahalla.obod')
+                    ->whereUuid('mahalla');
+                // Mahalla ichidagi mikrolойiҳalar (faqat ko'rish)
+                Route::get('/mahallas/{mahalla}/projects', ExecutiveProjectsController::class)
+                    ->name('mahalla.projects')
                     ->whereUuid('mahalla');
             });
 

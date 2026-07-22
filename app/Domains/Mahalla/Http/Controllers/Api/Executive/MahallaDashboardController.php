@@ -7,6 +7,7 @@ namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Services\ExecutiveMahallaStats;
 use App\Domains\Mahalla\Services\ExecutiveStats;
+use App\Domains\Mahalla\Services\MicroProjectService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
@@ -18,6 +19,7 @@ class MahallaDashboardController extends Controller
     public function __construct(
         private readonly ExecutiveStats $stats,
         private readonly ExecutiveMahallaStats $mahallaStats,
+        private readonly MicroProjectService $microProjects,
     ) {
     }
 
@@ -50,6 +52,8 @@ class MahallaDashboardController extends Controller
             'zone_status' => $this->mahallaStats->zoneStatus((string) $model->id, $data['households']),
             'recent_changes' => $this->mahallaStats->recentChanges((string) $model->id),
             'staff' => $this->mahallaStats->staff((string) $model->id),
+            // Mikrolойiҳa holatlari (kartada ko'rsatish uchun) — {total, planned, in_progress, done, cancelled}
+            'micro_projects' => $this->microProjects->statusCounts((string) $model->id),
         ]);
     }
 }
