@@ -44,6 +44,8 @@ class MahallaAccess
         'rais' => [
             'houses.view', 'photos.view', 'photos.upload', 'analyses.view',
             'dashboard.view', 'buildings.classify', 'contracts.manage',
+            // Кўча муҳаррири — кўчаларни таҳрирлаш ва уйларни кўчага бириктириш.
+            'streets.edit',
         ],
         /*
          * Ҳоким ёрдамчиси — ўз маҳалласида микролойиҳаларни юритади.

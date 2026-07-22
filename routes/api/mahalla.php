@@ -13,6 +13,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardControll
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
 use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\StreetController;
 use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
@@ -74,6 +75,18 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                     ->name('contracts.destroy')->whereUuid('contract');
                 Route::get('/contracts/file/{file}', [ContractController::class, 'download'])
                     ->name('contracts.download')->whereUuid('file');
+
+                // Кўча муҳаррири — кўчаларни таҳрирлаш + уйларни хаританинг устида бириктириш.
+                Route::get('/streets', [StreetController::class, 'index'])->name('streets.index');
+                Route::get('/map', [StreetController::class, 'map'])->name('streets.map');
+                Route::post('/streets', [StreetController::class, 'store'])->name('streets.store');
+                Route::patch('/streets/{street}', [StreetController::class, 'update'])
+                    ->name('streets.update')->whereUuid('street');
+                Route::post('/streets/{street}/merge', [StreetController::class, 'merge'])
+                    ->name('streets.merge')->whereUuid('street');
+                Route::delete('/streets/{street}', [StreetController::class, 'destroy'])
+                    ->name('streets.destroy')->whereUuid('street');
+                Route::post('/buildings/assign', [StreetController::class, 'assign'])->name('buildings.assign');
             });
 
         /*
