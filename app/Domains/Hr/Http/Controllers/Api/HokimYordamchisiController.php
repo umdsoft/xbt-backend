@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Controllers\Api;
 
-use App\Domains\Hr\Actions\HokimYordamchilari\CreateHyAction;
-use App\Domains\Hr\Actions\HokimYordamchilari\UpdateHyAction;
+use App\Domains\Hr\Actions\PersistLeaderAction;
 use App\Domains\Hr\Http\Requests\HokimYordamchilari\StoreHyRequest;
 use App\Domains\Hr\Http\Requests\HokimYordamchilari\UpdateHyRequest;
 use App\Domains\Hr\Models\HokimYordamchisi;
@@ -41,11 +40,11 @@ class HokimYordamchisiController extends HrController
         return response()->json($this->formData());
     }
 
-    public function store(StoreHyRequest $request, CreateHyAction $action): JsonResponse
+    public function store(StoreHyRequest $request, PersistLeaderAction $action): JsonResponse
     {
         $this->authorize('create', HokimYordamchisi::class);
 
-        $item = $action->execute($request->validated(), $this->actor()->id);
+        $item = $action->create(HokimYordamchisi::class, $request->validated(), $this->actor()->id);
 
         return response()->json([
             'message' => 'Ҳоким ёрдамчиси қўшилди.',
@@ -77,11 +76,11 @@ class HokimYordamchisiController extends HrController
     public function update(
         UpdateHyRequest $request,
         HokimYordamchisi $hokimYordamchisi,
-        UpdateHyAction $action,
+        PersistLeaderAction $action,
     ): JsonResponse {
         $this->authorize('update', $hokimYordamchisi);
 
-        $action->execute($hokimYordamchisi, $request->validated());
+        $action->update($hokimYordamchisi, $request->validated());
 
         return response()->json([
             'message' => 'Маълумот янгиланди.',

@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Controllers\Api;
 
-use App\Domains\Hr\Actions\YoshlarYetakchilari\CreateYyAction;
-use App\Domains\Hr\Actions\YoshlarYetakchilari\UpdateYyAction;
+use App\Domains\Hr\Actions\PersistLeaderAction;
 use App\Domains\Hr\Http\Requests\YoshlarYetakchilari\StoreYyRequest;
 use App\Domains\Hr\Http\Requests\YoshlarYetakchilari\UpdateYyRequest;
 use App\Domains\Hr\Models\HrProfile;
@@ -40,11 +39,11 @@ class YoshlarYetakchisiController extends HrController
         return response()->json($this->formData());
     }
 
-    public function store(StoreYyRequest $request, CreateYyAction $action): JsonResponse
+    public function store(StoreYyRequest $request, PersistLeaderAction $action): JsonResponse
     {
         $this->authorize('create', YoshlarYetakchisi::class);
 
-        $item = $action->execute($request->validated(), $this->actor()->id);
+        $item = $action->create(YoshlarYetakchisi::class, $request->validated(), $this->actor()->id);
 
         return response()->json([
             'message' => 'Ёшлар етакчиси қўшилди.',
@@ -74,11 +73,11 @@ class YoshlarYetakchisiController extends HrController
     public function update(
         UpdateYyRequest $request,
         YoshlarYetakchisi $yoshlarYetakchi,
-        UpdateYyAction $action,
+        PersistLeaderAction $action,
     ): JsonResponse {
         $this->authorize('update', $yoshlarYetakchi);
 
-        $action->execute($yoshlarYetakchi, $request->validated());
+        $action->update($yoshlarYetakchi, $request->validated());
 
         return response()->json([
             'message' => 'Маълумот янгиланди.',
