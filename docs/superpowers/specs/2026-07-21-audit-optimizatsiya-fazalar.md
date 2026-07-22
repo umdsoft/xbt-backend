@@ -44,13 +44,19 @@
 
 ## 🔵 FAZA 2 — Performance (PROD .env / infra — deploy vaqtida)
 
-### 2.1. Redis'ga o'tish — P1 (ENG KATTA YUTUQ) 🔵
-- `SESSION_DRIVER=redis`, `CACHE_STORE=redis`. Har autentifikatsiyalangan so'rov
-  hozir `sessions` jadvaliga read+write qiladi (DB tax). Redis prod serverda
-  o'rnatilgan (Ubuntu), lekin ishlatilmayapti.
-- **Localda:** Windows'da Redis yo'q → localda qo'llanmadi. Memurai (Windows Redis)
-  o'rnatilса localda ham tezlashadi.
-- **Xavf (prod):** past — Redis ishlab turibdi; faqat .env + config:cache.
+### 2.1. Redis session'ga o'tish — P1 🔵 (BLOKLANGAN — konfiguratsiya kerak)
+- `CACHE_STORE=redis` va `QUEUE=redis` prod'da ALLAQACHON ishlaydi. Faqat
+  `SESSION_DRIVER=database` qoldi.
+- **2026-07-22 sinov: `SESSION_DRIVER=redis` PROD'NI BUZDI** —
+  `SESSION_CONNECTION=auth` (database session uchun `auth` sxemasi) Redis'da
+  "connection [auth] not configured" xatosini beradi. Darhol database'ga
+  qaytarildi (login tiklandi).
+- **To'g'ri yechim (keyingi):** (a) `config/database.php` `redis` ostiga `auth`
+  ulanishi qo'shish, YOKI (b) session uchun `SESSION_CONNECTION` ni redis
+  `default` ga o'zgartirish (lekin bu database driver'ga qaytishда auth sxemasini
+  buzadi). Localda sinab, keyin deploy.
+- `SESSION_LIFETIME=43200` — prod'da qo'llandi (F5 login muammosi TUZATILDI,
+  bu Redis'siz ham yetarli).
 
 ### 2.2. nginx gzip/brotli + `Cache-Control: immutable` (/assets/*) — P7 🔵
 - Leaflet 148KB + vendor 115KB + CSS 49KB siqилmasдан ketmasin. Prod nginx tekshiruv.
