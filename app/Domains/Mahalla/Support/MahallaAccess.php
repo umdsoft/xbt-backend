@@ -79,6 +79,8 @@ class MahallaAccess
         'yoshlar' => 'Ёшлар етакчиси',
         'xotin_qizlar' => 'Хотин-қизлар фаоли',
         'profilaktika' => 'Профилактика инспектори',
+        'soliq' => 'Солиқ инспектори',
+        'ijtimoiy' => 'Ижтимоий ходим',
     ];
 
     /**
