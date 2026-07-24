@@ -30,20 +30,26 @@ class ObservationAnalyzer
     {
         $zone = $obs->zone;
 
-        // Oldingi kuzatuv (shu honadon+zona, undan oldingi) — solishtirish bazasi.
-        $previous = ZoneObservation::query()
+        // ASOS (baseline) — shu honadon+zona uchun ENG BIRINCHI kuzatuv.
+        // Har yangi kuzatuv AYNAN shu asos bilan solishtiriladi: maqsad —
+        // dastlabki holatдан beri UMUMIY o'zgarish/taraqqiyotni o'lchash
+        // (ta'mir "olдин→hozir"). Sekvensial (N vs N-1) EMAS. Asos yo'q bo'lsa —
+        // bu kuzatuvning O'ZI asos (birinchi), boshlang'ich holatni belgilaydi.
+        $baseline = ZoneObservation::query()
             ->where('house_id', $obs->house_id)
             ->where('zone', $zone)
             ->where('id', '!=', $obs->id)
             ->where('observed_at', '<=', $obs->observed_at)
-            ->orderByDesc('observed_at')
+            ->orderBy('observed_at')
+            ->orderBy('id')
             ->first();
 
         $state = $this->zoneState($obs->house_id, $zone);
         $prevStatus = $state->status;
-        $hasPrevious = $previous !== null;
+        $hasBaseline = $baseline !== null;
 
-        $obs->prev_observation_id = $previous?->id;
+        // Solishtirish uchun ishlatilган asos yozuvi (ustun nomi tarixiy).
+        $obs->prev_observation_id = $baseline?->id;
         $obs->prev_status = $prevStatus;
 
         // Bulut drayveri uchun kalit shart; lokal AI-node uchun emas.
@@ -64,16 +70,17 @@ class ObservationAnalyzer
                 'is_change' => false,
             ]);
         }
-        $prevPhotos = $hasPrevious
-            ? $previous->photos()->orderBy('angle')->orderBy('created_at')->get()
+        $baselinePhotos = $hasBaseline
+            ? $baseline->photos()->orderBy('angle')->orderBy('created_at')->get()
             : collect();
 
         // AI (xato -> job retry qiladi). Drayver: lokal AI-node yoki Anthropic.
+        // Solishtirish bazasi = ASOS (birinchi kuzatuv) rakurslari.
         $result = $driver === 'local'
-            ? $this->callLocalNode($current, $prevPhotos, $zone, $prevStatus)
-            : $this->callClaude($current, $prevPhotos, $zone, $prevStatus, $hasPrevious);
+            ? $this->callLocalNode($current, $baselinePhotos, $zone, $prevStatus)
+            : $this->callClaude($current, $baselinePhotos, $zone, $prevStatus, $hasBaseline);
 
-        [$decision, $reason, $isChange, $newStatus] = $this->decide($result, $obs, $hasPrevious);
+        [$decision, $reason, $isChange, $newStatus] = $this->decide($result, $obs, $hasBaseline);
 
         return $this->finalize($obs, $state, [
             'confidence' => $result['confidence'] ?? null,
@@ -100,7 +107,7 @@ class ObservationAnalyzer
      * @param  array<string, mixed>  $r
      * @return array{0:string,1:string,2:bool,3:?string}
      */
-    private function decide(array $r, ZoneObservation $obs, bool $hasPrevious): array
+    private function decide(array $r, ZoneObservation $obs, bool $hasBaseline): array
     {
         $min = (float) config('mahalla.ai.auto_confirm_min_confidence', 0.75);
         $conf = (float) ($r['confidence'] ?? 0);
@@ -148,9 +155,10 @@ class ObservationAnalyzer
             $min = min(0.95, $min + (float) config('mahalla.ai.quality_doubt_penalty', 0.15));
         }
 
-        if (! $hasPrevious) {
+        if (! $hasBaseline) {
+            // Birinchi kuzatuv — ASOSNI (baseline) belgilaydi.
             if ($suggested !== null && $conf >= $min) {
-                return ['auto_confirmed', "AI бошланғич ҳолатни аниқлади (confidence={$conf}).", false, $suggested];
+                return ['auto_confirmed', "AI асос (бошланғич) ҳолатни аниқлади (confidence={$conf}).", false, $suggested];
             }
 
             return ['flagged', "AI ишончи паст (confidence={$conf}) — масул ходим текшируви.", false, null];
@@ -213,10 +221,10 @@ class ObservationAnalyzer
      * ustiga `_meta.gate` — qaysi bosqichda hal bo'lgani (qaror mantig'i uchun).
      *
      * @param  \Illuminate\Support\Collection<int, HousePhoto>  $current
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $prev
+     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
      * @return array<string, mixed>
      */
-    private function callLocalNode($current, $prev, string $zone, ?string $prevStatus): array
+    private function callLocalNode($current, $baseline, string $zone, ?string $prevStatus): array
     {
         $url = rtrim((string) config('mahalla.ai.node_url'), '/').'/analyze';
         $disk = (string) config('mahalla.photos_disk', 'local');
@@ -231,8 +239,9 @@ class ObservationAnalyzer
         foreach ($current->take($max) as $p) {
             $req = $req->attach('current', (string) Storage::disk($disk)->get($p->image_path), 'cur'.($i++).'.jpg');
         }
+        // Node API'да maydon nomi 'previous' (tarixiy) — endi ASOS rakurslari yuboriladi.
         $i = 0;
-        foreach ($prev->take($max) as $p) {
+        foreach ($baseline->take($max) as $p) {
             $req = $req->attach('previous', (string) Storage::disk($disk)->get($p->image_path), 'prev'.($i++).'.jpg');
         }
 
@@ -255,22 +264,22 @@ class ObservationAnalyzer
      * Claude Vision — barcha oldingi rakurslar + barcha bugungi rakurslar (cheklangan).
      *
      * @param  \Illuminate\Support\Collection<int, HousePhoto>  $current
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $prev
+     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
      * @return array<string, mixed>
      */
-    private function callClaude($current, $prev, string $zone, ?string $prevStatus, bool $hasPrevious): array
+    private function callClaude($current, $baseline, string $zone, ?string $prevStatus, bool $hasBaseline): array
     {
         $baseUrl = rtrim((string) config('mahalla.ai.base_url'), '/');
         $max = (int) config('mahalla.ai.max_angles', 4);
-        $prompt = ZonePrompts::build($zone, $prevStatus, $hasPrevious);
+        $prompt = ZonePrompts::build($zone, $prevStatus, $hasBaseline);
 
         $content = [];
-        if ($hasPrevious && $prev->isNotEmpty()) {
-            $content[] = ['type' => 'text', 'text' => 'ОЛДИНГИ ҳолат (ракурслар):'];
-            foreach ($prev->take($max) as $p) {
+        if ($hasBaseline && $baseline->isNotEmpty()) {
+            $content[] = ['type' => 'text', 'text' => 'АСОСИЙ (дастлабки) ҳолат (ракурслар):'];
+            foreach ($baseline->take($max) as $p) {
                 $content[] = $this->imageBlock($p);
             }
-            $content[] = ['type' => 'text', 'text' => 'БУГУНГИ ҳолат (ракурслар):'];
+            $content[] = ['type' => 'text', 'text' => 'ҲОЗИРГИ ҳолат (ракурслар):'];
         } else {
             $content[] = ['type' => 'text', 'text' => 'ҲОЗИРГИ ҳолат (ракурслар):'];
         }
