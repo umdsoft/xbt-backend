@@ -12,6 +12,7 @@ use App\Domains\Mahalla\Models\StreetAssignment;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\SimpleXlsx;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -47,12 +48,12 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Operatsion userlar ro'yxatini Excel (CSV) ga eksport qiladi.
+     * Operatsion userlar ro'yxatini Excel (.xlsx) ga eksport qiladi.
      *
      * Ustunlar: Ф.И.О, Логин, Парол, Лавозим, Маҳалла, Кўчалар.
      * Parol = login (telefon raqami) — yangi qoida bo'yicha parol=telefon; admin
-     * hisob ma'lumotlarini deputatlarga tarqatishi uchun. CSV UTF-8 BOM bilan —
-     * Excel kirillni to'g'ri ochadi; ajratgich `;` (RU/UZ Excel standarti).
+     * hisob ma'lumotlarini deputatlarga tarqatishi uchun. XLSX SimpleXlsx bilan
+     * (dependency-siz, kirill/UTF-8 to'g'ri).
      */
     public function export(): \Symfony\Component\HttpFoundation\Response
     {
@@ -64,10 +65,7 @@ class UserManagementController extends Controller
             ->get()
             ->keyBy('id');
 
-        $handle = fopen('php://temp', 'r+');
-        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM — Excel kirillni tanisin
-        fputcsv($handle, ['Ф.И.О', 'Логин', 'Парол', 'Лавозим', 'Маҳалла', 'Кўчалар'], ';', '"', '');
-
+        $data = [];
         foreach ($rows as $u) {
             $p = $profiles->get($u->id);
             $position = $p !== null && $p->position !== null
@@ -78,16 +76,18 @@ class UserManagementController extends Controller
                 : '';
 
             // Parol = login (yangi qoida: parol = telefon raqami = login).
-            fputcsv($handle, [$u->name, $u->login, $u->login, $position, $mahalla, $streets], ';', '"', '');
+            $data[] = [$u->name, $u->login, $u->login, $position, $mahalla, $streets];
         }
 
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
+        $xlsx = SimpleXlsx::build(
+            ['Ф.И.О', 'Логин', 'Парол', 'Лавозим', 'Маҳалла', 'Кўчалар'],
+            $data,
+            'Фойдаланувчилар',
+        );
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="foydalanuvchilar.csv"',
+        return response($xlsx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="foydalanuvchilar.xlsx"',
         ]);
     }
 
