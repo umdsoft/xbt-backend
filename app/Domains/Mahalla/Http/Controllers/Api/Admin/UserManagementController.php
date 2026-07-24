@@ -47,6 +47,51 @@ class UserManagementController extends Controller
     }
 
     /**
+     * Operatsion userlar ro'yxatini Excel (CSV) ga eksport qiladi.
+     *
+     * Ustunlar: Ф.И.О, Логин, Парол, Лавозим, Маҳалла, Кўчалар.
+     * Parol = login (telefon raqami) — yangi qoida bo'yicha parol=telefon; admin
+     * hisob ma'lumotlarini deputatlarga tarqatishi uchun. CSV UTF-8 BOM bilan —
+     * Excel kirillni to'g'ri ochadi; ajratgich `;` (RU/UZ Excel standarti).
+     */
+    public function export(): \Symfony\Component\HttpFoundation\Response
+    {
+        $rows = $this->operationalUserRows();
+
+        $profiles = MahallaProfile::query()
+            ->with(['mahalla:id,name_cyr', 'streetAssignments.street:id,name'])
+            ->whereIn('id', $rows->pluck('id')->all())
+            ->get()
+            ->keyBy('id');
+
+        $handle = fopen('php://temp', 'r+');
+        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM — Excel kirillni tanisin
+        fputcsv($handle, ['Ф.И.О', 'Логин', 'Парол', 'Лавозим', 'Маҳалла', 'Кўчалар'], ';', '"', '');
+
+        foreach ($rows as $u) {
+            $p = $profiles->get($u->id);
+            $position = $p !== null && $p->position !== null
+                ? (MahallaAccess::POSITIONS[$p->position] ?? $p->position) : '';
+            $mahalla = $p?->mahalla?->name_cyr ?? '';
+            $streets = $p !== null
+                ? $p->streetAssignments->map(fn ($a) => $a->street?->name)->filter()->implode(', ')
+                : '';
+
+            // Parol = login (yangi qoida: parol = telefon raqami = login).
+            fputcsv($handle, [$u->name, $u->login, $u->login, $position, $mahalla, $streets], ';', '"', '');
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="foydalanuvchilar.csv"',
+        ]);
+    }
+
+    /**
      * Yangi operatsion user — auth.users + user_system_access + mahalla profil + ko'chalar.
      */
     public function store(StoreMahallaUserRequest $request): JsonResponse
@@ -62,7 +107,8 @@ class UserManagementController extends Controller
         $userId = DB::connection('auth')->transaction(function () use ($data, $mahallaId, $districtId, $streetIds, $adminId) {
             $user = User::query()->create([
                 'login' => $data['login'],
-                'password' => $data['password'], // 'hashed' cast — avtomatik hash
+                // Parol berilmasa — login (telefon raqami) parol bo'ladi.
+                'password' => $data['password'] ?? $data['login'], // 'hashed' cast — avtomatik hash
                 'name' => $data['name'],
                 'phone' => $data['phone'] ?? null,
                 'is_active' => true,

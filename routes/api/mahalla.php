@@ -188,6 +188,7 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 Route::post('/reviews/{observation}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 
                 Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+                Route::get('/users/export', [UserManagementController::class, 'export'])->name('users.export');
                 Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
                 Route::put('/users/{id}', [UserManagementController::class, 'update'])->name('users.update');
                 Route::delete('/users/{id}', [UserManagementController::class, 'destroy'])->name('users.destroy');

@@ -27,7 +27,9 @@ class StoreMahallaUserRequest extends FormRequest
         return [
             // Login markaziy identifikatsiyada yagona bo'lishi shart.
             'login' => ['required', 'string', 'max:100', 'unique:auth.users,login'],
-            'password' => ['required', 'string', 'min:6', 'max:255'],
+            // Parol ixtiyoriy — berilmasa store()'da avtomatik login (telefon raqami)
+            // qilinadi. Mahalla 5-ligi mobilда telefon raqami bilan kiradi.
+            'password' => ['nullable', 'string', 'min:6', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\-\s()]{7,30}$/', 'unique:auth.users,phone'],
             'mahalla_id' => ['nullable', 'uuid', 'exists:master.mahallas,id'],
