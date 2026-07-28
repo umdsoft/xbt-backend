@@ -12,6 +12,7 @@ use App\Domains\Mahalla\Models\Master\Building;
 use App\Domains\Mahalla\Models\ZoneObservation;
 use App\Domains\Mahalla\Services\GeofenceService;
 use App\Domains\Mahalla\Services\HouseProvisioner;
+use App\Domains\Mahalla\Services\PhotoDedupService;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,7 @@ class ObservationController extends Controller
     public function __construct(
         private readonly GeofenceService $geofence,
         private readonly HouseProvisioner $provisioner,
+        private readonly PhotoDedupService $dedup,
     ) {
     }
 
@@ -60,8 +62,19 @@ class ObservationController extends Controller
         $type = $isFirst ? 'baseline' : 'daily';
         $disk = (string) config('mahalla.photos_disk', 'local');
 
+        // ALDASH himoyasi: perceptual dHash'ni tranzaksiyaDAN TASHQARIDA hisoblaymiz
+        // (CPU ishi tranzaksiyani uzaytirmasin). Xato bo'lsa null — hech narsani bloklamaydi.
+        $phashes = [];
+        foreach ($images as $i => $image) {
+            try {
+                $phashes[$i] = $this->dedup->dHash((string) $image->getContent());
+            } catch (\Throwable) {
+                $phashes[$i] = null;
+            }
+        }
+
         $observation = DB::connection('mahalla')->transaction(function () use (
-            $house, $zone, $images, $data, $distanceM, $onSite, $type, $disk, $request
+            $house, $zone, $images, $data, $distanceM, $onSite, $type, $disk, $request, $phashes
         ) {
             $obs = ZoneObservation::create([
                 'house_id' => $house->id,
@@ -78,7 +91,7 @@ class ObservationController extends Controller
             ]);
 
             $angle = 1;
-            foreach ($images as $image) {
+            foreach ($images as $i => $image) {
                 $path = $image->store("mahalla/photos/{$house->id}/{$zone}", $disk);
                 HousePhoto::create([
                     'id' => (string) Str::uuid(),
@@ -88,6 +101,7 @@ class ObservationController extends Controller
                     'angle' => $angle,
                     'type' => $type,
                     'image_path' => $path,
+                    'phash' => $phashes[$i] ?? null,
                     'captured_lat' => $data['captured_lat'],
                     'captured_lng' => $data['captured_lng'],
                     'gps_accuracy_m' => $data['gps_accuracy_m'] ?? null,
@@ -110,6 +124,26 @@ class ObservationController extends Controller
 
             return $obs;
         });
+
+        // ALDASH himoyasi: birinchi rakurs phash'i bo'yicha BOSHQA honadonlarning
+        // yaqindagi rasmlaridan o'xshashini qidiramiz. Topilsa -> suspected_reuse
+        // (AI tahlilchi bu bayroqni o'qiydi). Dedup HECH QACHON yuklashni bloklamaydi.
+        try {
+            $firstPhash = null;
+            foreach ($phashes as $ph) {
+                if (is_string($ph) && $ph !== '') {
+                    $firstPhash = $ph;
+                    break;
+                }
+            }
+            if ($firstPhash !== null
+                && $this->dedup->findCrossHouseMatch($firstPhash, (string) $house->id) !== null) {
+                $observation->suspected_reuse = true;
+                $observation->save();
+            }
+        } catch (\Throwable) {
+            // dedup xatosi kuzatuvni buzmaydi
+        }
 
         // AI tahlil (asinxron, robust queue) — oldingi kuzatuv bilan solishtiradi
         AnalyzeObservationJob::dispatch($observation->id);

@@ -9,6 +9,7 @@ use App\Domains\Mahalla\Services\ObservationAnalyzer;
 use Closure;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
@@ -74,6 +75,15 @@ class AnalyzeObservationJob implements ShouldQueue
 
         try {
             $this->throttleConcurrency(fn () => $analyzer->analyze($obs));
+        } catch (ConnectionException $e) {
+            // AI-node'ga ULANIB BO'LMADI (PC o'chiq / LAN uzildi). Bu VAQTINCHALIK
+            // infra xatosi — RequestException'dan meros olmaydi, shuning uchun uni
+            // aniq tutamiz. FAIL QILMAYMIZ: backoff bilan qayta navbatga qo'yamiz.
+            // tries()/retryUntil() tugasa, failed() decision'ni 'pending' (INFRA)
+            // qoldiradi -> node tiklangach mahalla:reanalyze-stuck qayta yuboradi.
+            $this->release($this->backoff()[$this->attempts() - 1] ?? 60);
+
+            return;
         } catch (RequestException $e) {
             $status = $e->response?->status();
             if (in_array($status, self::RETRYABLE, true)) {
@@ -108,10 +118,57 @@ class AnalyzeObservationJob implements ShouldQueue
         if ($obs === null) {
             return;
         }
+
+        // SPOF himoyasi: xato AI-node'ga ulana olmaslik (infra) tufayli bo'lsa,
+        // kuzatuvni 'flagged' QILMAYMIZ — 'pending'da qoldiramiz. Aks holda
+        // idempotentlik qorovuli (decision !== 'pending') tufayli node tiklangach
+        // ham hech qachon qayta tahlil qilinmasdi. 'pending' + 'INFRA:' sababi
+        // bilan mahalla:reanalyze-stuck buni avtomatik qayta navbatga qo'yadi.
+        if ($this->isInfraFailure($e)) {
+            $obs->update([
+                'decision' => 'pending',
+                'decision_reason' => 'INFRA: AI-node уланмади — қайта навбатда',
+            ]);
+
+            return;
+        }
+
+        // Haqiqiy AI/boshqa xato — masul hodim ko'rigiga (flagged).
         $obs->update([
             'decision' => 'flagged',
             'is_change' => false,
             'decision_reason' => 'AI тахлил хатоси (қайта уринишлар тугади): '.mb_substr($e->getMessage(), 0, 200),
         ]);
+    }
+
+    /**
+     * Xato AI-node'ga ULANISH (infra) muammosimi? ConnectionException asosiy va
+     * ishonchli signal; xabardagi ulanish xatosi belgilari — zaxira qorovul
+     * (masalan, ConnectionException boshqa turga o'ralib kelsa).
+     */
+    private function isInfraFailure(Throwable $e): bool
+    {
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        $msg = mb_strtolower($e->getMessage());
+        foreach ([
+            'connection refused',
+            'failed to connect',
+            'could not connect',
+            'cannot connect',
+            'could not resolve host',
+            'name resolution',
+            'connection timed out',
+            'curl error 7',
+            'curl error 28',
+        ] as $needle) {
+            if (str_contains($msg, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

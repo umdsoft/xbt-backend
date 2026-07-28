@@ -26,6 +26,7 @@ class ZoneObservation extends Model
         'house_id', 'zone', 'user_id', 'observed_at',
         'lat', 'lng', 'gps_accuracy_m', 'distance_m', 'is_on_site', 'photo_count',
         'prev_observation_id', 'prev_status', 'status', 'suggested_status', 'is_change',
+        'suspected_reuse',
         'decision', 'decision_reason', 'confidence', 'ai_result',
         'reviewed_by', 'reviewed_at',
     ];
@@ -39,6 +40,7 @@ class ZoneObservation extends Model
         'distance_m' => 'float',
         'is_on_site' => 'boolean',
         'is_change' => 'boolean',
+        'suspected_reuse' => 'boolean',
         'confidence' => 'float',
         'photo_count' => 'integer',
         'ai_result' => 'array',

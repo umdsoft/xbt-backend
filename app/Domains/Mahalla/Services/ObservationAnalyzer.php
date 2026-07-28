@@ -97,6 +97,7 @@ class ObservationAnalyzer
                 'after' => $result['after_description'] ?? null,
                 'changed' => $result['changed'] ?? null,
                 'change_description' => $result['change_description'] ?? null,
+                'improvements' => $result['improvements'] ?? null,
                 'reasoning' => $result['reasoning'] ?? null,
                 'raw' => $result['_raw'] ?? null,
             ],
@@ -122,6 +123,18 @@ class ObservationAnalyzer
 
         if ($obs->is_on_site === false) {
             return ['flagged', 'GPS уйдан геозонадан ташқарида (75м).', false, null];
+        }
+
+        // Bino koordinatasi yo'q -> joyni umuman tasdiqlab bo'lmadi (is_on_site null).
+        // "Tekshirilmagan"ni "ok" deb qabul qilmaymiz -> masul hodim tekshiruvi.
+        if ($obs->is_on_site === null) {
+            return ['flagged', 'GPS: жой текширилмади (бино координатаси йўқ) — масул ходим текшируви.', false, null];
+        }
+
+        // Boshqa xonadon surati takrorlanган (reuse) shubhasi. Bayroqni kontroller
+        // o'rnatadi; bu yerda faqat O'QILADI. Shubha bo'lsa -> masul hodim.
+        if ((bool) $obs->suspected_reuse) {
+            return ['flagged', 'AI: бошқа хонадон сурати такрорланган шубҳаси — масул ходим текшируви.', false, null];
         }
 
         // LOKAL CV DARVOZASI: sifat/joy tekshirilgan va o'zgarish topilmagan ->
@@ -156,15 +169,36 @@ class ObservationAnalyzer
         }
 
         if (! $hasBaseline) {
-            // Birinchi kuzatuv — ASOSNI (baseline) belgilaydi.
-            if ($suggested !== null && $conf >= $min) {
-                return ['auto_confirmed', "AI асос (бошланғич) ҳолатни аниқлади (confidence={$conf}).", false, $suggested];
-            }
-
-            return ['flagged', "AI ишончи паст (confidence={$conf}) — масул ходим текшируви.", false, null];
+            // ASOS (birinchi) kuzatuv HECH QACHON avto-tasdiqlanmaydi: baseline
+            // manipulyatsiyasini (dastlabki suratni ataylab yomon olib, keyin
+            // soxta "yaxshilanish" yasash) oldini olish uchun. Suggested_status'ni
+            // AUTO-APPLY QILMAYMIZ (apply_status = null) — masul hodim tasdiqlasin.
+            return ['flagged', 'AI асос (бошланғич) ҳолатни аниқлади — асос манипуляциясини олдини олиш учун масул ходим тасдиқласин.', false, null];
         }
 
         if ($changed && $suggested !== null && $conf >= $min) {
+            // GOODHART HIMOYASI: faqat kosmetik belgi (oqlash/bo'yoq/tozalash) —
+            // mazmunli ish belgisisiz — VLM statusni cosmetic_max_status'dan
+            // YUQORIga (masalan "tugalланди") ko'tarsa, avto-tasdiqlamaymiz. Yutuq
+            // progressiyasi tartibi: needs_work < in_progress < completed < good.
+            // (MahallaZones::STATUS_RANK BOSHQA maqsad uchun — "eng muammoli zona" —
+            // va tartibi boshqacha; shuning uchun bu yerda lokal tartib e'lon qilamiz.)
+            $statusOrder = ['needs_work' => 0, 'in_progress' => 1, 'completed' => 2, 'good' => 3];
+            $improvements = is_array($r['improvements'] ?? null) ? $r['improvements'] : [];
+            $cosmeticCodes = (array) config('mahalla.ai.cosmetic_codes', []);
+            $cosmeticMax = (string) config('mahalla.ai.cosmetic_max_status', 'in_progress');
+            $cosmeticOnly = $improvements !== [] && array_diff($improvements, $cosmeticCodes) === [];
+            if ($cosmeticOnly && ($statusOrder[$suggested] ?? 0) > ($statusOrder[$cosmeticMax] ?? 1)) {
+                return ['flagged', 'AI: фақат косметик белги (оқлаш/бўёқ/тозалаш) — "тугалланди" деб авто-тасдиқламаймиз, масул ходим текширсин.', false, null];
+            }
+
+            // AUDIT NAMUNASI: kalibrlanmagan 7B modelning o'z-o'ziga bergan
+            // confidence'iga ko'r-ko'rona ishonmaslik uchun, avto-tasdiqqa TAYYOR
+            // kuzatuvlarning bir ulushi TASODIFIY tarzda masul hodim ko'rigiga.
+            if (random_int(1, 10000) / 10000.0 <= (float) config('mahalla.ai.audit_sample_rate', 0)) {
+                return ['flagged', 'Аудит намунаси (тасодифий сифат текшируви).', false, null];
+            }
+
             return ['auto_confirmed', "AI аниқ ўзгаришни тасдиқлади (confidence={$conf}).", true, $suggested];
         }
 

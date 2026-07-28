@@ -24,10 +24,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // AI (Anthropic) tahlil navbati uchun rate-limit (daqiqadagi so'rov).
-        // AnalyzePhotoJob'dagi RateLimited('mahalla-ai') shu limiterни ishlatadi —
-        // limit oshsa job avtomatik kechiktirilib qayta navbatga qo'yiladi.
-        RateLimiter::for('mahalla-ai', fn () => Limit::perMinute((int) config('mahalla.ai.rpm', 50)));
+        // AI tahlil navbati uchun rate-limit (daqiqadagi so'rov). AnalyzeObservationJob'dagi
+        // RateLimited('mahalla-ai') shu limiterни ishlatadi — limit oshsa job avtomatik
+        // kechiktirilib qayta navbatga qo'yiladi.
+        //
+        // DRAYVER-BILAN-XABARDOR: bulut (claude) uchun Anthropic RPM cheklovi kerak, lekin
+        // LAN'dagi lokal GPU (local) o'z tezligida ishlaydi — unga 50/min (=72k/kun < 138k
+        // talab) navbatni bo'g'adi. driver=local bo'lsa yuqori rpm_local (default 6000)
+        // ishlatiladi (amalda cheklamaydi).
+        RateLimiter::for('mahalla-ai', function () {
+            $driver = config('mahalla.ai.driver');
+            $rpm = $driver === 'local'
+                ? (int) config('mahalla.ai.rpm_local')
+                : (int) config('mahalla.ai.rpm');
+
+            return Limit::perMinute($rpm);
+        });
 
         /*
          * Har qanday `mahalla:*` buyruq tugagach rahbariyat keshini tozalaydi.

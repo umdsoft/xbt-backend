@@ -1,5 +1,7 @@
 <?php
 
+use App\Console\Commands\PruneInteriorPhotos;
+use App\Console\Commands\ReanalyzeStuckObservations;
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
 use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
 use App\Domains\Mahalla\Console\Commands\ImportMahallaIndicatorsCommand;
@@ -9,6 +11,7 @@ use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -29,4 +32,22 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(RenameMahallaCommand::class);
     $artisan->resolve(ImportMahallaIndicatorsCommand::class);
     $artisan->resolve(AddMahallaAliasCommand::class);
+    // Maxfiylik + node-down tiklanishi buyruqlari (app/Console/Commands avtomatik
+    // skanerlanmagani uchun bu yerda ham qo'lda ro'yxatdan o'tkaziladi).
+    $artisan->resolve(PruneInteriorPhotos::class);
+    $artisan->resolve(ReanalyzeStuckObservations::class);
 });
+
+/*
+ * REJALASHTIRISH (Laravel 11 — schedule shu faylda):
+ *  - prune-interior-photos: har kuni 03:00 da uy-ichi rasmlarini tozalaydi.
+ *  - reanalyze-stuck: har 15 daqiqada 'pending'da qolgan kuzatuvlarni tiklaydi.
+ * withoutOverlapping — uzoq davom etsa, keyingi ishga tushish ustma-ust kelmasin.
+ */
+Schedule::command('mahalla:prune-interior-photos')
+    ->dailyAt('03:00')
+    ->withoutOverlapping();
+
+Schedule::command('mahalla:reanalyze-stuck')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

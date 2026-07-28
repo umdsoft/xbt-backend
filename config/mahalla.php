@@ -65,6 +65,13 @@ return [
          */
         'queue' => env('MAHALLA_AI_QUEUE', 'ai'),
         'rpm' => (int) env('MAHALLA_AI_RPM', 50),
+        /*
+         * LOKAL AI-node uchun alohida RPM. Bulut (Anthropic) rate-limitи lokal GPU'ga
+         * KERAKSIZ — u o'z tezligida ishlaydi; 50/min esa navbatni bo'g'ib, kunlik
+         * hajmni (~138k) matematik jihatdan imkonsiz qiladi. driver=local bo'lsa
+         * RateLimiter shu qiymatni ishlatadi (amalda cheklamaydi).
+         */
+        'rpm_local' => (int) env('MAHALLA_AI_RPM_LOCAL', 6000),
         'concurrency' => (int) env('MAHALLA_AI_CONCURRENCY', 8),
         'max_attempts' => (int) env('MAHALLA_AI_MAX_ATTEMPTS', 5),
 
@@ -80,6 +87,42 @@ return [
          * ko'taramiz. Katta qiymat = ehtiyotkorroq (ko'proq qo'lda tekshiruv).
          */
         'quality_doubt_penalty' => (float) env('MAHALLA_AI_QUALITY_DOUBT_PENALTY', 0.15),
+
+        /*
+         * AUDIT NAMUNASI (2026-07-28 audit): kalibrlanmagan 7B modelning
+         * o'z-o'ziga bergan confidence'iga ko'r-ko'rona ishonmaslik uchun,
+         * avto-tasdiqlanadigan kuzatuvlarning shu ULUSHI (0..1) TASODIFIY tarzda
+         * masul hodim ko'rigiga yuboriladi. 0 = o'chirilgan.
+         */
+        'audit_sample_rate' => (float) env('MAHALLA_AI_AUDIT_SAMPLE_RATE', 0.07),
+
+        /*
+         * KOSMETIK improvements kodlari. Bu kodlar YOLG'IZ bo'lsa (mazmunli ish
+         * belgisisiz), status avtomatik cosmetic_max_status'dan YUQORIGA
+         * (completed/good) KO'TARILMAYDI — Goodhart himoyasi (arzon oqlash/bo'yoq
+         * butun zonani "tugallandi" qilib qo'ymasin).
+         */
+        'cosmetic_codes' => ['tree_whitewash', 'curb_whitewash', 'facade_painted', 'cleanup'],
+        'cosmetic_max_status' => env('MAHALLA_AI_COSMETIC_MAX_STATUS', 'in_progress'),
+
+        /*
+         * Infra (AI-node o'chiq/ulanmadi) tufayli 'pending'da qolgan kuzatuvlar shu
+         * daqiqadan keyin qayta tahlilga yuboriladi (mahalla:reanalyze-stuck). Bu
+         * SPOF-dan keyin ishni avtomatik tiklaydi (aks holda "flagged"da qolib ketardi).
+         */
+        'stuck_reanalyze_after_minutes' => (int) env('MAHALLA_AI_STUCK_REANALYZE_MIN', 45),
+    ],
+
+    /*
+     * MAXFIYLIK (2026-07-28 audit): uy-ICHI (oshxona/hojatxona) zonalari shaxsiy
+     * maydon. Rasm fayli shu kundan keyin AVTO-O'CHIRILADI (kuzatuv yozuvi + AI
+     * matni qoladi — faqat rasm fayli o'chadi). Har rasmga kirish audit jurnaliga
+     * yoziladi. Rozilik (consent) maydoni bazada saqlanadi (huquqiy siyosat egaga).
+     */
+    'privacy' => [
+        'interior_zones' => ['kitchen', 'toilet'],
+        'interior_retention_days' => (int) env('MAHALLA_INTERIOR_RETENTION_DAYS', 30),
+        'access_log_enabled' => (bool) env('MAHALLA_ACCESS_LOG', true),
     ],
 
     /*

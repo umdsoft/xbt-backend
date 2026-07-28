@@ -6,6 +6,7 @@ namespace App\Domains\Mahalla\Http\Controllers\Api;
 
 use App\Domains\Mahalla\Models\House;
 use App\Domains\Mahalla\Models\HousePhoto;
+use App\Domains\Mahalla\Models\PhotoAccessLog;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -38,6 +39,21 @@ class PhotoController extends Controller
         $disk = (string) config('mahalla.photos_disk', 'local');
         if (! Storage::disk($disk)->exists($photo->image_path)) {
             throw new NotFoundHttpException();
+        }
+
+        // MAXFIYLIK auditi: vakolatli ko'rishni jurnalga yozamiz (shaxsiy tasvirlar).
+        // Audit yozuvi rasm uzatishni HECH QACHON bloklamaydi.
+        if ((bool) config('mahalla.privacy.access_log_enabled', true)) {
+            try {
+                PhotoAccessLog::create([
+                    'house_photo_id' => $photo->id,
+                    'user_id' => $user?->id,
+                    'ip' => $request->ip(),
+                    'accessed_at' => now(),
+                ]);
+            } catch (\Throwable) {
+                // audit xatosi rasm ko'rsatishga to'sqinlik qilmasin
+            }
         }
 
         return Storage::disk($disk)->response($photo->image_path);

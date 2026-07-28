@@ -19,15 +19,16 @@ class HousePhoto extends Model
     use HasUuids;
 
     protected $fillable = [
-        'house_id', 'observation_id', 'zone', 'angle', 'type', 'image_path',
+        'house_id', 'observation_id', 'zone', 'angle', 'type', 'image_path', 'phash',
         'captured_lat', 'captured_lng', 'gps_accuracy_m', 'distance_m', 'geofence_ok',
-        'taken_date', 'captured_at', 'uploaded_by', 'device_info',
+        'taken_date', 'captured_at', 'pruned_at', 'uploaded_by', 'device_info',
     ];
 
     protected $casts = [
         'captured_lat' => 'float', 'captured_lng' => 'float',
         'gps_accuracy_m' => 'float', 'distance_m' => 'float', 'geofence_ok' => 'boolean',
-        'taken_date' => 'date', 'captured_at' => 'datetime', 'device_info' => 'array',
+        'taken_date' => 'date', 'captured_at' => 'datetime', 'pruned_at' => 'datetime',
+        'device_info' => 'array',
     ];
 
     public function house(): BelongsTo
