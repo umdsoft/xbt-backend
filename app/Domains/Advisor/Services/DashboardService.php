@@ -86,8 +86,10 @@ class DashboardService
         ];
 
         // Reyting grafigi — faqat viloyat/bo'linma (tuman o'z o'rnini panelda ko'radi).
+        // Joriy chorak bo'sh bo'lса (masalan Q3 hali kiritilmagan), yilдаги ENG SO'NGGI
+        // ma'lumotli chorak reytingини ko'rsatamiz — bo'sh grafik o'rniga.
         if (! $isTuman) {
-            $out['ranking'] = $this->rankingList($this->currentPeriodForYear($year));
+            $out['ranking'] = $this->rankingList($this->latestRankingPeriod($year));
         }
 
         return $out;
@@ -179,6 +181,20 @@ class DashboardService
         $q = $now->year === $year ? (int) ceil($now->month / 3) : 4;
 
         return "{$year}-Q{$q}";
+    }
+
+    /**
+     * Yilда reyting HISOBLANGAN eng so'nggi chorak (masalan Q3 bo'sh bo'lса — Q2).
+     * Umuman yo'q bo'lса — joriy chorakка qaytadi.
+     */
+    private function latestRankingPeriod(int $year): string
+    {
+        $p = DB::connection('advisor')->table('rankings')
+            ->where('period', 'like', "{$year}-Q%")
+            ->orderByDesc('period')
+            ->value('period');
+
+        return $p !== null ? (string) $p : $this->currentPeriodForYear($year);
     }
 
     /**
