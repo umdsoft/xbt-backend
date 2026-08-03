@@ -94,6 +94,8 @@ Route::middleware(['auth:sanctum', 'advisor'])
         // band tuman kesimi + bajarilishini kiritish. {item} yo'llari {plan} dan OLDIN.
         Route::get('/action-plan', [ActionPlanController::class, 'index'])->name('action-plan.index');
         Route::post('/action-plan', [ActionPlanController::class, 'store'])->name('action-plan.store');
+        // Statistika (har band = topshiriq) — {plan} binding'дан OLDIN ('stats' plan emas).
+        Route::get('/action-plan/stats', [ActionPlanController::class, 'stats'])->name('action-plan.stats');
         Route::get('/action-plan/items/{item}', [ActionPlanController::class, 'showItem'])->name('action-plan.item');
         Route::post('/action-plan/items/{item}/progress', [ActionPlanController::class, 'progress'])->name('action-plan.progress');
         Route::get('/action-plan/{plan}', [ActionPlanController::class, 'show'])->name('action-plan.show');

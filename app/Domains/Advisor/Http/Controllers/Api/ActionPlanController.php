@@ -60,6 +60,19 @@ class ActionPlanController extends Controller
         return response()->json(['ok' => true, 'id' => $plan->id], 201);
     }
 
+    /**
+     * CHORA-TADBIR STATISTIKASI (har band = bitta topshiriq). Rolга qarab:
+     *   - tuman: FAQAT o'z tumani yig'masi.
+     *   - viloyat/bo'linма: umumiy + tuman kesimi (leaderboard).
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($this->access->can($user, 'plan.view'), 403, 'Чора-тадбирларни кўришга рухсат йўқ.');
+
+        return response()->json($this->plans->stats($this->access->scopeFor($user)));
+    }
+
     /** Reja tafsiloti (bo'limlar bo'yicha bandlar; qamrovга qarab my_progress/summary). */
     public function show(Request $request, ActionPlan $plan): JsonResponse
     {
@@ -135,8 +148,10 @@ class ActionPlanController extends Controller
 
         $scope = $this->access->scopeFor($user);
 
-        if (! $scope->isTuman() && $item->scope !== 'viloyat' && ($v['district_id'] ?? null) === null) {
-            abort(422, 'Тумани кўрсатилмаган (қайси туман бажарилиши).');
+        // Viloyat/bo'linма TUMAN bajarilishini O'ZGARТИРА ОЛМАЙДИ — faqat monitoring.
+        // Viloyat faqat viloyat-darajасидаги bandни (scope=viloyat, district null) kiritadi.
+        if (! $scope->isTuman() && $item->scope !== 'viloyat') {
+            abort(403, 'Туман бажарилишини вилоят ўзгартира олмайди — фақат мониторинг.');
         }
 
         $this->plans->upsertProgress(

@@ -139,6 +139,118 @@ class ActionPlanService
         ];
     }
 
+    // ------------------------------------------------------------- statistika
+
+    /**
+     * CHORA-TADBIR STATISTIKASI — har band bir "topshiriq" hisoblanadi:
+     *   - all_districts band → 13 topshiriq (har tuman uchun bittadan);
+     *   - viloyat band       → 1 topshiriq (viloyat darajasi).
+     * Barcha rejalardagi bandlar bo'yicha yig'ma. Rolга qarab:
+     *   - tuman: FAQAT o'z tumани bandlari yig'masi;
+     *   - viloyat/bo'linма: umumiy yig'ma + tuman kesimi (per_district leaderboard).
+     *
+     * @return array<string, mixed>
+     */
+    public function stats(AdvisorScope $scope): array
+    {
+        $items = DB::connection('advisor')->table('action_plan_items')
+            ->whereNull('deleted_at')
+            ->get(['id', 'scope', 'deadline']);
+
+        $allItems = $items->where('scope', 'all_districts')->values();
+        $viloyatItems = $items->where('scope', 'viloyat')->values();
+        $progress = $this->progressByItem($items->pluck('id')->all());
+        $today = Carbon::today();
+
+        // Tuman: FAQAT o'z tumани uchun all_districts bandlari.
+        if ($scope->isTuman()) {
+            $d = (string) $scope->districtId;
+            $agg = $this->newTally();
+            foreach ($allItems as $it) {
+                $this->tally($agg, $progress[$it->id][$d] ?? null, $it->deadline, $today);
+            }
+
+            return ['role' => 'tuman', 'overall' => $this->finishTally($agg)];
+        }
+
+        // Viloyat/bo'linма: umumiy + tuman kesimi.
+        $districts = $this->districts();
+        $overall = $this->newTally();
+        $per = [];
+        foreach ($districts as $id => $name) {
+            $per[$id] = ['district' => ['id' => (string) $id, 'name' => $name], 'agg' => $this->newTally()];
+        }
+
+        foreach ($allItems as $it) {
+            foreach ($districts as $id => $name) {
+                $row = $progress[$it->id][$id] ?? null;
+                $this->tally($overall, $row, $it->deadline, $today);
+                $this->tally($per[$id]['agg'], $row, $it->deadline, $today);
+            }
+        }
+        foreach ($viloyatItems as $it) {
+            $this->tally($overall, $progress[$it->id][''] ?? null, $it->deadline, $today);
+        }
+
+        $perDistrict = array_map(
+            fn ($p) => ['district' => $p['district']] + $this->finishTally($p['agg']),
+            array_values($per),
+        );
+        // Ijro% bo'yicha kamayish tartibida (leaderboard).
+        usort($perDistrict, fn ($a, $b) => $b['completion'] <=> $a['completion']);
+
+        return [
+            'role' => $scope->role,
+            'overall' => $this->finishTally($overall),
+            'per_district' => $perDistrict,
+            'bands' => ['all_districts' => $allItems->count(), 'viloyat' => $viloyatItems->count()],
+        ];
+    }
+
+    /** @return array{total:int,completed:int,in_progress:int,not_started:int,overdue:int,_sum:int} */
+    private function newTally(): array
+    {
+        return ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'not_started' => 0, 'overdue' => 0, '_sum' => 0];
+    }
+
+    /** Bitta topshiriq (band×tuman) yozuvини yig'maга qo'shadi. */
+    private function tally(array &$agg, ?object $row, ?string $deadline, Carbon $today): void
+    {
+        $agg['total']++;
+        $status = $row->status ?? 'not_started';
+        if ($status === 'completed') {
+            $agg['completed']++;
+        } elseif ($status === 'in_progress') {
+            $agg['in_progress']++;
+        } else {
+            $agg['not_started']++;
+        }
+        if ($deadline !== null && $status !== 'completed' && Carbon::parse($deadline)->lt($today)) {
+            $agg['overdue']++;
+        }
+        $agg['_sum'] += (int) ($row->progress_percent ?? 0);
+    }
+
+    /**
+     * Yig'mани yakuniy shaklga keltiradi (avg_progress + completion% qo'shib).
+     *
+     * @return array{total:int,completed:int,in_progress:int,not_started:int,overdue:int,avg_progress:int,completion:int}
+     */
+    private function finishTally(array $agg): array
+    {
+        $total = $agg['total'];
+
+        return [
+            'total' => $total,
+            'completed' => $agg['completed'],
+            'in_progress' => $agg['in_progress'],
+            'not_started' => $agg['not_started'],
+            'overdue' => $agg['overdue'],
+            'avg_progress' => $total > 0 ? (int) round($agg['_sum'] / $total) : 0,
+            'completion' => $total > 0 ? (int) round($agg['completed'] / $total * 100) : 0,
+        ];
+    }
+
     // ------------------------------------------------------------- CRUD (viloyat)
 
     /**
