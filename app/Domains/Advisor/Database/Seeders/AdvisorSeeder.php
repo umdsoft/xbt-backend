@@ -90,8 +90,11 @@ class AdvisorSeeder extends Seeder
             $this->call(AdvisorProjectSeeder::class);
         }
 
-        // 6) Chora-tadbirlar (2026-yil yillik reja, namunадан 12 band).
-        $this->call(ActionPlanSeeder::class);
+        // 6) Chora-tadbirlar NAMUNA reja (12 band) — faqat env ruxsat berса.
+        //    Prod'da odatda O'CHIRILADI (rejalar qo'lда qo'shiladi): ADVISOR_SEED_ACTION_PLAN=false.
+        if (filter_var(env('ADVISOR_SEED_ACTION_PLAN', true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->call(ActionPlanSeeder::class);
+        }
 
         // 7) KPI real ma'lumot (Excel svodi: Reja Q1-Q4 + Bajarilish Q1/Q2) —
         //    KpiCatalogSeeder (1a) dan keyin, kpis to'ldirilgach.
