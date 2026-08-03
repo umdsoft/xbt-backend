@@ -61,8 +61,9 @@ class AdvisorSeeder extends Seeder
         // 1a) KPI katalogi (13 viloyat + 11 tuman) — yo'riqnoma IX (spec §7).
         $this->call(KpiCatalogSeeder::class);
 
-        // 2) Viloyat maslahatchisi (district null).
-        $this->ensureAdvisor('advisor_viloyat', 'Вилоят маслаҳатчиси', 'advisor_viloyat', 'viloyat', null, $password);
+        // 2) Viloyat maslahatchisi (district null). Login 'umdsoft' — yagona viloyat
+        //    maslahatchisi (haqiqiy shaxs). Dublikat yo'q: 'admin' advisor'ga qo'shilmaydi.
+        $this->ensureAdvisor('umdsoft', 'Вилоят маслаҳатчиси', 'advisor_viloyat', 'viloyat', null, $password);
 
         // 3) 13 tuman/shahar maslahatchisi (master.districts'ga bog'lab).
         foreach (self::DISTRICTS as $soato => [$login, $name]) {
@@ -78,16 +79,9 @@ class AdvisorSeeder extends Seeder
             $this->ensureAdvisor($login, $name, 'advisor_tuman', 'tuman', (string) $districtId, $password);
         }
 
-        // 4) Test super-admin — mavjud global 'admin' ga advisor_viloyat ruxsati +
-        //    viloyat advisor profili (SSO: bitta admin barcha tizimni ko'radi).
-        $adminId = DB::connection('auth')->table('users')->where('login', 'admin')->value('id');
-        if ($adminId !== null) {
-            $this->grantAccess((string) $adminId, 'advisor_viloyat');
-            Advisor::firstOrCreate(
-                ['user_id' => (string) $adminId],
-                ['level' => 'viloyat', 'district_id' => null, 'position' => 'Супер администратор', 'active' => true],
-            );
-        }
+        // 4) (OLIB TASHLANDI) — 'admin' advisor tizimiga QO'SHILMAYDI. Viloyat
+        //    maslahatchisi (umdsoft, permissions ['*']) advisorда to'liq nazoratchi;
+        //    admin'ni ham viloyat qilish DUBLIKAT yaratardi. admin — xbt/mahalla super-admin.
 
         // 5) Loyihalar NAMUNA (har tuman × har chorak 1 loyiha) — faqat env ruxsat berса.
         //    Prod'da odatda O'CHIRILADI (haqiqiy loyihalar qo'lда kiritiladi):

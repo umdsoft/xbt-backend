@@ -44,7 +44,8 @@ class SuperAdminSeeder extends Seeder
     private const SYSTEM_ROLES = [
         'xbt' => 'super-admin',
         'mahalla' => 'admin',
-        'advisor' => 'advisor_viloyat',
+        // 'advisor' — QO'SHILMAYDI: advisor viloyat maslahatchisi (umdsoft) o'zi
+        // to'liq nazoratchi; admin'ni advisor qilish dublikat viloyat advisor yaratardi.
     ];
 
     public function run(): void
