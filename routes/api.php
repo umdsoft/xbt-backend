@@ -23,6 +23,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me'])->name('api.me');
     Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout');
     Route::post('/mobile/logout', [MobileAuthController::class, 'logout'])->name('api.mobile.logout');
+
+    // Parolni o'zgartirish (markaziy — barcha tizimlar). throttle:6,1 — brute-force
+    // himoyasi (jorij parolni topishga urinishlarni cheklaydi).
+    Route::post('/change-password', [AuthController::class, 'changePassword'])
+        ->middleware('throttle:6,1')
+        ->name('api.change-password');
 });
 
 // Domen modullari

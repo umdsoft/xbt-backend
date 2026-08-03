@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -66,6 +67,49 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Чиқилди']);
+    }
+
+    /**
+     * Joriy foydalanuvchi o'z parolini o'zgartiradi (MARKAZIY — barcha tizimlar
+     * uchun bitta endpoint: advisor/mahalla/hr/sport). Jorij parol tekshiriladi;
+     * yangi parol jorijsidan farq qilishi va tasdiqlanishi shart.
+     *
+     * Parol o'zgargach sessiya YANGILANADI (`Auth::login` + `regenerate`) — shunda
+     * `AuthenticateSession` faol bo'lsa ham foydalanuvchi tizimdan chiqmaydi.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)],
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Жорий парол нотўғри.',
+            ]);
+        }
+
+        if (Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'Янги парол жорий паролдан фарқ қилиши керак.',
+            ]);
+        }
+
+        // 'hashed' cast parolni saqлаšда хешлайди.
+        $user->forceFill(['password' => $data['password']])->save();
+
+        // Stateful (SPA sessiya) so'rovда: yangi hash bilan qayta autentifikatsiya +
+        // sessiya id'sini almashtirish — shunda foydalanuvchi tizimdan chiqmaydi.
+        // Token (mobil) yoki sessiyasiz kontekstда bu bosqich o'tkazib yuboriladi.
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($user);
+            $request->session()->regenerate();
+        }
+
+        return response()->json(['message' => 'Парол муваффақиятли ўзгартирилди.']);
     }
 
     /**

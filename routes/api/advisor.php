@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Domains\Advisor\Http\Controllers\Api\ActionPlanController;
 use App\Domains\Advisor\Http\Controllers\Api\ActivityController;
+use App\Domains\Advisor\Http\Controllers\Api\AdvisorAdminController;
+use App\Domains\Advisor\Http\Controllers\Api\AnalyticsController;
 use App\Domains\Advisor\Http\Controllers\Api\ArchiveController;
 use App\Domains\Advisor\Http\Controllers\Api\DashboardController;
 use App\Domains\Advisor\Http\Controllers\Api\DistrictController;
@@ -31,8 +33,17 @@ Route::middleware(['auth:sanctum', 'advisor'])
         Route::get('/me', MeController::class)->name('me');
         Route::get('/districts', DistrictController::class)->name('districts');
 
+        // Maslahatchilar (hisoblar) boshqaruvi — FAQAT viloyat super-admin
+        // (kontrollerда 'advisors.manage' tekshiriladi). Login/parol yaratish + reset.
+        Route::get('/users', [AdvisorAdminController::class, 'index'])->name('users.index');
+        Route::post('/users', [AdvisorAdminController::class, 'store'])->name('users.store');
+        Route::post('/users/{user}/reset-password', [AdvisorAdminController::class, 'resetPassword'])->name('users.reset');
+        Route::patch('/users/{user}', [AdvisorAdminController::class, 'update'])->name('users.update');
+
         // Faoliyat nazorati + dashboard + svod (5-bosqich).
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        // Boshqaruv paneli tahlili (grafik) — butun yil kesimi (chorak tanlashsiz).
+        Route::get('/dashboard/analytics', AnalyticsController::class)->name('dashboard.analytics');
         Route::get('/oversight', OversightController::class)->name('oversight');
         Route::get('/activity', ActivityController::class)->name('activity');
         Route::get('/export/svod', SvodController::class)->name('export.svod');

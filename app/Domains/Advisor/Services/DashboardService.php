@@ -51,6 +51,137 @@ class DashboardService
     }
 
     /**
+     * YILLIK TAHLIL (grafik uchun) — chorak tanlashsiz, butun yil kesimi. Dashboard
+     * kartalaridan farqli: bu yerda KPI tendensiyasi (4 chorak), topshiriq/loyiha
+     * holati taqsimoti va (viloyat/bo'linma) tuman reytingi grafik shaklida.
+     *
+     * Qamrov: tuman FAQAT o'z tumani; viloyat/bo'linma — butun viloyat.
+     * Qisqa TTL (120s) — ma'lumot ~2 haftaда bir yangilanadi, lekin topshiriq/loyiha
+     * tez-tez o'zgaradi; 2 daqiqalik eskirish maqbul.
+     *
+     * @return array<string, mixed>
+     */
+    public function analytics(AdvisorScope $scope, int $year): array
+    {
+        $role = $scope->role ?? 'none';
+        $district = $scope->districtId ?? 'all';
+        $key = "advisor.analytics.{$role}.{$district}.{$year}";
+
+        return Cache::remember($key, 120, fn () => $this->buildAnalytics($scope, $year));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildAnalytics(AdvisorScope $scope, int $year): array
+    {
+        $isTuman = $scope->isTuman();
+        $districtId = $isTuman ? $scope->districtId : null;
+
+        $out = [
+            'year' => $year,
+            'kpi_trend' => $this->kpiTrend($scope, $year),
+            'task_status' => $this->taskStatusDist($districtId),
+            'project_status' => $this->projectStatusDist($districtId),
+        ];
+
+        // Reyting grafigi — faqat viloyat/bo'linma (tuman o'z o'rnini panelda ko'radi).
+        if (! $isTuman) {
+            $out['ranking'] = $this->rankingList($this->currentPeriodForYear($year));
+        }
+
+        return $out;
+    }
+
+    /**
+     * KPI ijro% tendensiyasi — 4 chorak bo'yicha (viloyat: tuman o'rtachasi;
+     * tuman: o'z tumani o'rtachasi). Grafik (area/line) uchun.
+     *
+     * @return array<int, array{period: string, label: string, value: ?float}>
+     */
+    private function kpiTrend(AdvisorScope $scope, int $year): array
+    {
+        $labels = ['I чорак', 'II чорак', 'III чорак', 'IV чорак'];
+        $isTuman = $scope->isTuman();
+        $districtId = $scope->districtId;
+
+        $trend = [];
+        for ($q = 1; $q <= 4; $q++) {
+            $period = "{$year}-Q{$q}";
+            $value = ($isTuman && $districtId === null)
+                ? null
+                : ($isTuman
+                    ? $this->kpiAvgForDistrict($period, (string) $districtId)
+                    : $this->kpiAvgOverall($period));
+            $trend[] = ['period' => $period, 'label' => $labels[$q - 1], 'value' => $value];
+        }
+
+        return $trend;
+    }
+
+    /**
+     * Topshiriq (task_targets) holati taqsimoti — donut grafik uchun. O'zaro
+     * chegaralanган to'plamlar (bir target bir bo'limда): faol / muddati o'tган /
+     * qaytarilган / yopilган. Postgres `count(*) filter` bilan bitta so'rov.
+     *
+     * @return array<int, array{key: string, label: string, value: int, tone: string}>
+     */
+    private function taskStatusDist(?string $districtId): array
+    {
+        $r = DB::connection('advisor')->table('task_targets')
+            ->when($districtId !== null, fn ($q) => $q->where('district_id', $districtId))
+            ->selectRaw(
+                "count(*) filter (where status = 'closed') as closed,
+                 count(*) filter (where status = 'returned') as returned,
+                 count(*) filter (where status not in ('closed','returned') and due_at is not null and due_at < now()) as overdue,
+                 count(*) filter (where status not in ('closed','returned') and (due_at is null or due_at >= now())) as active"
+            )->first();
+
+        return [
+            ['key' => 'active', 'label' => 'Фаол', 'value' => (int) ($r->active ?? 0), 'tone' => 'info'],
+            ['key' => 'overdue', 'label' => 'Муддати ўтган', 'value' => (int) ($r->overdue ?? 0), 'tone' => 'danger'],
+            ['key' => 'returned', 'label' => 'Қайтарилган', 'value' => (int) ($r->returned ?? 0), 'tone' => 'warn'],
+            ['key' => 'closed', 'label' => 'Ёпилган', 'value' => (int) ($r->closed ?? 0), 'tone' => 'ok'],
+        ];
+    }
+
+    /**
+     * Loyiha holati taqsimoti — donut grafik uchun.
+     *
+     * @return array<int, array{key: string, label: string, value: int, tone: string}>
+     */
+    private function projectStatusDist(?string $districtId): array
+    {
+        $r = DB::connection('advisor')->table('projects')
+            ->whereNull('deleted_at')
+            ->when($districtId !== null, fn ($q) => $q->where('district_id', $districtId))
+            ->selectRaw(
+                "count(*) filter (where status = 'planned') as planned,
+                 count(*) filter (where status = 'in_progress') as in_progress,
+                 count(*) filter (where status = 'done') as done,
+                 count(*) filter (where status = 'paused') as paused"
+            )->first();
+
+        return [
+            ['key' => 'planned', 'label' => 'Режалаштирилган', 'value' => (int) ($r->planned ?? 0), 'tone' => 'info'],
+            ['key' => 'in_progress', 'label' => 'Жараёнда', 'value' => (int) ($r->in_progress ?? 0), 'tone' => 'warn'],
+            ['key' => 'done', 'label' => 'Бажарилган', 'value' => (int) ($r->done ?? 0), 'tone' => 'ok'],
+            ['key' => 'paused', 'label' => 'Тўхтатилган', 'value' => (int) ($r->paused ?? 0), 'tone' => 'slate'],
+        ];
+    }
+
+    /**
+     * Berilган yil uchun reyting davri — joriy yilда joriy chorak, aks holда Q4.
+     */
+    private function currentPeriodForYear(int $year): string
+    {
+        $now = Carbon::now();
+        $q = $now->year === $year ? (int) ceil($now->month / 3) : 4;
+
+        return "{$year}-Q{$q}";
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function build(AdvisorScope $scope, string $period): array
