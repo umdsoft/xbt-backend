@@ -28,3 +28,4 @@ Route::middleware('auth:sanctum')->group(function () {
 // Domen modullari
 require __DIR__.'/api/mahalla.php';
 require __DIR__.'/api/hr.php';
+require __DIR__.'/api/advisor.php';

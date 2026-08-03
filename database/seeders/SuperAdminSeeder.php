@@ -19,7 +19,11 @@ use RuntimeException;
  * Yagona `admin` identifikatsiyasi 3 joyda bir xil UUID bilan bog'lanadi:
  *   1) auth.users                — markaziy identifikatsiya (login/parol)
  *   2) public.users (HrProfile)  — HR profil + spatie super-admin roli
- *   3) auth.user_system_access   — xbt (super-admin) + mahalla (admin) ruxsati
+ *   3) auth.user_system_access   — BARCHA tizimlar (self::SYSTEM_ROLES) ruxsati
+ *
+ * TAMOYIL (yagona super-admin): har bir tizim uchun ALOHIDA super-admin YARATILMAYDI —
+ * bitta `admin` foydalanuvchi barcha tizimlarga grant qilinadi. Yangi tizim qo'shilganda
+ * FAQAT self::SYSTEM_ROLES ga bitta qator qo'shing (yangi seeder emas).
  *
  * Idempotent: login bo'yicha firstOrCreate; mavjud (dev) `admin` — o'zgartirilmaydi,
  * dubl yaratilmaydi (mavjud UUID ishlatiladi). Faqat PostgreSQL.
@@ -29,6 +33,19 @@ use RuntimeException;
 class SuperAdminSeeder extends Seeder
 {
     private const LOGIN = 'admin';
+
+    /**
+     * Yagona super-admin ruxsatlari: [tizim kodi => shu tizimdagi eng yuqori rol].
+     * Yangi tizim (masalan 'sport','hr') qo'shilganda shu yerga bitta qator qo'shing —
+     * alohida super-admin akkaunt/seeder kerak emas.
+     *
+     * @var array<string, string>
+     */
+    private const SYSTEM_ROLES = [
+        'xbt' => 'super-admin',
+        'mahalla' => 'admin',
+        'advisor' => 'advisor_viloyat',
+    ];
 
     public function run(): void
     {
@@ -67,9 +84,13 @@ class SuperAdminSeeder extends Seeder
             ],
         );
 
-        // 3) Tizim ruxsatlari — xbt (super-admin) + mahalla (admin). Idempotent.
-        $this->grantAccess($user->id, 'xbt', 'super-admin');
-        $this->grantAccess($user->id, 'mahalla', 'admin');
+        // 3) Tizim ruxsatlari — BARCHA tizimlar (yagona super-admin). Idempotent.
+        //    Advisor: 'advisor_viloyat' rol = ruxsat ["*"] (AdvisorAccess) — advisor
+        //    domenida to'liq nazorat. Advisor PROFILI AdvisorSeeder'da yaratiladi
+        //    (advisor.advisors — /me endpoint uchun; DatabaseSeeder tartibida keyin).
+        foreach (self::SYSTEM_ROLES as $systemCode => $role) {
+            $this->grantAccess($user->id, $systemCode, $role);
+        }
 
         // 4) Spatie super-admin roli (HR domeni). getMorphClass() = App\Models\User
         //    → mavjud pivotga mos; assignRole idempotent (dubl yo'q).

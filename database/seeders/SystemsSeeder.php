@@ -25,6 +25,7 @@ class SystemsSeeder extends Seeder
     private const SYSTEMS = [
         ['code' => 'xbt', 'name' => 'Кадрлар бошқарув тизими (KBT)', 'sort_order' => 1],
         ['code' => 'mahalla', 'name' => 'Маҳалла мониторинги', 'sort_order' => 2],
+        ['code' => 'advisor', 'name' => 'Ҳоким маслаҳатчилари платформаси', 'sort_order' => 3],
     ];
 
     public function run(): void

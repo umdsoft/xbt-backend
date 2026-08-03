@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domains\Advisor\Database\Seeders\AdvisorSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -31,6 +32,9 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SuperAdminSeeder::class,
             MahallaPilotSeeder::class,
+            // Advisor poydevori — SuperAdminSeeder'dan KEYIN (global 'admin' ga
+            // advisor ruxsati beriladi); tumanlar master'da mavjud bo'lishi shart.
+            AdvisorSeeder::class,
         ]);
     }
 }

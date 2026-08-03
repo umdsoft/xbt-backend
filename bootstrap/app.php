@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'mahalla.hokim' => \App\Domains\Mahalla\Http\Middleware\EnsureMahallaHokim::class,
             'hr.context' => \App\Domains\Hr\Http\Middleware\EnsureHrContext::class,
             'hr.can' => \App\Domains\Hr\Http\Middleware\HrPermission::class,
+            'advisor' => \App\Domains\Advisor\Http\Middleware\EnsureAdvisor::class,
         ]);
 
         // HR tenant konteksti route-model binding'dan OLDIN o'rnatilishi shart —
