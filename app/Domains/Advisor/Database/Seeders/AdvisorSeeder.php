@@ -89,9 +89,12 @@ class AdvisorSeeder extends Seeder
             );
         }
 
-        // 5) Loyihalar namuna (har tuman × har chorak 1 loyiha) + KPI target/derive —
-        //    tuman advisorlari mavjud bo'lgach.
-        $this->call(AdvisorProjectSeeder::class);
+        // 5) Loyihalar NAMUNA (har tuman × har chorak 1 loyiha) — faqat env ruxsat berса.
+        //    Prod'da odatda O'CHIRILADI (haqiqiy loyihalar qo'lда kiritiladi):
+        //    .env'да ADVISOR_SEED_PROJECTS=false. Lokal (default) — yoqiq.
+        if (filter_var(env('ADVISOR_SEED_PROJECTS', true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->call(AdvisorProjectSeeder::class);
+        }
 
         // 6) Chora-tadbirlar (2026-yil yillik reja, namunадан 12 band).
         $this->call(ActionPlanSeeder::class);
