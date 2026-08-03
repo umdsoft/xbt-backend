@@ -16,7 +16,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // AdvisorAccess — singleton: roleFor()/advisorFor() natijasi so'rov davomida
+        // memo keshda baham ko'riladi (kontroller + middleware + service bir instance).
+        $this->app->singleton(\App\Domains\Advisor\Support\AdvisorAccess::class);
     }
 
     /**

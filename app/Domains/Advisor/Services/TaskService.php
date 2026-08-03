@@ -14,6 +14,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -78,8 +79,8 @@ class TaskService
         $base = fn () => DB::connection('advisor')->table('tasks as t')
             ->when(($filters['status'] ?? null) !== null, fn ($q) => $q->where('t.status', $filters['status']))
             ->when(($filters['category_id'] ?? null) !== null, fn ($q) => $q->where('t.category_id', $filters['category_id']))
-            ->when(($filters['from'] ?? null) !== null, fn ($q) => $q->whereDate('t.created_at', '>=', $filters['from']))
-            ->when(($filters['to'] ?? null) !== null, fn ($q) => $q->whereDate('t.created_at', '<=', $filters['to']))
+            ->when(($filters['from'] ?? null) !== null, fn ($q) => $q->where('t.created_at', '>=', $filters['from']))
+            ->when(($filters['to'] ?? null) !== null, fn ($q) => $q->where('t.created_at', '<', Carbon::parse($filters['to'])->addDay()))
             ->when(($filters['q'] ?? null) !== null && $filters['q'] !== '', function ($q) use ($filters) {
                 $like = '%'.$filters['q'].'%';
                 $q->where(fn ($x) => $x->where('t.title', 'ilike', $like)
@@ -186,14 +187,31 @@ class TaskService
 
             $dueAt = $deadline !== null ? Carbon::parse($deadline)->endOfDay() : null;
 
+            // Faol tuman maslahatchilarini BIR marta yuklab, district_id -> advisor.id
+            // xaritasi (avvalgi per-tuman advisorForDistrict N+1 o'rniga).
+            $advisorByDistrict = DB::connection('advisor')->table('advisors')
+                ->where('level', 'tuman')
+                ->where('active', true)
+                ->pluck('id', 'district_id');
+
+            $now = now();
+            $targets = [];
             foreach (array_unique($data['district_ids']) as $districtId) {
-                TaskTarget::create([
+                $targets[] = [
+                    'id' => (string) Str::uuid(),
                     'task_id' => $task->id,
                     'district_id' => $districtId,
-                    'assigned_advisor_id' => $this->advisorForDistrict((string) $districtId),
+                    'assigned_advisor_id' => $advisorByDistrict[$districtId] ?? null,
                     'due_at' => $dueAt,
                     'status' => 'pending',
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            // Nishonlarни YAGONA batch insert (13 ta TaskTarget::create o'rniga).
+            if ($targets !== []) {
+                DB::connection('advisor')->table('task_targets')->insert($targets);
             }
 
             foreach ($this->cleanTags($data['tags'] ?? []) as $tag) {
@@ -205,16 +223,6 @@ class TaskService
 
             return $task->id;
         });
-    }
-
-    /** Tumanning faol maslahatchisi (avto-biriktirish uchun) — yoki null. */
-    private function advisorForDistrict(string $districtId): ?string
-    {
-        return DB::connection('advisor')->table('advisors')
-            ->where('district_id', $districtId)
-            ->where('level', 'tuman')
-            ->where('active', true)
-            ->value('id');
     }
 
     // ----------------------------------------------------------------- ko'rish
@@ -643,8 +651,8 @@ class TaskService
         return DB::connection('advisor')->table('tasks as t')
             ->when(($filters['status'] ?? null) !== null, fn ($q) => $q->where('t.status', $filters['status']))
             ->when(($filters['category_id'] ?? null) !== null, fn ($q) => $q->where('t.category_id', $filters['category_id']))
-            ->when(($filters['from'] ?? null) !== null, fn ($q) => $q->whereDate('t.created_at', '>=', $filters['from']))
-            ->when(($filters['to'] ?? null) !== null, fn ($q) => $q->whereDate('t.created_at', '<=', $filters['to']))
+            ->when(($filters['from'] ?? null) !== null, fn ($q) => $q->where('t.created_at', '>=', $filters['from']))
+            ->when(($filters['to'] ?? null) !== null, fn ($q) => $q->where('t.created_at', '<', Carbon::parse($filters['to'])->addDay()))
             ->when(($filters['tag'] ?? null) !== null && $filters['tag'] !== '', fn ($q) => $q->whereExists(fn ($sub) => $sub
                 ->select(DB::raw(1))->from('task_tags as tg')
                 ->whereColumn('tg.task_id', 't.id')
@@ -683,10 +691,15 @@ class TaskService
             return [];
         }
 
-        // Filtrlangan topshiriqlar to'plami (id).
-        $taskIds = $this->archiveBaseQuery($scope, $filters)->pluck('t.id')->all();
+        // Filtrlangan topshiriqlar to'plami (id) — QATTIQ chegara (butun arxivni
+        // xotiraga yuklamaslik uchun). Chegaraga yetsa jurnalga ogohlantirish.
+        $cap = 5000;
+        $taskIds = $this->archiveBaseQuery($scope, $filters)->limit($cap)->pluck('t.id')->all();
         if ($taskIds === []) {
             return [];
+        }
+        if (count($taskIds) >= $cap) {
+            Log::warning("advisor arxiv eksport {$cap} topshiriq bilan cheklandi (to'liq arxiv emas — filtrni toraytiring).");
         }
 
         $districtId = $scope->isTuman() ? $scope->districtId : ($filters['district_id'] ?? null);

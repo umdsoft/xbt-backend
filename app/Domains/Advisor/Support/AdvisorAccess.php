@@ -65,16 +65,32 @@ class AdvisorAccess
     ];
 
     /**
+     * Per-so'rov memo (roleFor 2-3×, advisorFor 2× chaqiriladi). AdvisorAccess
+     * singleton sifatida bog'langan — so'rov davomida memo baham ko'riladi.
+     * User id bo'yicha kalitlanadi (null ham keshlanadi — array_key_exists bilan).
+     *
+     * @var array<string, ?string>
+     */
+    private array $roleCache = [];
+
+    /** @var array<string, ?Advisor> */
+    private array $advisorCache = [];
+
+    /**
      * Foydalanuvchining advisor tizimidagi roli (markaziy user_system_access'dan).
      */
     public function roleFor(User $user): ?string
     {
-        return DB::connection('auth')->table('user_system_access as usa')
-            ->join('systems as s', 's.id', '=', 'usa.system_id')
-            ->where('usa.user_id', $user->id)
-            ->where('usa.is_active', true)
-            ->where('s.code', self::SYSTEM_CODE)
-            ->value('usa.role');
+        if (! array_key_exists($user->id, $this->roleCache)) {
+            $this->roleCache[$user->id] = DB::connection('auth')->table('user_system_access as usa')
+                ->join('systems as s', 's.id', '=', 'usa.system_id')
+                ->where('usa.user_id', $user->id)
+                ->where('usa.is_active', true)
+                ->where('s.code', self::SYSTEM_CODE)
+                ->value('usa.role');
+        }
+
+        return $this->roleCache[$user->id];
     }
 
     /**
@@ -109,7 +125,11 @@ class AdvisorAccess
      */
     public function advisorFor(User $user): ?Advisor
     {
-        return Advisor::query()->where('user_id', $user->id)->first();
+        if (! array_key_exists($user->id, $this->advisorCache)) {
+            $this->advisorCache[$user->id] = Advisor::query()->where('user_id', $user->id)->first();
+        }
+
+        return $this->advisorCache[$user->id];
     }
 
     /**

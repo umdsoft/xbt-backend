@@ -6,6 +6,7 @@ namespace App\Domains\Advisor\Services;
 
 use App\Domains\Advisor\Support\AdvisorScope;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,11 +34,26 @@ class DashboardService
     ) {}
 
     /**
-     * Rolга qarab dashboard tarkibi.
+     * Rolга qarab dashboard tarkibi. Qisqa TTL (45s) keshlanadi — umumiy ko'rinish
+     * uchun bir necha soniyalik eskirish maqbul (aniq bekor qilish SHART emas).
+     * Kalit = rol + tuman + davr (tarkib advisor_id'ga bog'liq EMAS — tuman uchun
+     * ham FAQAT district_id kesimi; shu bois bir tumandagi maslahatchilar bir xil).
      *
      * @return array<string, mixed>
      */
     public function forUser(AdvisorScope $scope, string $period): array
+    {
+        $role = $scope->role ?? 'none';
+        $district = $scope->districtId ?? 'all';
+        $key = "advisor.dashboard.{$role}.{$district}.{$period}";
+
+        return Cache::remember($key, 45, fn () => $this->build($scope, $period));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function build(AdvisorScope $scope, string $period): array
     {
         if ($scope->isViloyat()) {
             return $this->viloyat($scope, $period);

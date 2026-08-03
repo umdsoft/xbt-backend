@@ -314,18 +314,23 @@ class KpiService
     // ------------------------------------------------------------- kesh
 
     /**
-     * KPI keshini bekor qiladi (versiyani oshiradi — barcha eski kalitlar TTL bilan
-     * o'chadi). Har yozuvда (entry/target/katalog) chaqiriladi.
+     * KPI MA'LUMOT keshini bekor qiladi (data versiyasini oshiradi — summary/matrix/
+     * year/entries eski kalitlari TTL bilan o'chadi). Har entry/target yozuvida
+     * chaqiriladi. Katalog keshiga TEGMAYDI (katalog kamdan-kam o'zgaradi — faqat
+     * KpiCatalog::seed bekor qiladi).
      */
     public static function invalidateCache(): void
     {
-        $ver = (int) Cache::get('advisor.kpi.ver', 1);
-        Cache::forever('advisor.kpi.ver', $ver + 1);
+        $ver = (int) Cache::get('advisor.kpi.data.ver', 1);
+        Cache::forever('advisor.kpi.data.ver', $ver + 1);
     }
 
     private function cacheKey(string $kind, string $suffix): string
     {
-        $ver = (int) Cache::get('advisor.kpi.ver', 1);
+        // Katalog alohida versiyada (kamdan-kam o'zgaradi); qolgan (summary/matrix/
+        // year/entries) ma'lumot versiyasida — entry/target yozuvida bekor bo'ladi.
+        $verKey = $kind === 'catalog' ? 'advisor.kpi.catalog.ver' : 'advisor.kpi.data.ver';
+        $ver = (int) Cache::get($verKey, 1);
 
         return "advisor.kpi.{$kind}.v{$ver}.{$suffix}";
     }

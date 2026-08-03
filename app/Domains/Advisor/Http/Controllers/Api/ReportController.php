@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Http\Controllers\Api;
 
+use App\Domains\Advisor\Http\Controllers\Api\Concerns\StreamsFiles;
 use App\Domains\Advisor\Models\ReportFile;
 use App\Domains\Advisor\Models\TaskReport;
 use App\Domains\Advisor\Services\TaskService;
@@ -22,6 +23,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class ReportController extends Controller
 {
+    use StreamsFiles;
+
     public function __construct(
         private readonly AdvisorAccess $access,
         private readonly TaskService $tasks,
@@ -96,7 +99,7 @@ class ReportController extends Controller
             throw new NotFoundHttpException;
         }
 
-        return Storage::disk($disk)->response($rf->path, $rf->original_name);
+        return $this->streamFile($disk, $rf->path, $rf->original_name, $request);
     }
 
     private function findReport(string $report): TaskReport

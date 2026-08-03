@@ -156,9 +156,13 @@ final class KpiCatalog
                 ->update(['active' => false, 'updated_at' => $now]);
         }
 
-        // KPI keshini bekor qilish (katalog o'zgardi) — versiyani oshirish.
-        $ver = (int) Cache::get('advisor.kpi.ver', 1);
-        Cache::forever('advisor.kpi.ver', $ver + 1);
+        // KPI keshini bekor qilish (katalog o'zgardi) — HAM katalog, HAM ma'lumot
+        // versiyasini oshirish (active bayrog'i summary/matrix agregatlariga ta'sir
+        // qiladi: ular k.active bo'yicha filtrlaydi).
+        foreach (['advisor.kpi.catalog.ver', 'advisor.kpi.data.ver'] as $verKey) {
+            $ver = (int) Cache::get($verKey, 1);
+            Cache::forever($verKey, $ver + 1);
+        }
 
         return $count;
     }

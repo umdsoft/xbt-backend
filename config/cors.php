@@ -23,7 +23,9 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    // Preflight (OPTIONS) javobini brauzer keshlaydi (1 soat) — subdomenlararo
+    // so'rovlarda ortiqcha preflight kamayadi.
+    'max_age' => 3600,
 
     'supports_credentials' => true,
 ];

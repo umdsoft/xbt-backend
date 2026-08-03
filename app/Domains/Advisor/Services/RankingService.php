@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Services;
 
-use App\Domains\Advisor\Models\Ranking;
-use App\Domains\Advisor\Support\AdvisorScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * REYTING moduli (spec §8). Choraklik/oylik tuman reytingi — deterministik:
@@ -23,7 +22,6 @@ class RankingService
 {
     public function __construct(
         private readonly KpiService $kpi,
-        private readonly TaskService $tasks,
     ) {}
 
     /**
@@ -50,13 +48,23 @@ class RankingService
             ->selectRaw('district_id, count(*) as n')
             ->pluck('n', 'district_id');
 
+        // Topshiriq ijro% — BITTA guruhlangan so'rov (tuman kesimida total/closed).
+        // Avvalgi per-tuman disciplineStats N+1 chaqiruvi o'rniga (bir xil formula:
+        // closed_rate = closed / max(1,total) * 100).
+        $targetStats = DB::connection('advisor')->table('task_targets')
+            ->groupBy('district_id')
+            ->selectRaw("district_id, count(*) as total, count(*) FILTER (WHERE status = 'closed') as closed")
+            ->get()
+            ->keyBy('district_id');
+
         $scored = [];
         foreach ($summary as $ordinal => $row) {
             $districtId = $row['district']['id'];
             $kpiAvg = (float) ($row['avg_fulfillment'] ?? 0.0);
-            $taskExec = (float) $this->tasks->disciplineStats(
-                new AdvisorScope('advisor_tuman', $districtId, null),
-            )['closed_rate'];
+            $stat = $targetStats[$districtId] ?? null;
+            $total = $stat === null ? 0 : (int) $stat->total;
+            $closed = $stat === null ? 0 : (int) $stat->closed;
+            $taskExec = round($closed / max(1, $total) * 100, 1);
             $projectScore = min(((int) ($projectCounts[$districtId] ?? 0)) * 10, 100);
 
             $scored[] = [
@@ -76,19 +84,27 @@ class RankingService
         });
 
         $now = now();
-        DB::connection('advisor')->transaction(function () use ($scored, $period, $now) {
-            DB::connection('advisor')->table('rankings')->where('period', $period)->delete();
+        $rows = [];
+        $rank = 1;
+        foreach ($scored as $s) {
+            $rows[] = [
+                'id' => (string) Str::uuid(),
+                'period' => $period,
+                'district_id' => $s['district_id'],
+                'score' => $s['score'],
+                'rank' => $rank,
+                'computed_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            $rank++;
+        }
 
-            $rank = 1;
-            foreach ($scored as $s) {
-                Ranking::create([
-                    'period' => $period,
-                    'district_id' => $s['district_id'],
-                    'score' => $s['score'],
-                    'rank' => $rank,
-                    'computed_at' => $now,
-                ]);
-                $rank++;
+        // Eski yozuvni o'chirib, YAGONA batch insert (13 ta Ranking::create o'rniga).
+        DB::connection('advisor')->transaction(function () use ($rows, $period) {
+            DB::connection('advisor')->table('rankings')->where('period', $period)->delete();
+            if ($rows !== []) {
+                DB::connection('advisor')->table('rankings')->insert($rows);
             }
         });
 

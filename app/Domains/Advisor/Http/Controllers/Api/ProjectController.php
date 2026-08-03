@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Http\Controllers\Api;
 
+use App\Domains\Advisor\Http\Controllers\Api\Concerns\StreamsFiles;
 use App\Domains\Advisor\Models\Project;
 use App\Domains\Advisor\Models\ProjectFile;
 use App\Domains\Advisor\Services\ProjectService;
@@ -28,6 +29,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class ProjectController extends Controller
 {
+    use StreamsFiles;
+
     public function __construct(
         private readonly AdvisorAccess $access,
         private readonly ProjectService $projects,
@@ -173,7 +176,7 @@ class ProjectController extends Controller
             throw new NotFoundHttpException;
         }
 
-        return Storage::disk($disk)->response($pf->path, $pf->original_name);
+        return $this->streamFile($disk, $pf->path, $pf->original_name, $request);
     }
 
     /** Loyihani o'chirish (soft delete) — FAQAT viloyat. */
