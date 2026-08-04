@@ -102,6 +102,18 @@ class ActionPlanProgressTest extends AdvisorTestCase
         ], 'advisor');
     }
 
+    public function test_tuman_cannot_enter_viloyat_scope_band(): void
+    {
+        $district = $this->someDistrictId();
+        $viloyatItem = $this->makeItem('viloyat');
+        $tuman = $this->makeAdvisor('advisor_tuman', 'tuman', $district);
+
+        // Vilоят-даражасидаги band — tuman ma'lumot KIRИТА ОЛМАЙДИ (вилоят бажаради).
+        $this->actingAs($tuman, 'sanctum')
+            ->postJson("/api/advisor/action-plan/items/{$viloyatItem->id}/entries", ['report' => 'x'])
+            ->assertStatus(403);
+    }
+
     public function test_only_author_edits_or_deletes_entry(): void
     {
         $district = $this->someDistrictId();

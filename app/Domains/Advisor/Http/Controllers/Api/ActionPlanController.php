@@ -219,11 +219,12 @@ class ActionPlanController extends Controller
             'occurred_at' => ['nullable', 'date'],
         ]);
 
-        // Tuman -> o'z tumani; viloyat -> FAQAT viloyat-darajасидаги band (tuman ma'lumotini kiritmaydi).
+        // Ijrochi: tuman all_districts bandни (o'z tumani); viloyat viloyat-band (district null).
         if ($scope->isTuman()) {
+            abort_if($item->scope === 'viloyat', 403, 'Бу вилоят даражасидаги топшириқ — туман киритмайди.');
             $districtId = $scope->districtId;
         } else {
-            abort_if($item->scope !== 'viloyat', 403, 'Туман маълумотини вилоят кирита олмайди — мониторинг.');
+            abort_if($item->scope !== 'viloyat', 403, 'Туман топшириғини вилоят киритмайди — мониторинг.');
             $districtId = null;
         }
 
