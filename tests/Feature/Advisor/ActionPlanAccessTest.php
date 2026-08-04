@@ -148,6 +148,34 @@ class ActionPlanAccessTest extends AdvisorTestCase
         ])->assertForbidden();
     }
 
+    public function test_band_with_steps_stores_steps_and_derives_deadline(): void
+    {
+        $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
+        $item = $this->makeItem();
+        $planId = $item->plan_id;
+
+        $this->actingAs($viloyat, 'sanctum')->postJson("/api/advisor/action-plan/{$planId}/items", [
+            'section_title' => 'II. Босқичли',
+            'item_number' => '2',
+            'title' => 'Кўп муддатли банд',
+            'steps' => [
+                ['text' => '1-босқич', 'deadline' => '2026-03-01'],
+                ['text' => '2-босқич', 'deadline' => '2026-09-01'],
+            ],
+        ])->assertCreated();
+
+        // Band deadline = eng kеч босqич (2026-09-01).
+        $this->assertDatabaseHas('action_plan_items', ['plan_id' => $planId, 'title' => 'Кўп муддатли банд', 'deadline' => '2026-09-01'], 'advisor');
+
+        // Overview'да steps qaytadi (2 ta).
+        $steps = $this->actingAs($viloyat, 'sanctum')->getJson("/api/advisor/action-plan/{$planId}")
+            ->assertOk()
+            ->json('sections.1.items.0.steps');
+        $this->assertCount(2, $steps);
+        $this->assertSame('2026-03-01', $steps[0]['deadline']);
+        $this->assertSame('1-босқич', $steps[0]['text']);
+    }
+
     public function test_bolinma_cannot_submit_progress(): void
     {
         $item = $this->makeItem();

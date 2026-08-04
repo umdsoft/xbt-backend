@@ -146,6 +146,9 @@ class ActionPlanController extends Controller
             'deadline_text' => ['sometimes', 'nullable', 'string', 'max:255'],
             'deadline' => ['sometimes', 'nullable', 'date'],
             'responsible_text' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'steps' => ['sometimes', 'nullable', 'array', 'max:20'],
+            'steps.*.text' => ['required_with:steps', 'string', 'max:2000'],
+            'steps.*.deadline' => ['nullable', 'date'],
         ]);
 
         $this->plans->updateItem($item, $v);
@@ -275,6 +278,10 @@ class ActionPlanController extends Controller
             'deadline' => ['nullable', 'date'],
             'responsible_text' => ['nullable', 'string', 'max:2000'],
             'scope' => ['nullable', 'string', 'in:all_districts,viloyat'],
+            // Mexanizm bosqichlari (har biri matn + kalendar sana).
+            'steps' => ['nullable', 'array', 'max:20'],
+            'steps.*.text' => ['required_with:steps', 'string', 'max:2000'],
+            'steps.*.deadline' => ['nullable', 'date'],
         ]);
     }
 

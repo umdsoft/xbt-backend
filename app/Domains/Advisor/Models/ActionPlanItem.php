@@ -26,12 +26,13 @@ class ActionPlanItem extends Model
     protected $table = 'action_plan_items';
 
     protected $fillable = [
-        'plan_id', 'section_title', 'item_number', 'title', 'mechanism',
+        'plan_id', 'section_title', 'item_number', 'title', 'mechanism', 'steps',
         'deadline_text', 'deadline', 'responsible_text', 'scope', 'sort_order',
     ];
 
     protected $casts = [
         'deadline' => 'date',
+        'steps' => 'array',
         'sort_order' => 'integer',
     ];
 

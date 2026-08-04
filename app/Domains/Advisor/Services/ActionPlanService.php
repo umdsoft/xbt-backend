@@ -72,7 +72,7 @@ class ActionPlanService
             ->whereNull('deleted_at')
             ->orderBy('sort_order')
             ->get([
-                'id', 'section_title', 'item_number', 'title', 'mechanism',
+                'id', 'section_title', 'item_number', 'title', 'mechanism', 'steps',
                 'deadline_text', 'deadline', 'responsible_text', 'scope', 'sort_order',
             ]);
 
@@ -93,6 +93,7 @@ class ActionPlanService
                 'item_number' => $item->item_number,
                 'title' => $item->title,
                 'mechanism' => $item->mechanism,
+                'steps' => $item->steps ? json_decode($item->steps, true) : null,
                 'deadline_text' => $item->deadline_text,
                 'deadline' => $item->deadline === null ? null : Carbon::parse($item->deadline)->toDateString(),
                 'responsible_text' => $item->responsible_text,
@@ -237,15 +238,52 @@ class ActionPlanService
             'section_title' => $data['section_title'],
             'item_number' => $data['item_number'],
             'title' => $data['title'],
-            'mechanism' => $data['mechanism'] ?? null,
-            'deadline_text' => $data['deadline_text'] ?? null,
-            'deadline' => $data['deadline'] ?? null,
             'responsible_text' => $data['responsible_text'] ?? null,
             'scope' => $data['scope'] ?? 'all_districts',
             'sort_order' => $maxSort + 10,
-        ]);
+        ] + $this->stepFields($data));
 
         return $item->id;
+    }
+
+    /**
+     * Mexanizm bosqichlari (steps=[{text,deadline}]) berilса — steps saqlanadi, band
+     * deadline = ENG KЕЧ bosqich sanаси (umumiy overdue uchun). Aks holда eski
+     * mechanism/deadline matnи.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function stepFields(array $data): array
+    {
+        $steps = $data['steps'] ?? null;
+        if (is_array($steps)) {
+            $clean = [];
+            foreach ($steps as $s) {
+                $text = trim((string) ($s['text'] ?? ''));
+                if ($text === '') {
+                    continue;
+                }
+                $clean[] = ['text' => $text, 'deadline' => ($s['deadline'] ?? null) ?: null];
+            }
+            if ($clean !== []) {
+                $deadlines = array_values(array_filter(array_column($clean, 'deadline')));
+
+                return [
+                    'steps' => $clean,
+                    'mechanism' => null,
+                    'deadline_text' => null,
+                    'deadline' => $deadlines === [] ? null : max($deadlines),
+                ];
+            }
+        }
+
+        return [
+            'steps' => null,
+            'mechanism' => $data['mechanism'] ?? null,
+            'deadline_text' => $data['deadline_text'] ?? null,
+            'deadline' => $data['deadline'] ?? null,
+        ];
     }
 
     /**
@@ -255,15 +293,27 @@ class ActionPlanService
      */
     public function updateItem(ActionPlanItem $item, array $data): void
     {
-        $item->update(array_filter([
-            'section_title' => $data['section_title'] ?? null,
-            'item_number' => $data['item_number'] ?? null,
-            'title' => $data['title'] ?? null,
-            'mechanism' => array_key_exists('mechanism', $data) ? $data['mechanism'] : null,
-            'deadline_text' => array_key_exists('deadline_text', $data) ? $data['deadline_text'] : null,
-            'deadline' => array_key_exists('deadline', $data) ? $data['deadline'] : null,
-            'responsible_text' => array_key_exists('responsible_text', $data) ? $data['responsible_text'] : null,
-        ], fn ($v) => $v !== null));
+        if (array_key_exists('section_title', $data)) {
+            $item->section_title = $data['section_title'];
+        }
+        if (array_key_exists('item_number', $data)) {
+            $item->item_number = $data['item_number'];
+        }
+        if (array_key_exists('title', $data)) {
+            $item->title = $data['title'];
+        }
+        if (array_key_exists('responsible_text', $data)) {
+            $item->responsible_text = $data['responsible_text'];
+        }
+        // Bosqichlar/mexanizm+muddat.
+        if (array_key_exists('steps', $data) || array_key_exists('mechanism', $data) || array_key_exists('deadline', $data)) {
+            $sf = $this->stepFields($data);
+            $item->steps = $sf['steps'];
+            $item->mechanism = $sf['mechanism'];
+            $item->deadline_text = $sf['deadline_text'];
+            $item->deadline = $sf['deadline'];
+        }
+        $item->save();
     }
 
     /** Bandni o'chiradi (soft delete). */
