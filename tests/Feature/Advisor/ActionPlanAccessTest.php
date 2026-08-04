@@ -154,9 +154,8 @@ class ActionPlanAccessTest extends AdvisorTestCase
         $bolinma = $this->makeAdvisor('advisor_bolinma', 'bolinma');
 
         $this->actingAs($bolinma, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$item->id}/progress", [
-                'district_id' => $this->someDistrictId(),
-                'status' => 'in_progress',
+            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", [
+                'report' => 'Синов маълумоти',
             ])
             ->assertForbidden();
     }

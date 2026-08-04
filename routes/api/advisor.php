@@ -95,11 +95,17 @@ Route::middleware(['auth:sanctum', 'advisor'])
         // band tuman kesimi + bajarilishini kiritish. {item} yo'llari {plan} dan OLDIN.
         Route::get('/action-plan', [ActionPlanController::class, 'index'])->name('action-plan.index');
         Route::post('/action-plan', [ActionPlanController::class, 'store'])->name('action-plan.store');
-        // Statistika (har band = topshiriq) — {plan} binding'дан OLDIN ('stats' plan emas).
+        // Literal/2-segment yo'llar {plan} binding'дан OLDIN.
         Route::get('/action-plan/stats', [ActionPlanController::class, 'stats'])->name('action-plan.stats');
         Route::get('/action-plan/items/{item}', [ActionPlanController::class, 'showItem'])->name('action-plan.item');
-        Route::post('/action-plan/items/{item}/progress', [ActionPlanController::class, 'progress'])->name('action-plan.progress');
+        Route::get('/action-plan/items/{item}/archive', [ActionPlanController::class, 'archive'])->name('action-plan.item.archive');
+        Route::post('/action-plan/items/{item}/entries', [ActionPlanController::class, 'addEntry'])->name('action-plan.entries.store');
+        Route::patch('/action-plan/items/{item}', [ActionPlanController::class, 'updateItem'])->name('action-plan.items.update');
+        Route::delete('/action-plan/items/{item}', [ActionPlanController::class, 'destroyItem'])->name('action-plan.items.destroy');
+        Route::patch('/action-plan/entries/{entry}', [ActionPlanController::class, 'updateEntry'])->name('action-plan.entries.update');
+        Route::delete('/action-plan/entries/{entry}', [ActionPlanController::class, 'destroyEntry'])->name('action-plan.entries.destroy');
         Route::get('/action-plan/{plan}', [ActionPlanController::class, 'show'])->name('action-plan.show');
+        Route::patch('/action-plan/{plan}', [ActionPlanController::class, 'update'])->name('action-plan.update');
         Route::post('/action-plan/{plan}/items', [ActionPlanController::class, 'storeItem'])->name('action-plan.items.store');
         Route::get('/action-plan/{plan}/document', [ActionPlanController::class, 'document'])->name('action-plan.document');
 
