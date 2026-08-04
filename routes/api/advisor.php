@@ -11,6 +11,7 @@ use App\Domains\Advisor\Http\Controllers\Api\DashboardController;
 use App\Domains\Advisor\Http\Controllers\Api\DistrictController;
 use App\Domains\Advisor\Http\Controllers\Api\KpiController;
 use App\Domains\Advisor\Http\Controllers\Api\MeController;
+use App\Domains\Advisor\Http\Controllers\Api\MonitoringController;
 use App\Domains\Advisor\Http\Controllers\Api\OversightController;
 use App\Domains\Advisor\Http\Controllers\Api\ProjectController;
 use App\Domains\Advisor\Http\Controllers\Api\RankingController;
@@ -101,4 +102,18 @@ Route::middleware(['auth:sanctum', 'advisor'])
         Route::get('/action-plan/{plan}', [ActionPlanController::class, 'show'])->name('action-plan.show');
         Route::post('/action-plan/{plan}/items', [ActionPlanController::class, 'storeItem'])->name('action-plan.items.store');
         Route::get('/action-plan/{plan}/document', [ActionPlanController::class, 'document'])->name('action-plan.document');
+
+        // Svod jadvallar (qaror/farmon ijrosi monitoringi). Barcha rol ko'radi;
+        // tuman o'z satrini kiritadi; viloyat yaratadi + tasdiqlaydi.
+        Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+        Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
+        // Statistika + eksport {sheet} binding'дан OLDIN emas (stats — alohida so'z).
+        Route::get('/monitoring/stats', [MonitoringController::class, 'stats'])->name('monitoring.stats');
+        Route::get('/monitoring/{sheet}', [MonitoringController::class, 'show'])->name('monitoring.show');
+        Route::patch('/monitoring/{sheet}', [MonitoringController::class, 'update'])->name('monitoring.update');
+        Route::get('/monitoring/{sheet}/export', [MonitoringController::class, 'export'])->name('monitoring.export');
+        Route::post('/monitoring/{sheet}/duplicate', [MonitoringController::class, 'duplicate'])->name('monitoring.duplicate');
+        Route::post('/monitoring/{sheet}/entry', [MonitoringController::class, 'entry'])->name('monitoring.entry');
+        Route::post('/monitoring/{sheet}/entries/{district}/confirm', [MonitoringController::class, 'confirm'])->name('monitoring.confirm');
+        Route::post('/monitoring/{sheet}/entries/{district}/return', [MonitoringController::class, 'return'])->name('monitoring.return');
     });

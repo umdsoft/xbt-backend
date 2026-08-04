@@ -50,6 +50,7 @@ class AdvisorAccess
             'kpi.view', 'kpi.enter', 'projects.view', 'rankings.view',
             'activity.view', 'oversight.view',
             'plan.view',
+            'monitoring.view',
         ],
         // Tuman/shahar maslahatchisi — o'z ishini yuritadi (o'z tumani kesimida).
         // KPI: o'z tumani qiymatini kiritadi (kpi.enter); tasdiq/derivatsiya YO'Q
@@ -61,6 +62,7 @@ class AdvisorAccess
             'kpi.view', 'kpi.enter', 'projects.view', 'projects.manage', 'rankings.view',
             'activity.view',
             'plan.view', 'plan.progress',
+            'monitoring.view', 'monitoring.enter',
         ],
     ];
 
