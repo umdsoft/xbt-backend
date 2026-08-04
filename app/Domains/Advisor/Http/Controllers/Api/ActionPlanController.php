@@ -8,9 +8,11 @@ use App\Domains\Advisor\Models\ActionPlan;
 use App\Domains\Advisor\Models\ActionPlanItem;
 use App\Domains\Advisor\Services\ActionPlanService;
 use App\Domains\Advisor\Support\AdvisorAccess;
+use App\Domains\Advisor\Support\AdvisorScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -32,30 +34,43 @@ class ActionPlanController extends Controller
         private readonly ActionPlanService $plans,
     ) {}
 
-    /** Rejalar ro'yxati (jadval). */
+    /** Rejalar ro'yxati (jadval) — qamrovга qarab (tuman: o'z + umumiy). */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
         abort_unless($this->access->can($user, 'plan.view'), 403, 'Чора-тадбирларни кўришга рухсат йўқ.');
 
-        return response()->json(['plans' => $this->plans->listPlans()]);
+        return response()->json(['plans' => $this->plans->listPlans($this->access->scopeFor($user))]);
     }
 
-    /** Yangi reja (tasdiqlovchi hujjат MAJBURIY) — FAQAT viloyat. */
+    /**
+     * Yangi reja:
+     *   - VILOYAT: umumiy (13 tuman) reja — tasdiqlovchi hujjat MAJBURIY.
+     *   - TUMAN:   O'Z rejasi (district_id = o'z tumani) — hujjat ixtiyoriy.
+     */
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($this->access->can($user, 'plan.manage'), 403, 'Режа яратишга рухсат йўқ.');
+        $scope = $this->access->scopeFor($user);
+        abort_unless($scope->isViloyat() || $scope->isTuman(), 403, 'Режа яратишга рухсат йўқ.');
+
+        $isTumanOwn = $scope->isTuman();
 
         $v = $request->validate([
             'title' => ['required', 'string', 'max:500'],
             'year' => ['required', 'integer', 'min:2020', 'max:2100'],
             'status' => ['nullable', 'string', 'in:draft,active,closed'],
-            'document' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:20480'],
+            // Viloyat umumiy rejasida hujjat majburiy; tuman o'z rejasida ixtiyoriy.
+            'document' => [$isTumanOwn ? 'nullable' : 'required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:20480'],
         ], [], ['document' => 'тасдиқловчи ҳужжат']);
 
+        // Tuman o'z tumani uchun; viloyat umumiy (null).
+        $v['district_id'] = $isTumanOwn ? $scope->districtId : null;
+
         $plan = $this->plans->createPlan($v, (string) $user->id);
-        $this->plans->storeDocument($plan, $request->file('document'));
+        if ($request->hasFile('document')) {
+            $this->plans->storeDocument($plan, $request->file('document'));
+        }
 
         return response()->json(['ok' => true, 'id' => $plan->id], 201);
     }
@@ -79,14 +94,27 @@ class ActionPlanController extends Controller
         $user = $request->user();
         abort_unless($this->access->can($user, 'plan.view'), 403, 'Чора-тадбирларни кўришга рухсат йўқ.');
 
-        return response()->json($this->plans->planOverview($plan, $this->access->scopeFor($user)));
+        $scope = $this->access->scopeFor($user);
+        // Tuman boshqa tuman rejаsини ko'ra olmaydi (umumiy + o'ziники mumkin).
+        if ($scope->isTuman() && $plan->district_id !== null && $plan->district_id !== $scope->districtId) {
+            abort(403, 'Бу режа бошқа туманники.');
+        }
+
+        return response()->json($this->plans->planOverview($plan, $scope));
     }
 
-    /** Rejaga qo'lda band qo'shish — FAQAT viloyat. */
+    /**
+     * Rejaga qo'lда band qo'shish. Egalik: viloyat -> umumiy (district_id null) reja;
+     * tuman -> FAQAT O'Z rejasi (district_id = o'z tumани).
+     */
     public function storeItem(Request $request, ActionPlan $plan): JsonResponse
     {
         $user = $request->user();
-        abort_unless($this->access->can($user, 'plan.manage'), 403, 'Банд қўшишга рухсат йўқ.');
+        $scope = $this->access->scopeFor($user);
+
+        $canManage = ($scope->isViloyat() && $plan->district_id === null)
+            || ($scope->isTuman() && $plan->district_id === $scope->districtId);
+        abort_unless($canManage, 403, 'Бу режага банд қўшишга рухсат йўқ.');
 
         $v = $request->validate([
             'section_title' => ['required', 'string', 'max:255'],
@@ -96,7 +124,8 @@ class ActionPlanController extends Controller
             'deadline_text' => ['nullable', 'string', 'max:255'],
             'deadline' => ['nullable', 'date'],
             'responsible_text' => ['nullable', 'string', 'max:2000'],
-            'scope' => ['required', 'string', 'in:all_districts,viloyat'],
+            // Tuman o'z rejasида kesim yubormaydi -> all_districts (o'z tumани).
+            'scope' => ['nullable', 'string', 'in:all_districts,viloyat'],
         ]);
 
         $id = $this->plans->addItem($plan, $v);
@@ -124,7 +153,12 @@ class ActionPlanController extends Controller
         $user = $request->user();
         abort_unless($this->access->can($user, 'plan.view'), 403, 'Чора-тадбирларни кўришга рухсат йўқ.');
 
-        $data = $this->plans->itemRows($item, $this->access->scopeFor($user));
+        $scope = $this->access->scopeFor($user);
+        if ($scope->isTuman() && ! $this->tumanMayAccessPlanOfItem($item, $scope)) {
+            abort(403, 'Бу режа бошқа туманники.');
+        }
+
+        $data = $this->plans->itemRows($item, $scope);
 
         if ($data === null) {
             return response()->json(['message' => 'Банд топилмади'], 404);
@@ -150,6 +184,11 @@ class ActionPlanController extends Controller
 
         // Viloyat/bo'linма TUMAN bajarilishini O'ZGARТИРА ОЛМАЙДИ — faqat monitoring.
         // Viloyat faqat viloyat-darajасидаги bandни (scope=viloyat, district null) kiritadi.
+        // Tuman boshqa tuman rejаsига yoza olmaydi (o'z rejаsи + umumiy reja mumkin).
+        if ($scope->isTuman() && ! $this->tumanMayAccessPlanOfItem($item, $scope)) {
+            abort(403, 'Бу режа бошқа туманники.');
+        }
+
         if (! $scope->isTuman() && $item->scope !== 'viloyat') {
             abort(403, 'Туман бажарилишини вилоят ўзгартира олмайди — фақат мониторинг.');
         }
@@ -165,5 +204,17 @@ class ActionPlanController extends Controller
         );
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Tuman shu band tegishli rejага kira oladimi? Ha — agar reja UMUMIY (district
+     * null) yoki O'Z tumани rejasi bo'lsa (IDOR himoyasi). Boshqa tuman rejasига yo'q.
+     */
+    private function tumanMayAccessPlanOfItem(ActionPlanItem $item, AdvisorScope $scope): bool
+    {
+        $planDistrict = DB::connection('advisor')->table('action_plans')
+            ->where('id', $item->plan_id)->value('district_id');
+
+        return $planDistrict === null || $planDistrict === $scope->districtId;
     }
 }

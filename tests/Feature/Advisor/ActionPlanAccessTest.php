@@ -71,7 +71,7 @@ class ActionPlanAccessTest extends AdvisorTestCase
         }
     }
 
-    public function test_only_viloyat_creates_plan_and_document_required(): void
+    public function test_plan_creation_by_role(): void
     {
         Storage::fake('local');
         $district = $this->someDistrictId();
@@ -83,7 +83,12 @@ class ActionPlanAccessTest extends AdvisorTestCase
         $doc = UploadedFile::fake()->create('tasdiq.pdf', 120, 'application/pdf');
 
         // Tuman/bo'linma reja yarata olmaydi.
-        $this->actingAs($tuman, 'sanctum')->postJson('/api/advisor/action-plan', $payload + ['document' => $doc])->assertForbidden();
+        // Tuman O'Z rejasini yarata oladi (hujjat ixtiyoriy) — district_id = o'z tumani.
+        $tumanPlanId = $this->actingAs($tuman, 'sanctum')->postJson('/api/advisor/action-plan', $payload)
+            ->assertCreated()->json('id');
+        $this->assertDatabaseHas('action_plans', ['id' => $tumanPlanId, 'district_id' => $district], 'advisor');
+
+        // Bo'linма reja yarата olmaydi.
         $this->actingAs($bolinma, 'sanctum')->postJson('/api/advisor/action-plan', $payload + ['document' => $doc])->assertForbidden();
 
         // Viloyat hujjатsiz — 422 (tasdiqlovchi hujjат majburiy).
@@ -113,6 +118,34 @@ class ActionPlanAccessTest extends AdvisorTestCase
         $this->actingAs($tuman, 'sanctum')->postJson("/api/advisor/action-plan/{$planId}/items", $band)->assertForbidden();
         $this->actingAs($viloyat, 'sanctum')->postJson("/api/advisor/action-plan/{$planId}/items", $band)
             ->assertCreated()->assertJsonPath('ok', true);
+    }
+
+    public function test_tuman_manages_own_plan_but_not_others(): void
+    {
+        $district = $this->someDistrictId();
+        $other = $this->anotherDistrictId($district);
+        $tuman = $this->makeAdvisor('advisor_tuman', 'tuman', $district);
+        $otherTuman = $this->makeAdvisor('advisor_tuman', 'tuman', $other);
+        $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
+
+        // Tuman o'z rejasini yaratadi.
+        $planId = $this->actingAs($tuman, 'sanctum')->postJson('/api/advisor/action-plan', [
+            'title' => 'Туман режаси', 'year' => 2099,
+        ])->assertCreated()->json('id');
+
+        // O'z rejasига band qo'sha oladi.
+        $this->actingAs($tuman, 'sanctum')->postJson("/api/advisor/action-plan/{$planId}/items", [
+            'section_title' => 'I. Бўлим', 'item_number' => '1', 'title' => 'Банд',
+        ])->assertCreated();
+
+        // Boshqa tuman bu rejани ko'ra OLMAЙДИ (403).
+        $this->actingAs($otherTuman, 'sanctum')->getJson("/api/advisor/action-plan/{$planId}")->assertForbidden();
+
+        // Viloyat ko'radi (monitoring), lekin band qo'sha OLMAЙДИ (tuman rejasi).
+        $this->actingAs($viloyat, 'sanctum')->getJson("/api/advisor/action-plan/{$planId}")->assertOk();
+        $this->actingAs($viloyat, 'sanctum')->postJson("/api/advisor/action-plan/{$planId}/items", [
+            'section_title' => 'I. Бўлим', 'item_number' => '2', 'title' => 'Банд2',
+        ])->assertForbidden();
     }
 
     public function test_bolinma_cannot_submit_progress(): void

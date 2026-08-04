@@ -34,12 +34,13 @@ class ActionPlanService
     }
 
     /**
-     * Rejalar ro'yxati (jadval) — barcha rejalar (band soni + hujjat bor/yo'qligi).
-     * Barcha rol ko'radi.
+     * Rejalar ro'yxati (jadval) — band soni + hujjat + EGA (tuman/umumiy).
+     * Qamrov: tuman FAQAT o'z rejasi + umumiy (viloyat) rejalarni ko'radi;
+     * viloyat/bo'linма barchani.
      *
      * @return array<int, array<string, mixed>>
      */
-    public function listPlans(): array
+    public function listPlans(AdvisorScope $scope): array
     {
         $counts = DB::connection('advisor')->table('action_plan_items')
             ->whereNull('deleted_at')
@@ -47,13 +48,19 @@ class ActionPlanService
             ->selectRaw('plan_id, count(*) as n')
             ->pluck('n', 'plan_id');
 
-        return ActionPlan::query()
+        $districts = $this->districts();
+
+        $plans = ActionPlan::query()
+            ->when($scope->isTuman(), fn ($q) => $q->where(function ($w) use ($scope) {
+                $w->whereNull('district_id')->orWhere('district_id', $scope->districtId);
+            }))
             ->orderByDesc('year')
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (ActionPlan $p) => $this->presentPlan($p) + [
-                'items_count' => (int) ($counts[$p->id] ?? 0),
-            ])->all();
+            ->get();
+
+        return $plans->map(fn (ActionPlan $p) => $this->presentPlan($p, $districts) + [
+            'items_count' => (int) ($counts[$p->id] ?? 0),
+        ])->all();
     }
 
     /**
@@ -76,6 +83,8 @@ class ActionPlanService
 
         $today = Carbon::today();
         $districtCount = $this->districtCount();
+        // Reja EGASI: null = umumiy (13 tuman); <uuid> = tuman o'z rejasi (1 tuman).
+        $ownerDistrict = $plan->district_id;
 
         // Bandlar bo'yicha bajarilishi yozuvlari (bir marta yuklab, PHP'da taqsimlanadi).
         $progressByItem = $this->progressByItem($items->pluck('id')->all());
@@ -105,6 +114,19 @@ class ActionPlanService
                 $mine = $rows[$scope->districtId] ?? null;
                 $present['my_progress'] = $this->presentProgress($mine);
                 $present['overdue'] = $this->isOverdue($item->deadline, $today, $present['my_progress']['status'] === 'completed');
+            } elseif ($ownerDistrict !== null) {
+                // Tuman O'Z rejasi — viloyat/bo'linма uchun BITTA tuman kesimi (monitoring).
+                $r = $rows[$ownerDistrict] ?? null;
+                $completed = ($r->status ?? null) === 'completed' ? 1 : 0;
+                $inProgress = ($r->status ?? null) === 'in_progress' ? 1 : 0;
+                $present['summary'] = [
+                    'total' => 1,
+                    'completed' => $completed,
+                    'in_progress' => $inProgress,
+                    'not_started' => 1 - $completed - $inProgress,
+                    'avg_progress' => (int) ($r->progress_percent ?? 0),
+                ];
+                $present['overdue'] = $this->isOverdue($item->deadline, $today, $completed === 1);
             } else {
                 $total = $item->scope === 'viloyat' ? 1 : $districtCount;
                 $summary = $this->summarize($rows, $item->scope, $total);
@@ -126,14 +148,28 @@ class ActionPlanService
         ];
     }
 
-    /** Reja shakli (jadval/tafsilot uchun) — hujjat ma'lumoti bilan. */
-    private function presentPlan(ActionPlan $plan): array
+    /**
+     * Reja shakli (jadval/tafsilot uchun) — hujjat + EGA (district) ma'lumoti bilan.
+     * `district` = null (umumiy/viloyat) yoki {id,name} (tuman o'z rejasi).
+     *
+     * @param  array<string,string>|null  $districts  id=>name xaritasi (ro'yxat uchun; null — bitta so'rov)
+     */
+    private function presentPlan(ActionPlan $plan, ?array $districts = null): array
     {
+        $owner = null;
+        if ($plan->district_id !== null) {
+            $name = $districts !== null
+                ? ($districts[$plan->district_id] ?? null)
+                : DB::connection('master')->table('districts')->where('id', $plan->district_id)->value('name_cyr');
+            $owner = ['id' => $plan->district_id, 'name' => $name];
+        }
+
         return [
             'id' => $plan->id,
             'year' => (int) $plan->year,
             'title' => $plan->title,
             'status' => $plan->status,
+            'district' => $owner,
             'document' => $plan->document_path === null ? null : ['name' => $plan->document_name],
             'created_at' => $plan->created_at?->toIso8601String(),
         ];
@@ -153,21 +189,26 @@ class ActionPlanService
      */
     public function stats(AdvisorScope $scope): array
     {
-        $items = DB::connection('advisor')->table('action_plan_items')
-            ->whereNull('deleted_at')
-            ->get(['id', 'scope', 'deadline']);
+        // Bandlar + reja EGASи (plan_district): null=umumiy, <uuid>=tuman o'z rejasi.
+        $items = DB::connection('advisor')->table('action_plan_items as i')
+            ->join('action_plans as p', 'p.id', '=', 'i.plan_id')
+            ->whereNull('i.deleted_at')
+            ->whereNull('p.deleted_at')
+            ->get(['i.id', 'i.scope', 'i.deadline', 'p.district_id as plan_district']);
 
-        $allItems = $items->where('scope', 'all_districts')->values();
-        $viloyatItems = $items->where('scope', 'viloyat')->values();
         $progress = $this->progressByItem($items->pluck('id')->all());
         $today = Carbon::today();
 
-        // Tuman: FAQAT o'z tumани uchun all_districts bandlari.
+        // Tuman: o'z rejasi bandlari + umumiy (viloyat) all_districts bandlari. Har biri 1 topshiriq.
         if ($scope->isTuman()) {
             $d = (string) $scope->districtId;
             $agg = $this->newTally();
-            foreach ($allItems as $it) {
-                $this->tally($agg, $progress[$it->id][$d] ?? null, $it->deadline, $today);
+            foreach ($items as $it) {
+                $own = $it->plan_district === $d;
+                $sharedAll = $it->plan_district === null && $it->scope === 'all_districts';
+                if ($own || $sharedAll) {
+                    $this->tally($agg, $progress[$it->id][$d] ?? null, $it->deadline, $today);
+                }
             }
 
             return ['role' => 'tuman', 'overall' => $this->finishTally($agg)];
@@ -181,29 +222,44 @@ class ActionPlanService
             $per[$id] = ['district' => ['id' => (string) $id, 'name' => $name], 'agg' => $this->newTally()];
         }
 
-        foreach ($allItems as $it) {
-            foreach ($districts as $id => $name) {
-                $row = $progress[$it->id][$id] ?? null;
+        $countAll = 0;
+        $countViloyat = 0;
+        $countOwn = 0;
+        foreach ($items as $it) {
+            if ($it->plan_district !== null) {
+                // Tuman o'z rejasi bandi — 1 topshiriq (o'sha tuman).
+                $countOwn++;
+                $row = $progress[$it->id][$it->plan_district] ?? null;
                 $this->tally($overall, $row, $it->deadline, $today);
-                $this->tally($per[$id]['agg'], $row, $it->deadline, $today);
+                if (isset($per[$it->plan_district])) {
+                    $this->tally($per[$it->plan_district]['agg'], $row, $it->deadline, $today);
+                }
+            } elseif ($it->scope === 'all_districts') {
+                // Umumiy reja bandi — 13 topshiriq (har tuman).
+                $countAll++;
+                foreach ($districts as $id => $name) {
+                    $row = $progress[$it->id][$id] ?? null;
+                    $this->tally($overall, $row, $it->deadline, $today);
+                    $this->tally($per[$id]['agg'], $row, $it->deadline, $today);
+                }
+            } else {
+                // Viloyat darajасидаги band — 1 topshiriq (umumiy).
+                $countViloyat++;
+                $this->tally($overall, $progress[$it->id][''] ?? null, $it->deadline, $today);
             }
-        }
-        foreach ($viloyatItems as $it) {
-            $this->tally($overall, $progress[$it->id][''] ?? null, $it->deadline, $today);
         }
 
         $perDistrict = array_map(
             fn ($p) => ['district' => $p['district']] + $this->finishTally($p['agg']),
             array_values($per),
         );
-        // Ijro% bo'yicha kamayish tartibida (leaderboard).
         usort($perDistrict, fn ($a, $b) => $b['completion'] <=> $a['completion']);
 
         return [
             'role' => $scope->role,
             'overall' => $this->finishTally($overall),
             'per_district' => $perDistrict,
-            'bands' => ['all_districts' => $allItems->count(), 'viloyat' => $viloyatItems->count()],
+            'bands' => ['all_districts' => $countAll, 'viloyat' => $countViloyat, 'district_own' => $countOwn],
         ];
     }
 
@@ -264,6 +320,8 @@ class ActionPlanService
             'year' => (int) $data['year'],
             'title' => $data['title'],
             'status' => $data['status'] ?? 'active',
+            // null = umumiy (viloyat) reja; <uuid> = tuman o'z rejasi.
+            'district_id' => $data['district_id'] ?? null,
             'created_by' => $userId,
         ]);
     }
@@ -333,6 +391,15 @@ class ActionPlanService
         ];
 
         $out = [];
+
+        // Tuman O'Z rejasi bandi — FAQAT o'sha tuman qatori (viloyat monitoring qiladi).
+        $ownerDistrict = DB::connection('advisor')->table('action_plans')
+            ->where('id', $item->plan_id)->value('district_id');
+        if ($ownerDistrict !== null) {
+            $name = $this->districts()[$ownerDistrict] ?? null;
+
+            return ['item' => $itemPresent, 'rows' => [$this->row($ownerDistrict, $name, $rows[$ownerDistrict] ?? null)]];
+        }
 
         if ($item->scope === 'viloyat') {
             // Viloyat darajasidagi band — bitta qator (district null). Tuman ko'rmaydi.

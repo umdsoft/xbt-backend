@@ -25,7 +25,7 @@ class ActionPlan extends Model
     protected $table = 'action_plans';
 
     protected $fillable = [
-        'year', 'title', 'status', 'created_by',
+        'year', 'title', 'status', 'district_id', 'created_by',
         'document_path', 'document_name', 'document_mime', 'document_size',
     ];
 
