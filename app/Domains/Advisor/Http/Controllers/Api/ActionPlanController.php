@@ -31,8 +31,13 @@ class ActionPlanController extends Controller
 {
     use StreamsFiles;
 
-    /** Qabul qilinadigan fayl turlari — pdf/rasm/Word/Excel (foydalanuvchi tanlovi). */
-    private const FILE_RULES = ['file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:20480'];
+    /**
+     * Qabul qilinadigan fayl turlari — pdf/rasm/Word/Excel (foydalanuvchi tanlovi).
+     * `extensions` (kengaytma bo'yicha) ishlatiladi, `mimes` EMAS: real .docx/.xlsx
+     * (aslida zip) ba'zi libmagic'da application/zip aniqlanib `mimes:docx`dan
+     * o'tmaydi. Fayllar maxfiy diskda, faqat yuklab olinadi (bajarilmaydi).
+     */
+    private const FILE_RULES = ['file', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:20480'];
 
     public function __construct(
         private readonly AdvisorAccess $access,
