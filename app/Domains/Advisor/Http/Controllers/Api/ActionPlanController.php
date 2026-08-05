@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Http\Controllers\Api;
 
+use App\Domains\Advisor\Http\Controllers\Api\Concerns\StreamsFiles;
 use App\Domains\Advisor\Models\ActionPlan;
 use App\Domains\Advisor\Models\ActionPlanEntry;
+use App\Domains\Advisor\Models\ActionPlanEntryFile;
 use App\Domains\Advisor\Models\ActionPlanItem;
 use App\Domains\Advisor\Services\ActionPlanService;
 use App\Domains\Advisor\Support\AdvisorAccess;
@@ -27,6 +29,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class ActionPlanController extends Controller
 {
+    use StreamsFiles;
+
+    /** Qabul qilinadigan fayl turlari — pdf/rasm/Word/Excel (foydalanuvchi tanlovi). */
+    private const FILE_RULES = ['file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx', 'max:20480'];
+
     public function __construct(
         private readonly AdvisorAccess $access,
         private readonly ActionPlanService $plans,
@@ -213,13 +220,8 @@ class ActionPlanController extends Controller
             abort(403, 'Бу режа бошқа туманники.');
         }
 
-        $v = $request->validate([
-            'report' => ['required', 'string', 'max:10000'],
-            'progress_percent' => ['nullable', 'integer', 'between:0,100'],
-            'occurred_at' => ['nullable', 'date'],
-        ]);
-
-        // Ijrochi: tuman all_districts bandни (o'z tumani); viloyat viloyat-band (district null).
+        // Ijrochi (rol) tekshiruvi FAYL validatsiyasidan OLDIN — noto'g'ri rol 403,
+        // 422 emas. Tuman all_districts bandни (o'z tumani); viloyat viloyat-band (district null).
         if ($scope->isTuman()) {
             abort_if($item->scope === 'viloyat', 403, 'Бу вилоят даражасидаги топшириқ — туман киритмайди.');
             $districtId = $scope->districtId;
@@ -228,6 +230,15 @@ class ActionPlanController extends Controller
             $districtId = null;
         }
 
+        $v = $request->validate([
+            'report' => ['required', 'string', 'max:10000'],
+            'progress_percent' => ['nullable', 'integer', 'between:0,100'],
+            'occurred_at' => ['nullable', 'date'],
+            // Tasdiqlovchi fayl(lar) MAJBURIY — bajarilishi dalili (foydalanuvchi talabi).
+            'files' => ['required', 'array', 'min:1', 'max:10'],
+            'files.*' => self::FILE_RULES,
+        ], [], ['files' => 'тасдиқловчи файл']);
+
         $id = $this->plans->addEntry(
             $item,
             $districtId,
@@ -235,9 +246,64 @@ class ActionPlanController extends Controller
             isset($v['progress_percent']) ? (int) $v['progress_percent'] : null,
             $v['occurred_at'] ?? null,
             (string) $user->id,
+            $request->file('files') ?? [],
         );
 
         return response()->json(['ok' => true, 'id' => $id], 201);
+    }
+
+    /** Mavjud yozuvga qo'shimcha tasdiqlovchi fayl biriktirish — FAQAT egаси. */
+    public function addEntryFiles(Request $request, ActionPlanEntry $entry): JsonResponse
+    {
+        abort_unless((string) $entry->created_by === (string) $request->user()->id, 403, 'Фақат ўзингиз киритган ёзувга файл қўшасиз.');
+
+        $request->validate([
+            'files' => ['required', 'array', 'min:1', 'max:10'],
+            'files.*' => self::FILE_RULES,
+        ], [], ['files' => 'тасдиқловчи файл']);
+
+        $ids = $this->plans->storeEntryFiles($entry, $request->file('files') ?? [], (string) $request->user()->id);
+
+        return response()->json(['ok' => true, 'ids' => $ids], 201);
+    }
+
+    /** Yozuv faylini o'chirish — FAQAT egаси. */
+    public function destroyEntryFile(Request $request, ActionPlanEntryFile $file): JsonResponse
+    {
+        $entry = ActionPlanEntry::findOrFail($file->entry_id);
+        abort_unless((string) $entry->created_by === (string) $request->user()->id, 403, 'Фақат ўзингиз киритган файлни ўчирасиз.');
+
+        $this->plans->deleteEntryFile($file);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Tasdiqlovchi faylni maxfiy diskdan uzatish (URL orqali ochib bo'lmaydi;
+     * ReportController naqshi). Tuman FAQAT o'z tumani fayllarини ko'radi (IDOR).
+     */
+    public function entryFile(Request $request, ActionPlanEntryFile $file): StreamedResponse
+    {
+        $user = $request->user();
+        abort_unless($this->access->can($user, 'plan.view'), 403, 'Кўришга рухсат йўқ.');
+
+        $scope = $this->access->scopeFor($user);
+        $entry = ActionPlanEntry::findOrFail($file->entry_id);
+
+        // Qamrov: tuman boshqa tuman (yoki viloyat-band) faylini ko'ra olmasin.
+        if ($scope->isTuman()) {
+            abort_unless(
+                $entry->district_id !== null && (string) $entry->district_id === (string) $scope->districtId,
+                404,
+            );
+        }
+
+        $disk = (string) config('advisor.files_disk', 'local');
+        if ($file->path === null || ! Storage::disk($disk)->exists($file->path)) {
+            throw new NotFoundHttpException;
+        }
+
+        return $this->streamFile($disk, $file->path, $file->original_name, $request);
     }
 
     /** Jurnal yozuvини tahrirlash — FAQAT egаси (kiritган). */

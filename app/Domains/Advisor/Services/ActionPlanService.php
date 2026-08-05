@@ -6,10 +6,13 @@ namespace App\Domains\Advisor\Services;
 
 use App\Domains\Advisor\Models\ActionPlan;
 use App\Domains\Advisor\Models\ActionPlanEntry;
+use App\Domains\Advisor\Models\ActionPlanEntryFile;
 use App\Domains\Advisor\Models\ActionPlanItem;
 use App\Domains\Advisor\Support\AdvisorScope;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * CHORA-TADBIRLAR moduli — yillik reja (action_plans) + bandlar (items) +
@@ -383,6 +386,7 @@ class ActionPlanService
     public function itemArchive(ActionPlanItem $item, ?string $districtId): array
     {
         return ActionPlanEntry::query()
+            ->with('files')
             ->where('item_id', $item->id)
             ->when($districtId !== null, fn ($q) => $q->where('district_id', $districtId))
             ->when($districtId === null, fn ($q) => $q->whereNull('district_id'))
@@ -394,11 +398,48 @@ class ActionPlanService
                 'progress_percent' => $e->progress_percent === null ? null : (int) $e->progress_percent,
                 'occurred_at' => Carbon::parse($e->occurred_at)->toDateString(),
                 'created_at' => $e->created_at === null ? null : Carbon::parse($e->created_at)->toIso8601String(),
+                'files' => $this->presentFiles($e->files),
             ])->all();
     }
 
-    /** Jurnalga yangi yozuv (ma'lumot kiritish). @return string entry id */
-    public function addEntry(ActionPlanItem $item, ?string $districtId, string $report, ?int $progress, ?string $occurredAt, string $userId): string
+    /**
+     * Fayllarni frontend uchun tayyorlaydi (rasm/hujjat farqlanadi).
+     *
+     * @param  iterable<ActionPlanEntryFile>  $files
+     * @return array<int, array<string, mixed>>
+     */
+    private function presentFiles(iterable $files): array
+    {
+        $out = [];
+        foreach ($files as $f) {
+            $out[] = [
+                'id' => $f->id,
+                'name' => $f->original_name,
+                'mime' => $f->mime,
+                'size' => $f->size_bytes,
+                'is_image' => $this->isImage($f->mime, $f->original_name),
+            ];
+        }
+
+        return $out;
+    }
+
+    private function isImage(?string $mime, string $name): bool
+    {
+        if ($mime !== null && str_starts_with($mime, 'image/')) {
+            return true;
+        }
+
+        return in_array(strtolower(pathinfo($name, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'webp'], true);
+    }
+
+    /**
+     * Jurnalga yangi yozuv (ma'lumot kiritish) + tasdiqlovchi fayllar.
+     *
+     * @param  array<int, UploadedFile>  $files
+     * @return string entry id
+     */
+    public function addEntry(ActionPlanItem $item, ?string $districtId, string $report, ?int $progress, ?string $occurredAt, string $userId, array $files = []): string
     {
         $entry = ActionPlanEntry::create([
             'item_id' => $item->id,
@@ -409,7 +450,48 @@ class ActionPlanService
             'created_by' => $userId,
         ]);
 
+        $this->storeEntryFiles($entry, $files, $userId);
+
         return $entry->id;
+    }
+
+    /**
+     * Yozuvga tasdiqlovchi fayllarni biriktiradi (maxfiy disk).
+     *
+     * @param  array<int, UploadedFile>  $files
+     * @return array<int, string> qo'shilgan fayl id'lari
+     */
+    public function storeEntryFiles(ActionPlanEntry $entry, array $files, string $userId): array
+    {
+        $disk = (string) config('advisor.files_disk', 'local');
+        $ids = [];
+        foreach ($files as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+            $path = $file->store("advisor/action-plans/entries/{$entry->id}", $disk);
+            $model = ActionPlanEntryFile::create([
+                'entry_id' => $entry->id,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime' => (string) $file->getClientMimeType(),
+                'size_bytes' => $file->getSize(),
+                'uploaded_by' => $userId,
+            ]);
+            $ids[] = $model->id;
+        }
+
+        return $ids;
+    }
+
+    /** Bitta faylni o'chiradi (disk + yozuv). */
+    public function deleteEntryFile(ActionPlanEntryFile $file): void
+    {
+        $disk = (string) config('advisor.files_disk', 'local');
+        if ($file->path !== null && Storage::disk($disk)->exists($file->path)) {
+            Storage::disk($disk)->delete($file->path);
+        }
+        $file->delete();
     }
 
     /** Yozuvni tahrirlaydi (egasi). @param  array<string, mixed>  $data */
@@ -430,6 +512,9 @@ class ActionPlanService
 
     public function deleteEntry(ActionPlanEntry $entry): void
     {
+        foreach ($entry->files as $file) {
+            $this->deleteEntryFile($file);
+        }
         $entry->delete();
     }
 

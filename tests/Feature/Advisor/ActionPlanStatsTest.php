@@ -34,7 +34,7 @@ class ActionPlanStatsTest extends AdvisorTestCase
         $tuman = $this->makeAdvisor('advisor_tuman', 'tuman', $district);
 
         $this->actingAs($tuman, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 80])
+            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 80, 'files' => [$this->fakeEntryFile()]])
             ->assertCreated();
 
         $overall = $this->actingAs($tuman, 'sanctum')
@@ -57,7 +57,7 @@ class ActionPlanStatsTest extends AdvisorTestCase
         $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
 
         $this->actingAs($tuman, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 100])
+            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 100, 'files' => [$this->fakeEntryFile()]])
             ->assertCreated();
 
         $body = $this->actingAs($viloyat, 'sanctum')

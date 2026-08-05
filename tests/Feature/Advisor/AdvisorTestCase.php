@@ -6,8 +6,10 @@ namespace Tests\Feature\Advisor;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -28,6 +30,14 @@ abstract class AdvisorTestCase extends TestCase
         // DatabaseTransactions DB'ni qaytaradi, lekin keshni emas — KPI keshi
         // testlar orasida sizmasin (matritsa/xulosa/katalog keshlanadi).
         Cache::flush();
+        // Fayl yuklashlar (dalil/hujjat) uchun maxfiy disk soxta — testlar diskka yozmaydi.
+        Storage::fake('local');
+    }
+
+    /** Sinov uchun soxta tasdiqlovchi fayl (jurnal yozuvi majburiy talab qiladi). */
+    protected function fakeEntryFile(string $name = 'dalil.pdf', string $mime = 'application/pdf'): UploadedFile
+    {
+        return UploadedFile::fake()->create($name, 40, $mime);
     }
 
     /** 'advisor' tizimi id (mavjud bo'lsa — o'sha; aks holda yaratiladi). */

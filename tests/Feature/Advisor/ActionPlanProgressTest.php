@@ -39,12 +39,14 @@ class ActionPlanProgressTest extends AdvisorTestCase
         $this->actingAs($tuman, 'sanctum')
             ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", [
                 'report' => 'Биринчи босқич бажарилди', 'progress_percent' => 40, 'occurred_at' => '2026-08-01',
+                'files' => [$this->fakeEntryFile()],
             ])->assertCreated();
 
         // 2-yozuv (davriy).
         $this->actingAs($tuman, 'sanctum')
             ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", [
                 'report' => 'Иккинчи босқич', 'progress_percent' => 70, 'occurred_at' => '2026-09-01',
+                'files' => [$this->fakeEntryFile('ikkinchi.jpg', 'image/jpeg')],
             ])->assertCreated();
 
         // Tafsilotда my_progress: kiritilган, oxirgi 70%, 2 yozuv.
@@ -72,7 +74,7 @@ class ActionPlanProgressTest extends AdvisorTestCase
         $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
 
         $this->actingAs($tuman, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 100])
+            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Бажарилди', 'progress_percent' => 100, 'files' => [$this->fakeEntryFile()]])
             ->assertCreated();
 
         // Viloyat summary + tuman kesimini KO'RADI.
@@ -94,7 +96,7 @@ class ActionPlanProgressTest extends AdvisorTestCase
         $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
 
         $this->actingAs($viloyat, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$viloyatItem->id}/entries", ['report' => 'Вилоят даражаси', 'progress_percent' => 50])
+            ->postJson("/api/advisor/action-plan/items/{$viloyatItem->id}/entries", ['report' => 'Вилоят даражаси', 'progress_percent' => 50, 'files' => [$this->fakeEntryFile()]])
             ->assertCreated();
 
         $this->assertDatabaseHas('action_plan_entries', [
@@ -122,7 +124,7 @@ class ActionPlanProgressTest extends AdvisorTestCase
         $viloyat = $this->makeAdvisor('advisor_viloyat', 'viloyat');
 
         $entryId = $this->actingAs($tuman, 'sanctum')
-            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Дастлабки'])
+            ->postJson("/api/advisor/action-plan/items/{$item->id}/entries", ['report' => 'Дастлабки', 'files' => [$this->fakeEntryFile()]])
             ->assertCreated()->json('id');
 
         // Egаси tahrirlaydi.

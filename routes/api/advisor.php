@@ -104,6 +104,10 @@ Route::middleware(['auth:sanctum', 'advisor'])
         Route::delete('/action-plan/items/{item}', [ActionPlanController::class, 'destroyItem'])->name('action-plan.items.destroy');
         Route::patch('/action-plan/entries/{entry}', [ActionPlanController::class, 'updateEntry'])->name('action-plan.entries.update');
         Route::delete('/action-plan/entries/{entry}', [ActionPlanController::class, 'destroyEntry'])->name('action-plan.entries.destroy');
+        // Tasdiqlovchi fayllar (jurnal yozuvining dalili).
+        Route::post('/action-plan/entries/{entry}/files', [ActionPlanController::class, 'addEntryFiles'])->name('action-plan.entries.files.store');
+        Route::get('/action-plan/entry-files/{file}', [ActionPlanController::class, 'entryFile'])->name('action-plan.entry-file');
+        Route::delete('/action-plan/entry-files/{file}', [ActionPlanController::class, 'destroyEntryFile'])->name('action-plan.entry-file.destroy');
         Route::get('/action-plan/{plan}', [ActionPlanController::class, 'show'])->name('action-plan.show');
         Route::patch('/action-plan/{plan}', [ActionPlanController::class, 'update'])->name('action-plan.update');
         Route::post('/action-plan/{plan}/items', [ActionPlanController::class, 'storeItem'])->name('action-plan.items.store');
