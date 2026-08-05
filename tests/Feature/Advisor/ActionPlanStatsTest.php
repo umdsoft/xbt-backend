@@ -77,4 +77,30 @@ class ActionPlanStatsTest extends AdvisorTestCase
         $this->assertNotNull($mine);
         $this->assertGreaterThanOrEqual(1, $mine['reported']);
     }
+
+    public function test_plan_list_includes_per_plan_stats_with_overdue(): void
+    {
+        $district = $this->someDistrictId();
+        $tuman = $this->makeAdvisor('advisor_tuman', 'tuman', $district);
+
+        // Tuman O'Z rejasi — muddati o'tgan, kiritilmagan band.
+        $plan = ActionPlan::create([
+            'year' => 2098, 'title' => 'Синов туман режа '.random_int(1, 9999),
+            'status' => 'active', 'district_id' => $district,
+        ]);
+        ActionPlanItem::create([
+            'plan_id' => $plan->id, 'section_title' => 'I. Бўлим', 'item_number' => '1',
+            'title' => 'Муддати ўтган банд', 'scope' => 'all_districts',
+            'deadline' => '2020-01-01', 'sort_order' => 10,
+        ]);
+
+        $plans = $this->actingAs($tuman, 'sanctum')
+            ->getJson('/api/advisor/action-plan')->assertOk()->json('plans');
+
+        $row = collect($plans)->firstWhere('id', $plan->id);
+        $this->assertNotNull($row);
+        $this->assertSame(1, $row['stats']['total']);
+        $this->assertSame(1, $row['stats']['overdue']);
+        $this->assertSame(0, $row['stats']['reported']);
+    }
 }

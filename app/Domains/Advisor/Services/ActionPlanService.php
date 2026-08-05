@@ -40,12 +40,6 @@ class ActionPlanService
      */
     public function listPlans(AdvisorScope $scope): array
     {
-        $counts = DB::connection('advisor')->table('action_plan_items')
-            ->whereNull('deleted_at')
-            ->groupBy('plan_id')
-            ->selectRaw('plan_id, count(*) as n')
-            ->pluck('n', 'plan_id');
-
         $districts = $this->districts();
 
         $plans = ActionPlan::query()
@@ -56,8 +50,38 @@ class ActionPlanService
             ->orderByDesc('created_at')
             ->get();
 
+        // Har reja bo'yicha ijro tallysi (band×tegishli-tuman): kiritilган/muddati o'tgan.
+        $planDistrict = $plans->pluck('district_id', 'id');
+        $items = DB::connection('advisor')->table('action_plan_items')
+            ->whereIn('plan_id', $plans->pluck('id')->all())
+            ->whereNull('deleted_at')
+            ->get(['id', 'plan_id', 'scope', 'deadline']);
+        $byItem = $this->entriesByItem($items->pluck('id')->all());
+        $today = Carbon::today();
+
+        $tallies = [];
+        $bandCount = [];
+        foreach ($plans as $p) {
+            $tallies[$p->id] = $this->newTally();
+            $bandCount[$p->id] = 0;
+        }
+        foreach ($items as $it) {
+            $bandCount[$it->plan_id] = ($bandCount[$it->plan_id] ?? 0) + 1;
+            $pd = $planDistrict[$it->plan_id] ?? null;
+            if ($pd !== null) {                              // tuman O'Z rejasi — bitta tuman
+                $this->tally($tallies[$it->plan_id], $byItem[$it->id][$pd] ?? [], $it->deadline, $today);
+            } elseif ($it->scope === 'all_districts') {      // umumiy — 13 tuman kesimi
+                foreach ($districts as $did => $name) {
+                    $this->tally($tallies[$it->plan_id], $byItem[$it->id][$did] ?? [], $it->deadline, $today);
+                }
+            } else {                                         // viloyat-band
+                $this->tally($tallies[$it->plan_id], $byItem[$it->id][''] ?? [], $it->deadline, $today);
+            }
+        }
+
         return $plans->map(fn (ActionPlan $p) => $this->presentPlan($p, $districts) + [
-            'items_count' => (int) ($counts[$p->id] ?? 0),
+            'items_count' => (int) ($bandCount[$p->id] ?? 0),
+            'stats' => $this->finishTally($tallies[$p->id]),
         ])->all();
     }
 
