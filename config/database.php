@@ -161,6 +161,23 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // MUROJAAT (fuqarolar murojaatlari monitoring/tahlil) domeni — operatsion.
+        // Excel'dan import qilinган murojaatlar + import sessiyalari + profil + master geo.
+        // Advisor ulanishi naqshi: bir xil host/DB, alohida schema (murojaat).
+        'murojaat' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => env('DB_MUROJAAT_SEARCH_PATH', 'murojaat,master,public'),
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         // HR (KBT — Kadrlar Boshqaruv Tizimi) domeni. KBT ma'lumoti PUBLIC schema'da
         // yashaydi (xodimlar, bo'limlar, spatie rollar/ruxsatlar, audit) + master geo.
         'hr' => [

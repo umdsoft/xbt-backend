@@ -38,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hr.context' => \App\Domains\Hr\Http\Middleware\EnsureHrContext::class,
             'hr.can' => \App\Domains\Hr\Http\Middleware\HrPermission::class,
             'advisor' => \App\Domains\Advisor\Http\Middleware\EnsureAdvisor::class,
+            'murojaat' => \App\Domains\Murojaat\Http\Middleware\EnsureMurojaat::class,
         ]);
 
         // HR tenant konteksti route-model binding'dan OLDIN o'rnatilishi shart —
