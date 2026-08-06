@@ -57,8 +57,8 @@ class ImportController extends Controller
 
         $rows = ImportSession::query()
             ->when(! $scope->seesAllDistricts(), fn ($q) => $q->where('district_id', $scope->districtId))
-            ->orderByDesc('imported_at')->orderByDesc('created_at')->limit(50)
-            ->get(['id', 'district_id', 'file_name', 'records_count', 'sayyor_count', 'is_active', 'imported_at', 'created_at']);
+            ->orderByDesc('created_at')->limit(50)
+            ->get(['id', 'district_id', 'file_name', 'records_count', 'sayyor_count', 'is_active', 'created_at']);
 
         return response()->json(['sessions' => $rows]);
     }

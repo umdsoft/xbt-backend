@@ -75,6 +75,27 @@ class MurojaatCoreTest extends MurojaatTestCase
         $this->assertSame(1, $dash['sayyor_count']);
     }
 
+    public function test_import_sessions_listing(): void
+    {
+        $d = $this->someDistrictId();
+        $admin = $this->makeUser('murojaat_admin', 'tuman', $d);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/murojaat/import', ['rows' => [$this->row()]])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/murojaat/import', ['rows' => [$this->row(), $this->row()]])->assertCreated();
+
+        $sessions = $this->actingAs($admin, 'sanctum')->getJson('/api/murojaat/import/sessions')
+            ->assertOk()
+            ->assertJsonStructure(['sessions' => [[
+                'id', 'district_id', 'file_name', 'records_count', 'sayyor_count', 'is_active', 'created_at',
+            ]]])
+            ->json('sessions');
+
+        $this->assertCount(2, $sessions);
+        $active = array_values(array_filter($sessions, fn ($s) => $s['is_active']));
+        $this->assertCount(1, $active);
+        $this->assertSame(2, $active[0]['records_count']); // eng oxirgi import faol
+    }
+
     public function test_analysis_endpoints_ok(): void
     {
         $d = $this->someDistrictId();
