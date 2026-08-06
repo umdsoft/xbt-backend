@@ -418,10 +418,11 @@ final class ExecutiveStats
         'state_supported_families', 'state_supported_members',
         'poor_families', 'poor_members',
         'borderline_families', 'borderline_members',
+        'employed_population',
     ];
 
     /** Kasr son sifatida o'qiladiganlar. */
-    private const DEC_INDICATORS = ['social_registry_rate', 'poverty_rate'];
+    private const DEC_INDICATORS = ['social_registry_rate', 'poverty_rate', 'employment_rate'];
 
     /**
      * Mahalla bo'yicha rasmiy ko'rsatkichlar — HAR USTUN uchun oxirgi ma'lum qiymat.
@@ -454,7 +455,9 @@ final class ExecutiveStats
         foreach ([...self::INT_INDICATORS, ...self::DEC_INDICATORS] as $c) {
             $cols[] = "(array_agg(i.{$c} order by i.period desc) filter (where i.{$c} is not null))[1] as {$c}";
         }
-        foreach (['is_ogir', 'is_yangi_uzbekiston'] as $c) {
+        // Ixtisoslashuv (matn) — eng so'nggi to'ldirilgan qiymat.
+        $cols[] = '(array_agg(i.specialization order by i.period desc) filter (where i.specialization is not null))[1] as specialization';
+        foreach (['is_ogir', 'is_yangi_uzbekiston', 'specialization_defined'] as $c) {
             $cols[] = "bool_or(i.{$c}) as {$c}";
         }
 
@@ -479,6 +482,8 @@ final class ExecutiveStats
             }
             $item['is_ogir'] = (bool) $r->is_ogir;
             $item['is_yangi_uzbekiston'] = (bool) $r->is_yangi_uzbekiston;
+            $item['specialization'] = $r->specialization;
+            $item['specialization_defined'] = (bool) $r->specialization_defined;
 
             $out[$r->mahalla_id] = $item;
         }

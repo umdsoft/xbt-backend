@@ -163,6 +163,10 @@ class ImportMahallaIndicatorsCommand extends Command
         'borderline_members' => ['borderline_members', 'num'],
         'ogir' => ['is_ogir', 'bool'],
         'yangi_uzbekiston' => ['is_yangi_uzbekiston', 'bool'],
+        'employed_population' => ['employed_population', 'num'],
+        'employment_rate' => ['employment_rate', 'dec'],
+        'specialization' => ['specialization', 'text'],
+        'specialization_defined' => ['specialization_defined', 'bool'],
     ];
 
     /**
@@ -311,5 +315,12 @@ class ImportMahallaIndicatorsCommand extends Command
         $v = mb_strtolower(trim((string) $v));
 
         return in_array($v, ['1', 'ha', 'ҳа', 'да', 'yes', 'true', '+'], true);
+    }
+
+    private function text(mixed $v): ?string
+    {
+        $v = trim((string) $v);
+
+        return $v === '' ? null : $v;
     }
 }

@@ -19,6 +19,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ExecutiveProjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObodDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\ScoringController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoController;
@@ -145,6 +146,11 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 // URL oxirida qo'llab-quvvatlaydi.
                 Route::get('/districts/{district}/social-objects', SocialObjectsController::class)
                     ->name('district.social-objects')
+                    ->whereUuid('district');
+
+                // «Raqamli mahalla» skoring — mahallalar reytingi + kvadrant.
+                Route::get('/districts/{district?}/scoring', ScoringController::class)
+                    ->name('district.scoring')
                     ->whereUuid('district');
                 /*
                  * `{district}` bu yerda MAJBURIY — asosiy `districts/{district?}`
