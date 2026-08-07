@@ -150,8 +150,10 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                     ->whereUuid('district');
 
                 // «Raqamli mahalla» skoring — mahallalar reytingi + kvadrant.
-                Route::get('/districts/{district?}/scoring', ScoringController::class)
-                    ->name('district.scoring')
+                // {district?} URL OXIRIDA — Laravel ixtiyoriy parametrni faqat
+                // oxirida qo'llab-quvvatlaydi (o'rtada bo'lsa id'siz chaqiruv 404 beradi).
+                Route::get('/scoring/{district?}', ScoringController::class)
+                    ->name('scoring')
                     ->whereUuid('district');
 
                 // Tuman tanlagich (rahbariyat butun viloyatni ko'radi).

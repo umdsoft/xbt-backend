@@ -937,6 +937,56 @@ class ExecutiveDashboardTest extends TestCase
         $this->assertNotContains('toilet', $zones, 'tasdiqlanmagan o\'zgarish kirmaydi');
     }
 
+    /**
+     * «Raqamli mahalla» skoring — standart (id'siz) va aniq tuman.
+     *
+     * REGRESSIYA: ilgari route `/districts/{district?}/scoring` bo'lib, ixtiyoriy
+     * parametr URL o'rtasida edi — Laravel buni qo'llab-quvvatlamaydi, id'siz
+     * chaqiruv 404 berardi va sahifa "yuklab bo'lmadi" deb yiqilardi. Endi
+     * `/scoring/{district?}` (param oxirida).
+     */
+    public function test_scoring_endpoint_default_and_specific_district(): void
+    {
+        $user = $this->makeUser('viloyat');
+
+        // id'siz — standart tuman (Shovot). Aynan brauzer birinchi chaqiradigan yo'l.
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/scoring')
+            ->assertOk()
+            ->assertJsonStructure([
+                'district' => ['id', 'name', 'soato'],
+                'kvadrantlar', 'toliqlik',
+                'rows' => [[
+                    'reyting', 'mahalla' => ['id', 'name'],
+                    'KOI', 'IPI', 'ITI', 'ustuvorlik', 'kvadrant', 'malumot_toliqligi', 'tavsiyalar',
+                ]],
+            ])
+            ->assertJsonPath('district.soato', '1733230');
+
+        // Aniq tuman id bilan.
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/scoring/'.$this->districtId())
+            ->assertOk()
+            ->assertJsonPath('district.soato', '1733230');
+    }
+
+    public function test_scoring_is_forbidden_for_deputat(): void
+    {
+        $this->actingAs($this->makeUser('deputat'), 'sanctum')
+            ->getJson('/api/mahalla/executive/scoring')
+            ->assertForbidden();
+    }
+
+    public function test_district_list_endpoint_returns_districts_with_employment_flag(): void
+    {
+        $user = $this->makeUser('viloyat');
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/district-list')
+            ->assertOk()
+            ->assertJsonStructure(['districts' => [['id', 'name', 'soato', 'has_employment']]]);
+    }
+
     // ---------------------------------------------------------------- yordamchi
 
     /** Shovot tumani (SOATO 1733230) — kadastr yuklanmagan bo'lsa test o'tkazib yuboriladi. */

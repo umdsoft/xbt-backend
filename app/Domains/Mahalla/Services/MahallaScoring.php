@@ -123,6 +123,8 @@ final class MahallaScoring
                 $kv[$letter]++;
             }
             $sumToliq += (float) $r['malumot_toliqligi'];
+            // Daromad manbai tavsiyalari (ixtisos + bandlik asosida) + intervensiya.
+            $r['tavsiyalar'] = $this->recommendations($r);
             // Ichki yordamchi kalitlarni tozalash.
             unset($r['_KOI_have'], $r['_KOI_total'], $r['_IPI_have'], $r['_IPI_total'], $r['_ITI_have'], $r['_ITI_total']);
         }
@@ -216,6 +218,39 @@ final class MahallaScoring
         }
 
         return $n % 2 ? $xs[intdiv($n, 2)] : ($xs[$n / 2 - 1] + $xs[$n / 2]) / 2;
+    }
+
+    /**
+     * Mahalla darajasidagi daromad manbai tavsiyalari — ixtisoslashuv +
+     * bandlik asosida (oila mikrodatasi kelganda oila kesimida aniqlashadi).
+     *
+     * @param  array<string, mixed>  $r
+     * @return array<int, array{yonalish: string, imtiyoz: string}>
+     */
+    private function recommendations(array $r): array
+    {
+        $ix = mb_strtolower((string) ($r['specialization'] ?? ''));
+        $out = [];
+        $add = function (array $keys, string $yonalish, string $imtiyoz) use ($ix, &$out) {
+            foreach ($keys as $k) {
+                if (str_contains($ix, $k)) {
+                    $out[$yonalish] = ['yonalish' => $yonalish, 'imtiyoz' => $imtiyoz];
+
+                    return;
+                }
+            }
+        };
+        $add(['чорва', 'қорамол', 'сут'], 'Chorvachilik/sutchilikni kengaytirish', 'Chorva lizingi / imtiyozli kredit');
+        $add(['боғ', 'мева', 'кўчат'], "Bog'dorchilik/ko'chatchilik + issiqxona", 'Issiqxona subsidiyasi');
+        $add(['деҳқон', 'дехқон', 'полиз', 'сабзавот'], 'Issiqxona/intensiv dehqonchilik', 'Issiqxona subsidiyasi');
+        $add(['савдо', 'хизмат'], 'Savdo-xizmat mikro-tadbirkorligi', 'Oilaviy tadbirkorlik dasturi');
+        $add(['ҳунар', 'хунар', 'тикув', 'косиб'], 'Hunarmandchilik mikroloyihasi', 'Uskuna granti');
+        $add(['парранда'], 'Parrandachilik klasteri', 'Imtiyozli kredit');
+        $add(['нонвой', 'озиқ', 'овқат'], "Oziq-ovqat qayta ishlash", 'Mikroloyiha krediti');
+        // Bandligi past bo'lsa — ko'nikma orqali bandlik doim dolzarb.
+        $out['raqamli'] = ['yonalish' => 'Raqamli kasb/IT-kurs → masofaviy bandlik', 'imtiyoz' => "Bandlik jamg'armasi vaucheri"];
+
+        return array_slice(array_values($out), 0, 3);
     }
 
     private function quadrant(?float $koi, ?float $ipi, float $koiMed, float $ipiMed): string
