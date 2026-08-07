@@ -171,6 +171,7 @@ class ImportMahallaIndicatorsCommand extends Command
         'unemployment_rate' => ['unemployment_rate', 'dec'],
         'tomorqa_households' => ['tomorqa_households', 'num'],
         'tomorqa_area_sotix' => ['tomorqa_area_sotix', 'dec'],
+        'registry_waiting_families' => ['registry_waiting_families', 'num'],
     ];
 
     /**
