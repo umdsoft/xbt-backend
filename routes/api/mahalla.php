@@ -20,6 +20,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardControlle
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ExecutiveProjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObodDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ScoringController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictListController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoController;
@@ -152,6 +153,9 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 Route::get('/districts/{district?}/scoring', ScoringController::class)
                     ->name('district.scoring')
                     ->whereUuid('district');
+
+                // Tuman tanlagich (rahbariyat butun viloyatni ko'radi).
+                Route::get('/district-list', DistrictListController::class)->name('district-list');
                 /*
                  * `{district}` bu yerda MAJBURIY — asosiy `districts/{district?}`
                  * dan farqli. Laravel ixtiyoriy marshrut parametrini faqat URL
