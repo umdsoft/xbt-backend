@@ -149,7 +149,8 @@ final class MahallaScoring
         $cols = ['poverty_rate', 'employment_rate', 'social_registry_rate', 'specialization_defined',
             'specialization', 'population', 'households', 'families', 'employed_population', 'poor_families',
             'unemployment_rate', 'unemployed', 'tomorqa_area_sotix', 'tomorqa_households',
-            'social_registry_families', 'registry_waiting_families'];
+            'social_registry_families', 'registry_waiting_families',
+            'registry_unemployed_members', 'registry_disabled_members'];
         $agg = [];
         foreach ($cols as $c) {
             $agg[] = "(array_agg(i.{$c} order by i.period desc) filter (where i.{$c} is not null))[1] as {$c}";
@@ -189,6 +190,8 @@ final class MahallaScoring
                 'tomorqa_per_hh' => $tomorqaPerHh,
                 'social_registry_families' => $r->social_registry_families === null ? null : (int) $r->social_registry_families,
                 'registry_waiting_families' => $r->registry_waiting_families === null ? null : (int) $r->registry_waiting_families,
+                'registry_unemployed_members' => $r->registry_unemployed_members === null ? null : (int) $r->registry_unemployed_members,
+                'registry_disabled_members' => $r->registry_disabled_members === null ? null : (int) $r->registry_disabled_members,
             ];
         })->all();
     }
