@@ -167,6 +167,10 @@ class ImportMahallaIndicatorsCommand extends Command
         'employment_rate' => ['employment_rate', 'dec'],
         'specialization' => ['specialization', 'text'],
         'specialization_defined' => ['specialization_defined', 'bool'],
+        'unemployed' => ['unemployed', 'num'],
+        'unemployment_rate' => ['unemployment_rate', 'dec'],
+        'tomorqa_households' => ['tomorqa_households', 'num'],
+        'tomorqa_area_sotix' => ['tomorqa_area_sotix', 'dec'],
     ];
 
     /**

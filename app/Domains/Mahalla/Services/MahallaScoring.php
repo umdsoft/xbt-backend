@@ -31,11 +31,13 @@ final class MahallaScoring
      */
     private const INDICATORS = [
         // KOI — kambag'allik og'irligi
-        ['col' => 'poverty_rate',         'index' => 'KOI', 'dir' => 'bad',  'weight' => 0.40],
-        ['col' => 'employment_rate',      'index' => 'KOI', 'dir' => 'good', 'weight' => 0.35],
-        ['col' => 'social_registry_rate', 'index' => 'KOI', 'dir' => 'bad',  'weight' => 0.25],
-        // IPI — iqtisodiy imkoniyat
-        ['col' => 'specialization_defined', 'index' => 'IPI', 'dir' => 'good', 'weight' => 1.00],
+        ['col' => 'poverty_rate',         'index' => 'KOI', 'dir' => 'bad',  'weight' => 0.35],
+        ['col' => 'unemployment_rate',    'index' => 'KOI', 'dir' => 'bad',  'weight' => 0.25],
+        ['col' => 'employment_rate',      'index' => 'KOI', 'dir' => 'good', 'weight' => 0.20],
+        ['col' => 'social_registry_rate', 'index' => 'KOI', 'dir' => 'bad',  'weight' => 0.20],
+        // IPI — iqtisodiy imkoniyat (bo'sh resurs)
+        ['col' => 'tomorqa_per_hh',         'index' => 'IPI', 'dir' => 'opp',  'weight' => 0.60],
+        ['col' => 'specialization_defined', 'index' => 'IPI', 'dir' => 'good', 'weight' => 0.40],
         // ITI — hozircha mahalla kesimida manba yo'q (kelganda qo'shiladi)
     ];
 
@@ -145,7 +147,8 @@ final class MahallaScoring
     private function indicators(string $districtId): array
     {
         $cols = ['poverty_rate', 'employment_rate', 'social_registry_rate', 'specialization_defined',
-            'specialization', 'population', 'households', 'employed_population', 'poor_families'];
+            'specialization', 'population', 'households', 'families', 'employed_population', 'poor_families',
+            'unemployment_rate', 'unemployed', 'tomorqa_area_sotix', 'tomorqa_households'];
         $agg = [];
         foreach ($cols as $c) {
             $agg[] = "(array_agg(i.{$c} order by i.period desc) filter (where i.{$c} is not null))[1] as {$c}";
@@ -160,18 +163,31 @@ final class MahallaScoring
             ->select(DB::connection('master')->raw('m.id, m.name_cyr, '.implode(', ', $agg)))
             ->get();
 
-        return $rows->map(fn ($r) => [
-            'mahalla' => ['id' => $r->id, 'name' => $r->name_cyr],
-            'poverty_rate' => $r->poverty_rate === null ? null : (float) $r->poverty_rate,
-            'employment_rate' => $r->employment_rate === null ? null : (float) $r->employment_rate,
-            'social_registry_rate' => $r->social_registry_rate === null ? null : (float) $r->social_registry_rate,
-            'specialization_defined' => $r->specialization_defined === null ? null : (int) (bool) $r->specialization_defined,
-            'specialization' => $r->specialization,
-            'population' => $r->population === null ? null : (int) $r->population,
-            'households' => $r->households === null ? null : (int) $r->households,
-            'employed_population' => $r->employed_population === null ? null : (int) $r->employed_population,
-            'poor_families' => $r->poor_families === null ? null : (int) $r->poor_families,
-        ])->all();
+        return $rows->map(function ($r) {
+            $households = $r->households === null ? null : (int) $r->households;
+            $tomorqaArea = $r->tomorqa_area_sotix === null ? null : (float) $r->tomorqa_area_sotix;
+            // Xonadonga o'rtacha tomorqa (sotix) — bo'sh resurs (IPI imkoniyat) proksisi.
+            $tomorqaPerHh = ($tomorqaArea !== null && $households) ? round($tomorqaArea / $households, 2) : null;
+
+            return [
+                'mahalla' => ['id' => $r->id, 'name' => $r->name_cyr],
+                'poverty_rate' => $r->poverty_rate === null ? null : (float) $r->poverty_rate,
+                'employment_rate' => $r->employment_rate === null ? null : (float) $r->employment_rate,
+                'social_registry_rate' => $r->social_registry_rate === null ? null : (float) $r->social_registry_rate,
+                'specialization_defined' => $r->specialization_defined === null ? null : (int) (bool) $r->specialization_defined,
+                'specialization' => $r->specialization,
+                'population' => $r->population === null ? null : (int) $r->population,
+                'households' => $households,
+                'families' => $r->families === null ? null : (int) $r->families,
+                'employed_population' => $r->employed_population === null ? null : (int) $r->employed_population,
+                'poor_families' => $r->poor_families === null ? null : (int) $r->poor_families,
+                'unemployment_rate' => $r->unemployment_rate === null ? null : (float) $r->unemployment_rate,
+                'unemployed' => $r->unemployed === null ? null : (int) $r->unemployed,
+                'tomorqa_area_sotix' => $tomorqaArea,
+                'tomorqa_households' => $r->tomorqa_households === null ? null : (int) $r->tomorqa_households,
+                'tomorqa_per_hh' => $tomorqaPerHh,
+            ];
+        })->all();
     }
 
     private function num(mixed $v): ?float
