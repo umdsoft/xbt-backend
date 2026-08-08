@@ -347,9 +347,59 @@ final class MahallaScoring
                 'active_count' => $have,
                 'total_count' => $totalBands,
                 'dimensions' => $dimsOut,
+                'recommendations' => $this->economicRecommendations($r, $dimsOut),
             ];
         }
         unset($r);
+    }
+
+    /**
+     * Iqtisodiy tahlilni TUZATISH bo'yicha tavsiyalar — eng zaif o'lchovlar +
+     * mavjud resurs (tomorqa/ixtisos) asosida. tone: urgent|action|opportunity|data.
+     *
+     * @param  array<string, mixed>  $r
+     * @param  array<int, array<string, mixed>>  $dims
+     * @return array<int, array{tone: string, title: string, detail: string}>
+     */
+    private function economicRecommendations(array $r, array $dims): array
+    {
+        $sc = [];
+        foreach ($dims as $d) {
+            $sc[$d['key']] = $d['score'];
+        }
+        $poor = $r['poor_families'] ?? null;
+        $unemp = $r['unemployed'] ?? null;
+        $wait = $r['registry_waiting_families'] ?? null;
+        $tom = $r['tomorqa_per_hh'] ?? null;
+        $ix = trim((string) ($r['specialization'] ?? ''));
+        $out = [];
+
+        if ($sc['income'] !== null && $sc['income'] < 45) {
+            $out[] = ['tone' => 'urgent', 'title' => 'Камбағалликни камайтириш',
+                'detail' => ($poor ? $poor.' та ' : '').'камбағал оилани даромад дастурига улаш; ижтимоий реестрдаги оилаларни бандликка йўналтириш.'];
+        }
+        if ($sc['burden'] !== null && $sc['burden'] < 45) {
+            $out[] = ['tone' => 'urgent', 'title' => 'Ижтимоий юкни енгиллаштириш',
+                'detail' => ($wait ? $wait.' та ' : '').'навбатдаги оилани қўллаб-қувватлашга тезлаштириш; ногиронларга мақсадли ёрдам.'];
+        }
+        if ($sc['employment'] !== null && $sc['employment'] < 52) {
+            $out[] = ['tone' => 'action', 'title' => 'Бандликни ошириш',
+                'detail' => ($unemp ? $unemp.' та ' : '').'ишсизни касб-ҳунарга ўқитиш ва иш ўринлари яратиш; оилавий тадбиркорлик.'];
+        }
+        // Aграр tavsiya faqat REAL maydon bo'lsa (min-max normallash kichik
+        // tomorqani ham «yuqori» ko'rsatishi mumkin — absolyut chegara qo'yamiz).
+        if (($sc['agri'] ?? 0) >= 55 && $tom !== null && $tom >= 1.5) {
+            $out[] = ['tone' => 'opportunity', 'title' => 'Аграр салоҳиятни ишга солиш',
+                'detail' => 'Хонадонга '.$tom.' сотих томорқа — иссиқхона ёки интенсив деҳқончилик орқали даромад манбаи.'];
+        }
+        if ($sc['entrepreneurship'] === null || $sc['entrepreneurship'] < 55) {
+            $out[] = ['tone' => 'action', 'title' => 'Тадбиркорликни рағбатлантириш',
+                'detail' => 'Имтиёзли кредит ва '.($ix !== '' ? mb_substr($ix, 0, 40).' йўналишида' : 'маҳалла ихтисоси бўйича').' кластер/кооперация ташкил этиш.'];
+        }
+        $out[] = ['tone' => 'data', 'title' => 'Маълумот тўлдириш',
+            'detail' => 'Тадбиркорлик, кредит ва инфратузилма бандлари учун идора маълумотини йиғиш — таҳлил тўлиқлигини оширади.'];
+
+        return array_slice($out, 0, 5);
     }
 
     /**
