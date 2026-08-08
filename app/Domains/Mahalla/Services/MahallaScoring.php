@@ -132,6 +132,9 @@ final class MahallaScoring
         }
         unset($r);
 
+        // 6) Batafsil IQTISODIY BAHOLASH (26-bandli ramka) — har mahallaga.
+        $this->attachEconomic($rows);
+
         return [
             'rows' => $rows,
             'kvadrantlar' => $kv,
@@ -240,6 +243,113 @@ final class MahallaScoring
         }
 
         return $n % 2 ? $xs[intdiv($n, 2)] : ($xs[$n / 2 - 1] + $xs[$n / 2]) / 2;
+    }
+
+    /**
+     * IQTISODIY BAHOLАШ — 26-bandli ramka (6 o'lchov). Mavjud ma'lumот bilan
+     * FAOL bandlar 0–100 ga baholanadi (tuman ичida min-max; iqtisodiy MA'NO:
+     * yuqori skор = yaxshiroq), qолganlari «kutilmoqda». Har mahallaga o'lchов
+     * skorlari + umumiy iqtisodiy indeks + to'liqlik biriктиrиlади.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function attachEconomic(array &$rows): void
+    {
+        $dims = [
+            'income' => ['label' => 'Даромад ва камбағаллик', 'weight' => 0.25],
+            'employment' => ['label' => 'Бандлик ва меҳнат бозори', 'weight' => 0.22],
+            'entrepreneurship' => ['label' => 'Тадбиркорлик', 'weight' => 0.15],
+            'agri' => ['label' => 'Аграр ресурс', 'weight' => 0.15],
+            'finance' => ['label' => 'Молия ва кредит', 'weight' => 0.13],
+            'burden' => ['label' => 'Ижтимоий-иқтисодий юк', 'weight' => 0.10],
+        ];
+        $tomorqaCov = fn ($r) => (! empty($r['households']) && ($r['tomorqa_households'] ?? null) !== null)
+            ? round($r['tomorqa_households'] / $r['households'] * 100, 1) : null;
+        $waitShare = fn ($r) => (! empty($r['social_registry_families']) && ($r['registry_waiting_families'] ?? null) !== null)
+            ? round($r['registry_waiting_families'] / $r['social_registry_families'] * 100, 1) : null;
+        $disabShare = fn ($r) => (! empty($r['social_registry_families']) && ($r['registry_disabled_members'] ?? null) !== null)
+            ? round($r['registry_disabled_members'] / $r['social_registry_families'] * 100, 1) : null;
+
+        $active = [
+            ['key' => 'kambagallik', 'dim' => 'income', 'label' => 'Камбағаллик даражаси', 'unit' => '%', 'dir' => 'bad', 'pick' => fn ($r) => $r['poverty_rate']],
+            ['key' => 'reyestr', 'dim' => 'income', 'label' => 'Ижтимоий реестр қамрови', 'unit' => '%', 'dir' => 'bad', 'pick' => fn ($r) => $r['social_registry_rate']],
+            ['key' => 'ishsizlik', 'dim' => 'employment', 'label' => 'Ишсизлик даражаси', 'unit' => '%', 'dir' => 'bad', 'pick' => fn ($r) => $r['unemployment_rate']],
+            ['key' => 'bandlik', 'dim' => 'employment', 'label' => 'Бандлик даражаси', 'unit' => '%', 'dir' => 'good', 'pick' => fn ($r) => $r['employment_rate']],
+            ['key' => 'ixtisos', 'dim' => 'entrepreneurship', 'label' => 'Ихтисослашув аниқлиги', 'unit' => '', 'dir' => 'good', 'pick' => fn ($r) => $r['specialization_defined']],
+            ['key' => 'tomorqa_cov', 'dim' => 'agri', 'label' => 'Томорқа қамрови', 'unit' => '%', 'dir' => 'good', 'pick' => $tomorqaCov],
+            ['key' => 'tomorqa_area', 'dim' => 'agri', 'label' => 'Хонадонга томорқа', 'unit' => 'сотих', 'dir' => 'opp', 'pick' => fn ($r) => $r['tomorqa_per_hh']],
+            ['key' => 'navbat', 'dim' => 'burden', 'label' => 'Навбатдаги оилалар улуши', 'unit' => '%', 'dir' => 'bad', 'pick' => $waitShare],
+            ['key' => 'nogironlik', 'dim' => 'burden', 'label' => 'Ногиронлик юки (реестр)', 'unit' => '%', 'dir' => 'bad', 'pick' => $disabShare],
+        ];
+        $pending = [
+            ['dim' => 'income', 'label' => 'Моддий ёрдам олувчилар улуши'],
+            ['dim' => 'income', 'label' => 'Жон бошига ўртача даромад'],
+            ['dim' => 'employment', 'label' => 'Норасмий бандлик улуши'],
+            ['dim' => 'employment', 'label' => 'NEET ёшлар улуши'],
+            ['dim' => 'employment', 'label' => 'Ташқи меҳнат миграцияси'],
+            ['dim' => 'entrepreneurship', 'label' => 'Тадбиркорлик зичлиги (1000 аҳолига)'],
+            ['dim' => 'entrepreneurship', 'label' => 'Янги ташкил этилган субъектлар'],
+            ['dim' => 'entrepreneurship', 'label' => 'Нофаол/тугатилган субъектлар'],
+            ['dim' => 'agri', 'label' => 'Фойдаланилмаётган ер'],
+            ['dim' => 'agri', 'label' => 'Суғориладиган ер улуши'],
+            ['dim' => 'agri', 'label' => 'Хонадонга чорва (бош)'],
+            ['dim' => 'finance', 'label' => 'Жон бошига кредит'],
+            ['dim' => 'finance', 'label' => 'NPL (муддати ўтган) улуши'],
+            ['dim' => 'finance', 'label' => 'Микролойиҳа/субсидия қамрови'],
+            ['dim' => 'burden', 'label' => 'Кўп болали оилалар улуши'],
+            ['dim' => 'burden', 'label' => 'Боқувчисини йўқотган оилалар'],
+            ['dim' => 'burden', 'label' => 'Ёлғиз кексалар'],
+        ];
+
+        $norm = [];
+        foreach ($active as $ind) {
+            $vals = array_map(fn ($r) => $this->num($ind['pick']($r)), $rows);
+            $norm[$ind['key']] = $this->minmax($vals, $ind['dir'] === 'bad');
+        }
+        $totalBands = count($active) + count($pending);
+
+        foreach ($rows as $i => &$r) {
+            $dimData = [];
+            foreach ($dims as $dk => $dm) {
+                $dimData[$dk] = ['label' => $dm['label'], 'weight' => $dm['weight'], 'indicators' => [], '_sum' => 0.0, '_n' => 0];
+            }
+            $have = 0;
+            foreach ($active as $ind) {
+                $val = $ind['pick']($r);
+                $score = $norm[$ind['key']][$i];
+                if ($score !== null) {
+                    $dimData[$ind['dim']]['_sum'] += $score;
+                    $dimData[$ind['dim']]['_n']++;
+                    $have++;
+                }
+                $dimData[$ind['dim']]['indicators'][] = [
+                    'label' => $ind['label'], 'unit' => $ind['unit'],
+                    'value' => $val === null ? null : (is_float($val) ? round($val, 1) : $val),
+                    'score' => $score === null ? null : (int) round($score), 'active' => true,
+                ];
+            }
+            foreach ($pending as $ind) {
+                $dimData[$ind['dim']]['indicators'][] = ['label' => $ind['label'], 'unit' => '', 'value' => null, 'score' => null, 'active' => false];
+            }
+            $dimsOut = [];
+            $ovSum = 0.0; $ovW = 0.0;
+            foreach ($dimData as $dk => $d) {
+                $dScore = $d['_n'] > 0 ? (int) round($d['_sum'] / $d['_n']) : null;
+                if ($dScore !== null) {
+                    $ovSum += $dScore * $d['weight'];
+                    $ovW += $d['weight'];
+                }
+                $dimsOut[] = ['key' => $dk, 'label' => $d['label'], 'weight' => $d['weight'], 'score' => $dScore, 'indicators' => $d['indicators']];
+            }
+            $r['economic'] = [
+                'overall' => $ovW > 0 ? (int) round($ovSum / $ovW) : null,
+                'completeness' => (int) round($have / $totalBands * 100),
+                'active_count' => $have,
+                'total_count' => $totalBands,
+                'dimensions' => $dimsOut,
+            ];
+        }
+        unset($r);
     }
 
     /**
