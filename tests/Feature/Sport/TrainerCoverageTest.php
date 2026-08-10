@@ -107,4 +107,16 @@ class TrainerCoverageTest extends TestCase
         $this->getJson('/api/sport/public/trainer-coverage/00000000-0000-0000-0000-000000000000')
             ->assertNotFound();
     }
+
+    /** Ma'lumot LOTIN tilida qaytishi kerak — javobda kirill harf bo'lmasin. */
+    public function test_output_is_latin_not_cyrillic(): void
+    {
+        [$districtId] = $this->seedTrainer();
+
+        $overview = $this->getJson('/api/sport/public/trainer-coverage')->assertOk()->getContent();
+        $this->assertDoesNotMatchRegularExpression('/\p{Cyrillic}/u', $overview, 'Overview kirill bo\'lmasligi kerak');
+
+        $district = $this->getJson("/api/sport/public/trainer-coverage/{$districtId}")->assertOk()->getContent();
+        $this->assertDoesNotMatchRegularExpression('/\p{Cyrillic}/u', $district, 'Tuman javobi kirill bo\'lmasligi kerak');
+    }
 }
