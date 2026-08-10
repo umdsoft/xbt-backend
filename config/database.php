@@ -178,6 +178,22 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // SPORT (sport va sog'lomlashtirish) domeni — trenerlar, mahalla qamrovi.
+        // Advisor/Murojaat ulanishi naqshi: bir xil host/DB, alohida schema (sport).
+        'sport' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => env('DB_SPORT_SEARCH_PATH', 'sport,master,public'),
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         // HR (KBT — Kadrlar Boshqaruv Tizimi) domeni. KBT ma'lumoti PUBLIC schema'da
         // yashaydi (xodimlar, bo'limlar, spatie rollar/ruxsatlar, audit) + master geo.
         'hr' => [
