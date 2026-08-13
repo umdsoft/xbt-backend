@@ -143,7 +143,7 @@ class MediaController extends QurilishController
             'taken_at' => $m->taken_at?->toDateString(),
             'is_cover' => (bool) $m->is_cover,
             'created_at' => $m->created_at?->toIso8601String(),
-            'url' => "/api/qurilish/objects/{$m->object_id}/media/{$m->id}/file",
+            'url' => "/qurilish/objects/{$m->object_id}/media/{$m->id}/file",
         ];
     }
 }

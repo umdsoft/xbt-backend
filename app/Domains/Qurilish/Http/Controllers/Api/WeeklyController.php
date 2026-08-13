@@ -193,7 +193,7 @@ class WeeklyController extends QurilishController
                 'kind' => $m->kind,
                 'title' => $m->title,
                 'taken_at' => $m->taken_at?->toDateString(),
-                'url' => "/api/qurilish/objects/{$m->object_id}/media/{$m->id}/file",
+                'url' => "/qurilish/objects/{$m->object_id}/media/{$m->id}/file",
             ])->values()->all(),
             'actions' => $this->actionsFor($report, $user),
         ];

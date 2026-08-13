@@ -201,7 +201,14 @@ class QurilishWeeklyTest extends QurilishObjectTestCase
         $this->assertSame('photo', $res->json('data.kind'));
         $this->assertSame('execution', $res->json('data.stage_code'));
         $this->assertSame(800, $res->json('data.width'));
-        $this->assertStringContainsString('/media/', (string) $res->json('data.url'));
+        // URL `/api` префиксисиз қайтади: SPA `fileUrl()` уни ўзи қўшади.
+        // Иккинчи марта қўшилса `/api/api/...` бўлиб, сурат юкланмай қоларди.
+        $url = (string) $res->json('data.url');
+        $this->assertStringStartsWith('/qurilish/objects/', $url);
+        $this->assertStringEndsWith('/file', $url);
+
+        // Файлнинг ўзи ҳам берилиши керак.
+        $this->actingAs($customer, 'sanctum')->get('/api'.$url)->assertOk();
 
         $listed = $this->actingAs($customer, 'sanctum')
             ->getJson("/api/qurilish/objects/{$object->id}/media?stage_code=execution")->assertOk();
