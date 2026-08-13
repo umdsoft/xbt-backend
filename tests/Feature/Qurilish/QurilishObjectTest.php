@@ -67,7 +67,8 @@ class QurilishObjectTest extends QurilishObjectTestCase
 
         $this->assertCount(8, $res->json('data.stages'));
         // JSON'da 500.0 -> 500 bo'lib qaytadi: sonli solishtiruv (assertSame emas).
-        $this->assertEqualsWithDelta(500, $res->json('data.tender_saving'), 0.001);
+        $this->assertEqualsWithDelta(500, $res->json('data.tender_vs_limit'), 0.001);
+        $this->assertFalse($res->json('data.tender_over_limit'));
         $this->assertEqualsWithDelta(50, $res->json('data.progress_pct'), 0.001);
     }
 

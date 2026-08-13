@@ -64,6 +64,29 @@ class ObjectService
             ->paginate(min($perPage, 100));
     }
 
+    /**
+     * Eksport uchun to'liq tanlov (sahifalashsiz).
+     *
+     * `paginate()` sahifa hajmini 100 ga cheklaydi — eksportda bu JIM
+     * qirqilish bo'lardi. Bu yerda chegara aniq (`MAX_EXPORT`) va u
+     * oshib ketsa kontroller foydalanuvchini ogohlantiradi.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return \Illuminate\Support\Collection<int, ConstructionObject>
+     */
+    public function forExport(User $user, array $filters): \Illuminate\Support\Collection
+    {
+        return $this->applyFilters($this->baseQuery($user), $filters)
+            ->with(['program:id,name_lat', 'sector:id,name_lat',
+                'customer:id,name_lat', 'contractor:id,name_lat'])
+            ->orderBy('name')
+            ->limit(self::MAX_EXPORT + 1)
+            ->get();
+    }
+
+    /** Eksportdagi maksimal qator soni (oshsa foydalanuvchi ogohlantiriladi). */
+    public const MAX_EXPORT = 5000;
+
     /** Foydalanuvchi ko'ra oladigan obyekt yoki 404. */
     public function findOrFail(User $user, string $id): ConstructionObject
     {

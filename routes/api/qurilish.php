@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Domains\Qurilish\Http\Controllers\Api\AuditController;
 use App\Domains\Qurilish\Http\Controllers\Api\ContextController;
+use App\Domains\Qurilish\Http\Controllers\Api\DashboardController;
 use App\Domains\Qurilish\Http\Controllers\Api\DocumentController;
+use App\Domains\Qurilish\Http\Controllers\Api\ExportController;
 use App\Domains\Qurilish\Http\Controllers\Api\MonthlyController;
 use App\Domains\Qurilish\Http\Controllers\Api\ObjectController;
 use App\Domains\Qurilish\Http\Controllers\Api\StageController;
@@ -22,6 +24,16 @@ Route::middleware(['auth:sanctum', 'qurilish'])
     ->group(function () {
         // SPA boshlanish konteksti: rol, ruxsat, scope, spravochniklar.
         Route::get('/context', ContextController::class)->name('context');
+
+        // Boshqaruv paneli (hokimlik/prokuratura) — СВОД pivotlar JONLI hisoblanadi.
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/svod/{dimension}', [DashboardController::class, 'svod'])->name('dashboard.svod');
+        Route::get('/dashboard/funnel', [DashboardController::class, 'funnel'])->name('dashboard.funnel');
+        Route::get('/dashboard/map', [DashboardController::class, 'map'])->name('dashboard.map');
+
+        // Excel eksport.
+        Route::get('/export/svod/{dimension}', [ExportController::class, 'svod'])->name('export.svod');
+        Route::get('/export/objects', [ExportController::class, 'objects'])->name('export.objects');
 
         // Obyekt reyestri.
         Route::get('/objects', [ObjectController::class, 'index'])->name('objects.index');

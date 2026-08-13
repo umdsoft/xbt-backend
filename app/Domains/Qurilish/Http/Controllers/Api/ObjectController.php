@@ -151,7 +151,11 @@ class ObjectController extends QurilishController
             'designer' => $o->designer?->name_lat,
             'tender_amount' => (float) $o->tender_amount,
             'financed_amount' => (float) $o->financed_amount,
-            'tender_saving' => (float) $o->limit_amount - (float) $o->tender_amount,
+            // 2026-yilgi limit bilan tender qiymati farqi. MANFIY bo'lishi MUMKIN va
+            // bu xato emas: ko'p yillik loyihada shartnoma yillik limitdan katta.
+            // Shu bois nomi «tejamkorlik» emas — «limitdan farq».
+            'tender_vs_limit' => (float) $o->limit_amount - (float) $o->tender_amount,
+            'tender_over_limit' => (float) $o->tender_amount > (float) $o->limit_amount,
             'deadline_raw' => $o->deadline_raw,
             'deadline_year' => $o->deadline_year,
             'is_carryover' => $o->is_carryover,
