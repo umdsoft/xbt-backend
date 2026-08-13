@@ -2,7 +2,7 @@
 
 **Sana:** 2026-08-13
 **Domen:** `qurilish`
-**Holat:** tasdiqlangan (brainstorming → spec)
+**Holat:** BAJARILDI — F1–F5 to'liq amalga oshirildi (2026-08-13)
 **Manba:** `D:\kadr\2026_БАРЧА_ДАСТУР_12.08.26.xlsx`
 
 ---
@@ -489,6 +489,41 @@ muddat buzilgan obyekt soni · topshirilgan/reja.
 Sport/mahalla naqshi: Vue 3.5 + TS + Pinia + Tailwind v4 + Vite + vue-router,
 `axios` `withCredentials` (Sanctum SPA), Vitest.
 
+### 10.1 UI/UX talablari (majburiy)
+
+Dashboard — hokim va prokuratura rahbariyati kunlik ishlatadigan asosiy ekran.
+U **professional darajada** ishlangan bo'lishi shart, shablon ko'rinishida emas.
+
+**Dizayn tamoyillari:**
+
+1. **Ma'lumot birinchi o'rinda.** Bezak emas — raqam. Har piksel ma'lumotga
+   xizmat qilsin; dekorativ gradient, keraksiz soya, «AI-shablon» kartochkalari yo'q.
+2. **Aniq ierarxiya.** Sahifada bitta asosiy ko'rsatkich guruhi, undan keyin
+   kesimlar, so'ng detallar. Shrift o'lchamlari 3 pog'onadan oshmasin.
+3. **Rang — semantik.** Rang faqat ma'no tashisa ishlatiladi:
+   `bajarildi` (yashil) · `jarayonda` (ko'k) · `kechikkan` (qizil) ·
+   `boshlanmagan` (kulrang) · `talab etilmaydi` (ochiq kulrang).
+   Diagrammalarda ketma-ket (sequential) va toifaviy (categorical) palitralar
+   ajratilsin; rang-ko'rlik uchun tekshirilsin (faqat rangga tayanmaslik).
+4. **Bo'sh joy (whitespace) — tuzilma vositasi.** 4/8 px setka, izchil oraliqlar.
+5. **Tez.** Dashboard birinchi bo'yoq < 1,5 s. Og'ir panellar (xarita, katta
+   jadval) `defineAsyncComponent` bilan kechiktirilib yuklanadi (mahalla naqshi).
+6. **Drill-down izchil.** Har kesim bosilganda obyekt ro'yxatiga filtr bilan
+   o'tadi; orqaga qaytish holatni saqlaydi (URL query parametrlarida).
+7. **Javob beruvchi (responsive).** 1920px planshet/monitor birinchi navbatda,
+   1280px va 768px sinovdan o'tsin. Keng jadval o'z konteyneri ichida
+   gorizontal skroll qilsin — sahifa tanasi hech qachon skroll qilmasin.
+8. **Holatlar to'liq.** Har panelda: yuklanmoqda (skeleton), bo'sh, xato holati.
+   «Ma'lumot yo'q» — nima uchun yo'qligini tushuntirsin.
+9. **Kirish imkoniyati.** Kontrast AA; klaviatura bilan to'liq boshqarish;
+   diagramma ostida matnli jamlanma.
+10. **Yagona brend.** `digital-xorazm` ekotizimining boshqa modullari bilan
+    bir oiladan ko'rinsin, lekin o'z shaxsiyati bo'lsin.
+
+**Amalga oshirish:** F5 fazasida `frontend-design` skill'i majburiy ishlatiladi;
+dizayn tizimi (token, tipografika, palitra, komponent kutubxonasi) kod
+yozishdan oldin aniqlanadi. Diagrammalar uchun `dataviz` skill'i qo'llanadi.
+
 ```
 src/
   layouts/      AppLayout
@@ -531,6 +566,22 @@ src/
 - Realtime bildirishnoma / websocket
 - Obyekt bo'yicha GIS nuqta/kontur — 1-bosqichda faqat tuman darajasi
 - СВОД pivotlarni jadval sifatida saqlash — jonli hisoblanadi
+
+---
+
+## 12.1 Amalga oshirishda aniqlangan tuzatishlar
+
+Spec yozilgandan keyin, real ma'lumot va brauzer ko'rigida topilgan
+va TUZATILGAN masalalar — kelgusida takrorlanmasligi uchun qayd etiladi:
+
+| Masala | Sabab | Yechim |
+|---|---|---|
+| «Tender iqtisodi = limit − tender» manfiy chiqdi (−38 405 mln) | Manbadagi `Лимит суммаси` — obyektning **2026-yilgi limiti**, loyihaning to'liq qiymati emas. 69 obyektda ko'p yillik shartnoma yillik limitdan katta | Ko'rsatkich olib tashlandi; o'rniga nazorat signali `tender_over_limit` |
+| Dashboard «1 / 1 topshirilgan» ko'rsatardi (SQL: 125 / 597) | `count(*) ... as handover_done` agregati model `$casts` da boolean: 125 → `true` → 1 | Agregatlar `_cnt` qo'shimchasi bilan; 1 dan ko'p obyektli regressiya testi |
+| Ro'yxatdagi spine yolg'on chizardi | Frontend bosqichlarni `current_stage` dan taxmin qilardi; manbada shartnomasi bajarilgan-u loyihachisi qayd etilmagan obyektlar bor | `/objects` javobi haqiqiy (kod, holat) juftliklarini qaytaradi |
+| `drafts` ko'rsatkichi doim 0 | Qoralamalar chetlatilgan so'rov ichida sanalardi | Alohida so'rov bilan sanaladi |
+| Bitta reyestr ID ikki obyektga berilgan (2505334010717007) | Manba xatosi: «Урганч давлат тиббиёт институти» 12 750 mln va «Хоразм академик лицейи» 1 310 mln | Takroriga `#qator` kaliti; ikkalasi ham saqlanadi |
+| Apostrof `ʻ` IBM Plex'da katta bo'shliq bilan chizilardi | Glif kengligi | `‘`/`’` ga o'tkazildi (master.districts uslubi) |
 
 ---
 
@@ -580,7 +631,7 @@ Har faza mustaqil sinaladi va yashil holatda tugaydi.
 
 | Faza | Mazmun | Tugash mezoni |
 |---|---|---|
-| **F1. Poydevor** | `qurilish` connection + schema migratsiyasi, 12 jadval, `SystemsSeeder` += `qurilish`, `programs`/`sectors`/`organizations` seederlari, `EnsureQurilish` + `QurilishAccess` + `QurilishScope`, `/context` | Migratsiya idempotent ishlaydi; auth/RBAC testlari yashil |
+| **F1. Poydevor** | `qurilish` connection + schema migratsiyasi, 13 jadval, `SystemsSeeder` += `qurilish`, `programs`/`sectors`/`organizations` seederlari, `EnsureQurilish` + `QurilishAccess` + `QurilishScope`, `/context` | Migratsiya idempotent ishlaydi; auth/RBAC testlari yashil |
 | **F2. ETL** | Python ekstraktor (4 CSV), `qurilish:import` komandasi, SOATO derivatsiyasi, alias normalizatsiyasi, muddat parseri, soha tasniflagichi | 611 obyekt + bosqichlar + oylik grafik yuklandi; jamlanma `СВОД ДАСТУР` bilan mos; ikki marta import → bir xil natija |
 | **F3. Obyekt CRUD + workflow** | `objects` API, `object_stages` holat mashinasi, moliya maydonlari, audit jurnali, hujjat yuklash/yuklab olish | Bosqich qoidalari majburlanadi (422); hujjat RBAC testlari yashil |
 | **F4. Dashboard + hisobot** | СВОД agregatsiyalari (4 kesim), voronka, tender/shartnoma/topshirish panellari, xarita, Excel/PDF eksport | Agregatsiya manba jamlanmasi bilan mos |
