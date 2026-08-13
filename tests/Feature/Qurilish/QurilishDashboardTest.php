@@ -45,6 +45,30 @@ class QurilishDashboardTest extends QurilishObjectTestCase
         $this->assertSame(1, $s['handover_done']);
     }
 
+    public function test_handover_counts_are_not_collapsed_by_model_casts(): void
+    {
+        // NEGA BU TEST BOR: `handover_done` modelda boolean cast qilingan.
+        // Agar agregat ustuni aynan shu nom bilan tanlansa, Eloquent uni
+        // boolean'ga o'giradi va 125 -> true -> 1 bo'lib qoladi. Bir dona
+        // obyektli fikstura buni KO'RSATMAYDI (to'g'ri javob ham 1), shuning
+        // uchun bu yerda ataylab 1 dan KO'P obyekt bor.
+        for ($i = 0; $i < 4; $i++) {
+            $this->obj(['handover_planned' => true, 'handover_done' => true]);
+        }
+        $this->obj(['handover_planned' => true, 'handover_done' => false]);
+        $this->obj(['handover_planned' => false, 'handover_done' => false]);
+
+        $s = $this->api('/api/qurilish/dashboard')->assertOk()->json('summary');
+
+        $this->assertSame(5, $s['handover_planned']);
+        $this->assertSame(4, $s['handover_done']);
+        $this->assertSame(1, $s['handover_left']);
+
+        // Kesimda ham xuddi shu to'qnashuv bor edi.
+        $rows = $this->api('/api/qurilish/dashboard/svod/buyurtmachi')->assertOk()->json('data');
+        $this->assertSame(4, collect($rows)->firstWhere('key', $this->org)['handover_done']);
+    }
+
     public function test_summary_counts_overdue_objects(): void
     {
         $this->obj(['deadline_date' => now()->subDays(10), 'handover_done' => false]);

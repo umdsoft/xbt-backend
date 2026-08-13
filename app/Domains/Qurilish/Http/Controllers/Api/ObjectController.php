@@ -133,6 +133,10 @@ class ObjectController extends QurilishController
             'deadline_date' => $o->deadline_date?->toDateString(),
             'is_overdue' => $o->is_overdue,
             'handover_done' => $o->handover_done,
+            // Ro'yxatdagi «spine» uchun — yengil (kod + holat), sana/izohsiz.
+            'stages' => $o->relationLoaded('stages')
+                ? $o->stages->map(fn ($s) => ['stage_code' => $s->stage_code, 'status' => $s->status])->all()
+                : [],
         ];
     }
 

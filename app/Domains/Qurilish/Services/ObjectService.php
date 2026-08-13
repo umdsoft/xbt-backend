@@ -57,8 +57,13 @@ class ObjectService
     public function paginate(User $user, array $filters, int $perPage = 25): LengthAwarePaginator
     {
         return $this->applyFilters($this->baseQuery($user), $filters)
+            // Bosqichlar ham yuklanadi: ro'yxatdagi «spine» HAQIQIY holatni
+            // ko'rsatishi shart. Uni `current_stage` dan taxmin qilib bo'lmaydi —
+            // manbada shartnomasi bajarilgan-u, loyihachisi qayd etilmagan
+            // obyektlar bor va taxmin ularni noto'g'ri chizardi.
             ->with(['program:id,code,name_lat', 'sector:id,code,name_lat',
-                'customer:id,name_lat', 'contractor:id,name_lat', 'department:id,name_lat'])
+                'customer:id,name_lat', 'contractor:id,name_lat', 'department:id,name_lat',
+                'stages:id,object_id,stage_code,status'])
             ->orderByRaw('COALESCE(deadline_date, DATE \'2099-12-31\') ASC')
             ->orderBy('name')
             ->paginate(min($perPage, 100));

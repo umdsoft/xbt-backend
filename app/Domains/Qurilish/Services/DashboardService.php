@@ -36,7 +36,17 @@ class DashboardService
         'boshqarma' => ['qurilish.organizations', 'department_org_id', 'name_lat', 'name_lat'],
     ];
 
-    /** @return array<string, mixed> yuqori qator ko'rsatkichlari */
+    /**
+     * Yuqori qator ko'rsatkichlari.
+     *
+     * DIQQAT — agregat ustunlari `_cnt` qo'shimchasi bilan nomlanadi.
+     * `base()` Eloquent Builder qaytaradi, ya'ni natija `ConstructionObject`
+     * modeliga aylanadi va modeldagi `$casts` QO'LLANADI. `handover_done`
+     * nomli agregatni model boolean deb o'giradi: 125 -> true -> 1.
+     * Alohida nom bu to'qnashuvni butunlay yo'q qiladi.
+     *
+     * @return array<string, mixed>
+     */
     public function summary(User $user): array
     {
         $row = $this->base($user)
@@ -47,8 +57,8 @@ class DashboardService
                 coalesce(sum(contract_amount), 0) as contract_total,
                 coalesce(sum(disbursed_amount), 0) as disbursed_total,
                 coalesce(sum(financed_amount), 0) as financed_total,
-                count(*) filter (where handover_planned) as handover_planned,
-                count(*) filter (where handover_done) as handover_done,
+                count(*) filter (where handover_planned) as handover_planned_cnt,
+                count(*) filter (where handover_done) as handover_done_cnt,
                 count(*) filter (where deadline_date < current_date and not handover_done) as overdue,
                 count(*) filter (where tender_amount > limit_amount) as tender_over_limit
             ')->first();
@@ -77,9 +87,9 @@ class DashboardService
             'tender_over_limit' => (int) $row->tender_over_limit,
             'disbursed_pct' => $contract > 0 ? round((float) $row->disbursed_total / $contract * 100, 1) : 0.0,
             'financed_pct' => $contract > 0 ? round((float) $row->financed_total / $contract * 100, 1) : 0.0,
-            'handover_planned' => (int) $row->handover_planned,
-            'handover_done' => (int) $row->handover_done,
-            'handover_left' => (int) $row->handover_planned - (int) $row->handover_done,
+            'handover_planned' => (int) $row->handover_planned_cnt,
+            'handover_done' => (int) $row->handover_done_cnt,
+            'handover_left' => (int) $row->handover_planned_cnt - (int) $row->handover_done_cnt,
             'overdue' => (int) $row->overdue,
             'drafts' => $drafts,
         ];
@@ -108,7 +118,7 @@ class DashboardService
                 coalesce(sum(limit_amount), 0) as limit_total,
                 coalesce(sum(contract_amount), 0) as contract_total,
                 coalesce(sum(disbursed_amount), 0) as disbursed_total,
-                count(*) filter (where handover_done) as handover_done,
+                count(*) filter (where handover_done) as handover_done_cnt,
                 count(*) filter (where deadline_date < current_date and not handover_done) as overdue
             ")
             ->groupBy('objects.'.$column)
@@ -126,7 +136,7 @@ class DashboardService
                 'contract_total' => $contract,
                 'disbursed_total' => (float) $r->disbursed_total,
                 'disbursed_pct' => $contract > 0 ? round((float) $r->disbursed_total / $contract * 100, 1) : 0.0,
-                'handover_done' => (int) $r->handover_done,
+                'handover_done' => (int) $r->handover_done_cnt,
                 'overdue' => (int) $r->overdue,
             ];
         })->all();
