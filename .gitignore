@@ -38,3 +38,6 @@ docs/*.xls
 docs/*.csv
 docs/*.kmz
 docs/*.kml
+
+# ETL xom fayllari (xlsx/CSV) — repoga tushmasin
+/storage/app/import/
