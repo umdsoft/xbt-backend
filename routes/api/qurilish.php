@@ -28,6 +28,7 @@ Route::middleware(['auth:sanctum', 'qurilish'])
 
         // Boshqaruv paneli (hokimlik/prokuratura) — СВОД pivotlar JONLI hisoblanadi.
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/executive', [DashboardController::class, 'executive'])->name('dashboard.executive');
         Route::get('/dashboard/svod/{dimension}', [DashboardController::class, 'svod'])->name('dashboard.svod');
         Route::get('/dashboard/funnel', [DashboardController::class, 'funnel'])->name('dashboard.funnel');
         Route::get('/dashboard/map', [DashboardController::class, 'map'])->name('dashboard.map');

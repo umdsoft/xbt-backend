@@ -54,7 +54,7 @@ class ExportController extends QurilishController
         $collection = $this->objects->forExport($request->user(), $request->only([
             'program_id', 'sector_id', 'district_id', 'customer_org_id',
             'contractor_org_id', 'department_org_id', 'lifecycle',
-            'current_stage', 'work_type', 'overdue', 'q',
+            'current_stage', 'work_type', 'overdue', 'is_carryover', 'q',
         ]));
 
         // Chegara oshsa JIM qirqmaymiz — foydalanuvchiga aniq aytamiz.

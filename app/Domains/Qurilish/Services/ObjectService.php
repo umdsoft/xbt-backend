@@ -189,6 +189,12 @@ class ObjectService
             ->when($f['lifecycle'] ?? null, fn (Builder $q, $v) => $q->where('lifecycle', $v))
             ->when($f['current_stage'] ?? null, fn (Builder $q, $v) => $q->where('current_stage', $v))
             ->when($f['work_type'] ?? null, fn (Builder $q, $v) => $q->where('work_type', $v))
+            // `is_carryover` bool: '0' ham qiymat, shuning uchun `when` emas —
+            // array_key_exists bilan tekshiramiz (aks holda '0' e'tiborsiz qolardi).
+            ->when(
+                array_key_exists('is_carryover', $f) && $f['is_carryover'] !== null && $f['is_carryover'] !== '',
+                fn (Builder $q) => $q->where('is_carryover', filter_var($f['is_carryover'], FILTER_VALIDATE_BOOL)),
+            )
             ->when(
                 filter_var($f['overdue'] ?? null, FILTER_VALIDATE_BOOL),
                 fn (Builder $q) => $q->whereNotNull('deadline_date')

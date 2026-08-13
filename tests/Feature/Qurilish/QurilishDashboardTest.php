@@ -249,6 +249,92 @@ class QurilishDashboardTest extends QurilishObjectTestCase
         $this->assertNull($res->headers->get('X-Qurilish-Truncated-At'));
     }
 
+    // ---------- rahbariyat paneli ----------
+
+    public function test_executive_returns_all_blocks(): void
+    {
+        $this->obj(['limit_amount' => 10000, 'contract_amount' => 9000, 'disbursed_amount' => 4500, 'is_carryover' => false]);
+        $this->obj(['limit_amount' => 5000, 'contract_amount' => 5000, 'disbursed_amount' => 5000, 'is_carryover' => true]);
+
+        $d = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json();
+
+        foreach ([
+            'overview', 'savings', 'pending_tender', 'tender_status',
+            'handover', 'programs', 'sectors', 'districts', 'readiness', 'contracts',
+        ] as $block) {
+            $this->assertArrayHasKey($block, $d, $block);
+        }
+
+        $this->assertSame(2, $d['overview']['objects']);
+        $this->assertSame(1, $d['overview']['fresh_objects']);
+        $this->assertSame(1, $d['overview']['carryover_objects']);
+        $this->assertEqualsWithDelta(5000, $d['overview']['carryover_amount'], 0.001);
+        $this->assertCount(5, $d['readiness']);
+    }
+
+    public function test_executive_savings_counts_only_real_savings(): void
+    {
+        // Tender limitdan ARZON — tejamkorlik bor.
+        $this->obj(['limit_amount' => 10000, 'tender_amount' => 8500]);
+        // Tender limitdan QIMMAT (ko'p yillik loyiha) — tejamkorlik emas,
+        // aks holda jamlanma manfiyga tortilardi.
+        $this->obj(['limit_amount' => 20000, 'tender_amount' => 70000]);
+        // Tendersiz.
+        $this->obj(['limit_amount' => 5000, 'tender_amount' => 0]);
+
+        $s = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json('savings');
+
+        $this->assertSame(1, $s['total_objects']);
+        $this->assertEqualsWithDelta(1500, $s['total_amount'], 0.001);
+    }
+
+    public function test_executive_tender_status_buckets_cover_every_object(): void
+    {
+        $a = $this->obj();
+        $b = $this->obj();
+        $c = $this->obj();
+        $this->setStage($a, 'tender', 'yakunlangan');
+        $this->setStage($b, 'tender', 'jarayonda');
+        $this->setStage($c, 'tender', 'boshlanmagan');
+
+        $t = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json('tender_status');
+
+        $this->assertSame(1, $t['done']['objects']);
+        $this->assertSame(1, $t['process']['objects']);
+        $this->assertSame(1, $t['not_announced']['objects']);
+        $this->assertSame(3, $t['total']);
+    }
+
+    public function test_executive_handover_counts_are_not_collapsed_by_casts(): void
+    {
+        // Model `handover_done` ni boolean cast qiladi — agregat ustuni shu nom
+        // bilan tanlansa 4 -> true -> 1 bo'lib qolardi.
+        for ($i = 0; $i < 4; $i++) {
+            $this->obj(['handover_planned' => true, 'handover_done' => true]);
+        }
+        $this->obj(['handover_planned' => true, 'handover_done' => false]);
+
+        $h = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json('handover');
+
+        $this->assertSame(5, $h['plan_objects']);
+        $this->assertSame(4, $h['done_objects']);
+        $this->assertSame(1, $h['left_objects']);
+        $this->assertEqualsWithDelta(80, $h['done_pct'], 0.1);
+    }
+
+    public function test_executive_is_scoped(): void
+    {
+        $this->obj(['limit_amount' => 1000]);
+
+        $otherOrg = $this->makeOrganization('Бегона exec '.$this->prefix, ['is_customer' => true]);
+        $this->makeObject(['name' => $this->tag('X'), 'customer_org_id' => $otherOrg, 'limit_amount' => 999999]);
+
+        $o = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json('overview');
+
+        $this->assertSame(1, $o['objects']);
+        $this->assertEqualsWithDelta(1000, $o['limit_total'], 0.001);
+    }
+
     public function test_outsider_cannot_reach_dashboard(): void
     {
         $this->actingAs($this->makeOutsider(), 'sanctum')

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Qurilish\Http\Controllers\Api;
 
 use App\Domains\Qurilish\Services\DashboardService;
+use App\Domains\Qurilish\Services\ExecutiveDashboardService;
 use App\Domains\Qurilish\Support\QurilishAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,9 +18,27 @@ use Illuminate\Http\Request;
  */
 class DashboardController extends QurilishController
 {
-    public function __construct(QurilishAccess $access, private readonly DashboardService $dashboard)
-    {
+    public function __construct(
+        QurilishAccess $access,
+        private readonly DashboardService $dashboard,
+        private readonly ExecutiveDashboardService $executive,
+    ) {
         parent::__construct($access);
+    }
+
+    /**
+     * Rahbariyat paneli — bitta so'rovda TO'LIQ jamlanma.
+     * Panelda 10 ga yaqin blok bor; ular uchun alohida so'rov yuborilsa
+     * birinchi bo'yoq sezilarli kechikardi.
+     */
+    public function executive(Request $request): JsonResponse
+    {
+        $this->authorizeAction($request->user(), 'qurilish.view');
+
+        return response()->json($this->executive->build(
+            $request->user(),
+            (int) $request->query('year', (string) now()->year),
+        ));
     }
 
     public function index(Request $request): JsonResponse
