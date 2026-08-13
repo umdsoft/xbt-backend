@@ -182,15 +182,12 @@ class ObjectImporter
 
             ObjectStage::query()->updateOrCreate(
                 ['object_id' => $object->id, 'stage_code' => $code],
-                ['status' => $status],
+                ['status' => $status, 'tz_stage' => ObjectStage::TZ_STAGE[$code]],
             );
             $this->stageCount++;
 
-            // Joriy bosqich: eng yuqori tartibli `jarayonda`; u yo'q bo'lsa —
-            // oxirgi yakunlangandan KEYINGI boshlanmagan bosqich.
-            if ($status === 'jarayonda') {
-                $current = $code;
-            } elseif ($current === null && $status === 'boshlanmagan') {
+            // Joriy bosqich — birinchi YOPILMAGAN bosqich (strict sequential).
+            if ($current === null && ! in_array($status, ObjectStage::DONE_STATUSES, true)) {
                 $current = $code;
             }
         }

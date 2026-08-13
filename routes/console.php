@@ -9,6 +9,7 @@ use App\Domains\Mahalla\Console\Commands\RenameMahallaCommand;
 use App\Domains\Mahalla\Console\Commands\ImportNonResidentialCommand;
 use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use App\Domains\Qurilish\Console\Commands\ImportQurilishCommand;
+use App\Domains\Qurilish\Console\Commands\MakeQurilishUserCommand;
 use App\Domains\Sport\Console\Commands\ImportTrainersCommand;
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Foundation\Inspiring;
@@ -40,8 +41,9 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(ReanalyzeStuckObservations::class);
     // Sport domeni.
     $artisan->resolve(ImportTrainersCommand::class);
-    // Qurilish domeni ETL.
+    // Qurilish domeni: ETL va hisob yaratish.
     $artisan->resolve(ImportQurilishCommand::class);
+    $artisan->resolve(MakeQurilishUserCommand::class);
 });
 
 /*

@@ -51,7 +51,7 @@ class RepairNeedService
                 ),
             )
             ->when($filters['q'] ?? null, fn (Builder $q, $v) => $q->where('name', 'ilike', '%'.$v.'%'))
-            ->with(['sector:id,code,name_lat', 'department:id,name_lat'])
+            ->with(['sector:id,code,name_cyr', 'department:id,name_cyr'])
             ->orderBy('priority')
             ->orderByDesc('estimated_amount')
             ->paginate(min($perPage, 100));
@@ -152,7 +152,7 @@ class RepairNeedService
             ->leftJoin('qurilish.sectors as s', 's.id', '=', 'repair_needs.sector_id')
             ->selectRaw("
                 repair_needs.sector_id as key,
-                max(s.name_lat) as name,
+                max(s.name_cyr) as name,
                 count(*) as needs,
                 coalesce(sum(estimated_amount), 0) as amount_total,
                 count(*) filter (where target_year = 2026) as year_2026,
@@ -168,7 +168,7 @@ class RepairNeedService
 
         return $rows->map(fn ($r): array => [
             'key' => $r->key,
-            'name' => $r->name ?? 'Aniqlanmagan',
+            'name' => $r->name ?? 'Аниқланмаган',
             'needs' => (int) $r->needs,
             'amount_total' => (float) $r->amount_total,
             'year_2026' => (int) $r->year_2026,

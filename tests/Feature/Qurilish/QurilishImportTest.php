@@ -88,14 +88,14 @@ class QurilishImportTest extends QurilishTestCase
             ->pluck('status', 'stage_code');
 
         $this->assertCount(8, $stages);
-        $this->assertSame('yakunlangan', $stages['designer_selection']);
-        $this->assertSame('yakunlangan', $stages['design_estimate']);
-        $this->assertSame('yakunlangan', $stages['urban_planning']);
-        $this->assertSame('yakunlangan', $stages['complex_expertise']);
-        $this->assertSame('yakunlangan', $stages['tender']);
-        $this->assertSame('yakunlangan', $stages['contract']);
-        $this->assertSame('yakunlangan', $stages['execution']);
-        $this->assertSame('boshlanmagan', $stages['handover']);
+        $this->assertSame('tasdiqlangan', $stages['designer_selection']);
+        $this->assertSame('tasdiqlangan', $stages['design_estimate']);
+        $this->assertSame('tasdiqlangan', $stages['urban_planning']);
+        $this->assertSame('tasdiqlangan', $stages['complex_expertise']);
+        $this->assertSame('tasdiqlangan', $stages['tender']);
+        $this->assertSame('tasdiqlangan', $stages['contract']);
+        $this->assertSame('tasdiqlangan', $stages['execution']);
+        $this->assertSame('ochilgan', $stages['handover']);
     }
 
     public function test_import_uses_synthetic_key_when_object_id_missing(): void

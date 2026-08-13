@@ -82,7 +82,7 @@ class ExecutiveDashboardService
             ->whereColumn('tender_amount', '<', 'limit_amount')
             ->selectRaw('
                 objects.program_id as key,
-                max(p.name_lat) as name,
+                max(p.name_cyr) as name,
                 min(p.sort_order) as sort_order,
                 count(*) as objects_cnt,
                 coalesce(sum(limit_amount - tender_amount), 0) as saved_sum
@@ -96,7 +96,7 @@ class ExecutiveDashboardService
             'total_objects' => (int) $rows->sum('objects_cnt'),
             'rows' => $rows->map(fn ($r) => [
                 'key' => $r->key,
-                'name' => $r->name ?? 'Aniqlanmagan',
+                'name' => $r->name ?? 'Аниқланмаган',
                 'objects' => (int) $r->objects_cnt,
                 'amount' => round((float) $r->saved_sum, 3),
             ])->all(),
@@ -111,10 +111,10 @@ class ExecutiveDashboardService
     {
         $rows = $this->base($user)
             ->leftJoin('qurilish.programs as p', 'p.id', '=', 'objects.program_id')
-            ->whereIn('objects.id', $this->stageIds($user, 'tender', ['boshlanmagan', 'jarayonda']))
+            ->whereIn('objects.id', $this->stageIds($user, 'tender', ['kutilmoqda', 'ochilgan', 'qoralama', 'tasdiqlash_kutilmoqda', 'korib_chiqilmoqda', 'rad_etilgan']))
             ->selectRaw('
                 objects.program_id as key,
-                max(p.name_lat) as name,
+                max(p.name_cyr) as name,
                 min(p.sort_order) as sort_order,
                 count(*) as objects_cnt,
                 coalesce(sum(limit_amount), 0) as limit_sum
@@ -128,7 +128,7 @@ class ExecutiveDashboardService
             'total_objects' => (int) $rows->sum('objects_cnt'),
             'rows' => $rows->map(fn ($r) => [
                 'key' => $r->key,
-                'name' => $r->name ?? 'Aniqlanmagan',
+                'name' => $r->name ?? 'Аниқланмаган',
                 'objects' => (int) $r->objects_cnt,
                 'amount' => round((float) $r->limit_sum, 3),
             ])->all(),
@@ -139,9 +139,9 @@ class ExecutiveDashboardService
     private function tenderStatus(User $user): array
     {
         $map = [
-            'done' => ['yakunlangan'],
-            'process' => ['jarayonda'],
-            'not_announced' => ['boshlanmagan', 'talab_etilmaydi'],
+            'done' => ['tasdiqlangan'],
+            'process' => ['qoralama', 'tasdiqlash_kutilmoqda', 'korib_chiqilmoqda'],
+            'not_announced' => ['kutilmoqda', 'ochilgan', 'rad_etilgan', 'talab_etilmaydi'],
         ];
 
         $out = [];
@@ -199,10 +199,10 @@ class ExecutiveDashboardService
     {
         $steps = [
             ['key' => 'required', 'stage' => null, 'statuses' => []],
-            ['key' => 'design_process', 'stage' => 'design_estimate', 'statuses' => ['jarayonda']],
-            ['key' => 'design_done', 'stage' => 'design_estimate', 'statuses' => ['yakunlangan']],
-            ['key' => 'expertise_done', 'stage' => 'urban_planning', 'statuses' => ['yakunlangan']],
-            ['key' => 'expertise_process', 'stage' => 'urban_planning', 'statuses' => ['jarayonda']],
+            ['key' => 'design_process', 'stage' => 'design_estimate', 'statuses' => ['qoralama', 'tasdiqlash_kutilmoqda', 'korib_chiqilmoqda']],
+            ['key' => 'design_done', 'stage' => 'design_estimate', 'statuses' => ['tasdiqlangan']],
+            ['key' => 'expertise_done', 'stage' => 'urban_planning', 'statuses' => ['tasdiqlangan']],
+            ['key' => 'expertise_process', 'stage' => 'urban_planning', 'statuses' => ['qoralama', 'tasdiqlash_kutilmoqda', 'korib_chiqilmoqda']],
         ];
 
         $out = [];
@@ -279,7 +279,7 @@ class ExecutiveDashboardService
             ->leftJoin($table.' as d', 'd.id', '=', 'objects.'.$column)
             ->selectRaw("
                 objects.{$column} as key,
-                max(d.name_lat) as name,
+                max(d.name_cyr) as name,
                 min(d.{$sortColumn}) as sort_order,
                 count(*) as objects_cnt,
                 coalesce(sum(limit_amount), 0) as limit_sum,
@@ -295,7 +295,7 @@ class ExecutiveDashboardService
             $contract = (float) $r->contract_sum;
             $row = [
                 'key' => $r->key,
-                'name' => $r->name ?? 'Aniqlanmagan',
+                'name' => $r->name ?? 'Аниқланмаган',
                 'objects' => (int) $r->objects_cnt,
                 'amount' => (float) $r->limit_sum,
                 'disbursed_pct' => $contract > 0 ? round((float) $r->disbursed_sum / $contract * 100, 1) : 0.0,

@@ -9,7 +9,6 @@ use App\Domains\Qurilish\Models\ObjectStage;
 use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
 use App\Domains\Qurilish\Support\QurilishAccess;
-use App\Domains\Qurilish\Support\Translit;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,20 +18,21 @@ use Illuminate\Support\Facades\DB;
  * `/api/qurilish/context` — SPA ishga tushganda BIR marta chaqiriladi:
  * foydalanuvchi, roli, ruxsatlari, ko'rish doirasi va barcha spravochniklar.
  *
- * Ma'lumot LOTIN alifbosida (`name_lat`) — spec 9-bo'lim talabi.
+ * Ma'lumot KIRILL alifbosida (`name_cyr`) — foydalanuvchi qarori (2026-08-13).
+ * Lotin ustunlari (`name_lat`) bazada saqlanadi: qidiruv ikkala yozuvda ishlaydi.
  */
 class ContextController extends Controller
 {
-    /** Bosqich kodi -> lotin nomi (SPA'da alohida tarjima jadvali kerak emas). */
+    /** Bosqich kodi -> nomi (SPA'da alohida tarjima jadvali kerak emas). */
     private const STAGE_NAMES = [
-        'designer_selection' => 'Loyihachini aniqlash',
-        'design_estimate' => 'Loyiha-smeta hujjatlari',
-        'urban_planning' => 'Shaharsozlik hujjatlari ekspertizasi',
-        'complex_expertise' => 'Kompleks ekspertiza',
-        'tender' => 'Tender savdolari',
-        'contract' => 'Shartnoma',
-        'execution' => 'Ijro',
-        'handover' => 'Topshirish',
+        'designer_selection' => 'Лойиҳачини аниқлаш',
+        'design_estimate' => 'Лойиҳа-смета ҳужжатлари',
+        'urban_planning' => 'Шаҳарсозлик ҳужжатлари экспертизаси',
+        'complex_expertise' => 'Комплекс экспертиза',
+        'tender' => 'Тендер савдолари',
+        'contract' => 'Шартнома',
+        'execution' => 'Ижро',
+        'handover' => 'Топшириш',
     ];
 
     public function __invoke(Request $request, QurilishAccess $access): JsonResponse
@@ -44,7 +44,7 @@ class ContextController extends Controller
         return response()->json([
             'user' => [
                 'id' => $user->id,
-                'name' => Translit::toLatin($user->name),
+                'name' => $user->name,
                 'login' => $user->login,
             ],
             'role' => $access->roleFor($user),
@@ -53,22 +53,19 @@ class ContextController extends Controller
             'viewer_only' => $access->isViewerOnly($user),
             'scope' => [
                 'organization_id' => $profile?->organization_id,
-                // Lotin (spec 9). `name_lat` bo'sh bo'lsa kirillni o'giramiz.
-                'organization_name' => $organization === null
-                    ? null
-                    : ($organization->name_lat ?: Translit::toLatin($organization->name_cyr)),
+                'organization_name' => $organization?->name_cyr,
                 'district_id' => $profile?->district_id,
             ],
             'reference' => [
                 'programs' => Program::query()->where('is_active', true)
                     ->orderBy('sort_order')
-                    ->get(['id', 'code', 'name_lat as name'])->all(),
+                    ->get(['id', 'code', 'name_cyr as name'])->all(),
                 'sectors' => Sector::query()->where('is_active', true)
                     ->orderBy('sort_order')
-                    ->get(['id', 'code', 'name_lat as name'])->all(),
+                    ->get(['id', 'code', 'name_cyr as name'])->all(),
                 'districts' => DB::connection('master')->table('districts')
                     ->orderBy('sort_order')
-                    ->get(['id', 'name_lat as name', 'soato_code'])->all(),
+                    ->get(['id', 'name_cyr as name', 'soato_code'])->all(),
                 'stages' => $this->stages(),
                 'stage_statuses' => ObjectStage::STATUSES,
                 'lifecycles' => ConstructionObject::LIFECYCLES,

@@ -227,7 +227,10 @@ class QurilishNormalizerTest extends QurilishTestCase
         $map = (new StageMapper)->map([]);
 
         $this->assertCount(8, $map);
-        $this->assertSame('boshlanmagan', $map['designer_selection']['status']);
+        // Birinchi bosqich OCHILGAN tug'iladi, qolgani kutmoqda — mapper
+        // strict-sequential zanjirini ham quradi, faqat holat qaytarmaydi.
+        $this->assertSame('ochilgan', $map['designer_selection']['status']);
+        $this->assertSame('kutilmoqda', $map['design_estimate']['status']);
     }
 
     public function test_stage_mapper_marks_completed_chain(): void
@@ -240,13 +243,20 @@ class QurilishNormalizerTest extends QurilishTestCase
             'handover_plan' => 1,
         ]);
 
-        $this->assertSame('yakunlangan', $map['designer_selection']['status']);
-        $this->assertSame('yakunlangan', $map['design_estimate']['status']);
-        $this->assertSame('yakunlangan', $map['urban_planning']['status']);
-        $this->assertSame('yakunlangan', $map['tender']['status']);
-        $this->assertSame('yakunlangan', $map['contract']['status']);
-        $this->assertSame('yakunlangan', $map['execution']['status']);
-        $this->assertSame('boshlanmagan', $map['handover']['status']);
+        // Manbadan kelgan tugallangan bosqich TASDIQLANGAN deb qabul qilinadi:
+        // u prokuratura planshetidagi rasmiy ma'lumot, qayta tasdiqlash kerak emas.
+        $this->assertSame('tasdiqlangan', $map['designer_selection']['status']);
+        $this->assertSame('tasdiqlangan', $map['design_estimate']['status']);
+        $this->assertSame('tasdiqlangan', $map['urban_planning']['status']);
+        $this->assertSame('tasdiqlangan', $map['tender']['status']);
+        $this->assertSame('tasdiqlangan', $map['contract']['status']);
+        $this->assertSame('tasdiqlangan', $map['execution']['status']);
+        // Bu qatorda kompleks ekspertiza hali xulosasiz (f_Y yo'q) — demak
+        // zanjir shu yerda uzilgan va topshirish bosqichi KUTMOQDA bo'ladi,
+        // garchi keyingi bayroqlar (tender, shartnoma, ijro) yoqilgan bo'lsa ham.
+        // Manba bosqichlarni parallel yuritgan; biz esa ketma-ketlikni saqlaymiz.
+        $this->assertSame('qoralama', $map['complex_expertise']['status']);
+        $this->assertSame('kutilmoqda', $map['handover']['status']);
     }
 
     public function test_stage_mapper_marks_complex_expertise_not_required(): void
@@ -261,7 +271,7 @@ class QurilishNormalizerTest extends QurilishTestCase
     {
         $map = (new StageMapper)->map(['f_W' => 1, 'f_X' => 1, 'f_AA' => 1]);
 
-        $this->assertSame('etiroz_bilan_qaytarilgan', $map['complex_expertise']['status']);
+        $this->assertSame('rad_etilgan', $map['complex_expertise']['status']);
     }
 
     public function test_stage_mapper_marks_in_progress_states(): void
@@ -269,18 +279,19 @@ class QurilishNormalizerTest extends QurilishTestCase
         // Loyihachi e'longa berilgan, lekin aniqlanmagan.
         $map = (new StageMapper)->map(['f_L' => 1, 'f_O' => 1, 'f_R' => 1, 'f_U' => 1, 'f_AD' => 1, 'disbursed' => 500]);
 
-        $this->assertSame('jarayonda', $map['designer_selection']['status']);
-        $this->assertSame('jarayonda', $map['design_estimate']['status']);
-        $this->assertSame('jarayonda', $map['urban_planning']['status']);
-        $this->assertSame('jarayonda', $map['tender']['status']);
-        $this->assertSame('jarayonda', $map['execution']['status']);
+        // Jarayondagi ish — QORALAMA: buyurtmachi uni tugatib, tasdiqqa yuboradi.
+        $this->assertSame('qoralama', $map['designer_selection']['status']);
+        $this->assertSame('qoralama', $map['design_estimate']['status']);
+        $this->assertSame('qoralama', $map['urban_planning']['status']);
+        $this->assertSame('qoralama', $map['tender']['status']);
+        $this->assertSame('qoralama', $map['execution']['status']);
     }
 
     public function test_stage_mapper_handover_done(): void
     {
         $map = (new StageMapper)->map(['handover_plan' => 1, 'handover_actual' => 1]);
 
-        $this->assertSame('yakunlangan', $map['handover']['status']);
+        $this->assertSame('tasdiqlangan', $map['handover']['status']);
     }
 
     private function soatoOf(?string $districtId): ?string

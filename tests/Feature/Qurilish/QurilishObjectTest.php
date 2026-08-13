@@ -72,7 +72,7 @@ class QurilishObjectTest extends QurilishObjectTestCase
         $this->assertEqualsWithDelta(50, $res->json('data.progress_pct'), 0.001);
     }
 
-    public function test_api_returns_latin_name_and_search_matches_both_scripts(): void
+    public function test_api_returns_cyrillic_name_and_search_matches_both_scripts(): void
     {
         $object = $this->makeObject([
             'name' => $this->tag('Хива шаҳри'),
@@ -80,11 +80,11 @@ class QurilishObjectTest extends QurilishObjectTestCase
         ]);
         $user = $this->makeUser('qurilish_hokimlik');
 
-        // Kartochkada lotin nomi, asl kirill esa `name_cyr` da.
+        // Sahifada KIRILL nomi; lotin ko'rinishi ham qaytadi (qidiruv uchun).
         $res = $this->actingAs($user, 'sanctum')
             ->getJson('/api/qurilish/objects/'.$object->id)->assertOk();
-        $this->assertSame($this->tag('Xiva shahri'), $res->json('data.name'));
-        $this->assertSame($this->tag('Хива шаҳри'), $res->json('data.name_cyr'));
+        $this->assertSame($this->tag('Хива шаҳри'), $res->json('data.name'));
+        $this->assertSame($this->tag('Xiva shahri'), $res->json('data.name_lat'));
 
         // Qidiruv ikkala yozuvda ham ishlaydi.
         foreach (['Xiva shahri', 'Хива шаҳри'] as $needle) {

@@ -32,17 +32,55 @@ class StageMapper
      */
     public function map(array $f): array
     {
-        return [
-            'designer_selection' => ['status' => $this->designerSelection($f)],
-            'design_estimate' => ['status' => $this->designEstimate($f)],
-            'urban_planning' => ['status' => $this->urbanPlanning($f)],
-            'complex_expertise' => ['status' => $this->complexExpertise($f)],
-            'tender' => ['status' => $this->tender($f)],
-            'contract' => ['status' => $this->contract($f)],
-            'execution' => ['status' => $this->execution($f)],
-            'handover' => ['status' => $this->handover($f)],
+        $raw = [
+            'designer_selection' => $this->designerSelection($f),
+            'design_estimate' => $this->designEstimate($f),
+            'urban_planning' => $this->urbanPlanning($f),
+            'complex_expertise' => $this->complexExpertise($f),
+            'tender' => $this->tender($f),
+            'contract' => $this->contract($f),
+            'execution' => $this->execution($f),
+            'handover' => $this->handover($f),
         ];
+
+        // Xom bayroq holatini TZ moderatsiya holatiga o'giramiz; `boshlanmagan`
+        // esa oldingi bosqichlarga qarab `ochilgan`/`kutilmoqda` bo'ladi.
+        $out = [];
+        $blocked = false;
+        foreach ($raw as $code => $status) {
+            $tz = self::TZ_STATUS[$status];
+
+            if ($tz === 'kutilmoqda' && ! $blocked) {
+                $tz = 'ochilgan';
+            }
+
+            if (! in_array($tz, ['tasdiqlangan', 'talab_etilmaydi'], true)) {
+                $blocked = true;
+            }
+
+            $out[$code] = ['status' => $tz];
+        }
+
+        return $out;
     }
+
+    /**
+     * Eski bayroq-holat -> XNP TZ v2.0 moderatsiya holati.
+     *
+     * Import qilingan ma'lumot MANBADA tasdiqlangan deb qabul qilinadi
+     * (u prokuratura planshetidan kelgan), shuning uchun `yakunlangan`
+     * to'g'ridan-to'g'ri `tasdiqlangan` bo'ladi. Jarayondagi ish esa
+     * `qoralama` — buyurtmachi uni tugatib, tasdiqqa yuboradi.
+     *
+     * @var array<string, string>
+     */
+    private const TZ_STATUS = [
+        'yakunlangan' => 'tasdiqlangan',
+        'jarayonda' => 'qoralama',
+        'boshlanmagan' => 'kutilmoqda',
+        'etiroz_bilan_qaytarilgan' => 'rad_etilgan',
+        'talab_etilmaydi' => 'talab_etilmaydi',
+    ];
 
     /** Bosqichlar tartibda ekanini kafolatlaydi (voronka hisobi uchun). */
     public function orderedCodes(): array

@@ -143,7 +143,7 @@ class QurilishDashboardTest extends QurilishObjectTestCase
 
         $rows = $this->api('/api/qurilish/dashboard/svod/soha')->assertOk()->json('data');
 
-        $this->assertSame('Aniqlanmagan', $rows[0]['name']);
+        $this->assertSame('Аниқланмаган', $rows[0]['name']);
     }
 
     public function test_unknown_svod_dimension_is_404(): void
@@ -154,14 +154,14 @@ class QurilishDashboardTest extends QurilishObjectTestCase
     public function test_funnel_returns_eight_ordered_stages(): void
     {
         $object = $this->obj();
-        $this->setStage($object, 'designer_selection', 'yakunlangan');
+        $this->setStage($object, 'designer_selection', 'tasdiqlangan');
         $this->setStage($object, 'complex_expertise', 'talab_etilmaydi');
 
         $funnel = $this->api('/api/qurilish/dashboard/funnel')->assertOk()->json('data');
 
         $this->assertCount(8, $funnel);
         $this->assertSame('designer_selection', $funnel[0]['stage_code']);
-        $this->assertSame(1, $funnel[0]['yakunlangan']);
+        $this->assertSame(1, $funnel[0]['tasdiqlangan']);
         $this->assertSame(1, $funnel[3]['talab_etilmaydi']);
         // «Talab etilmaydi» ham tugallangan hisoblanadi (voronka uzilmasin).
         $this->assertSame(1, $funnel[3]['done_total']);
@@ -293,9 +293,9 @@ class QurilishDashboardTest extends QurilishObjectTestCase
         $a = $this->obj();
         $b = $this->obj();
         $c = $this->obj();
-        $this->setStage($a, 'tender', 'yakunlangan');
-        $this->setStage($b, 'tender', 'jarayonda');
-        $this->setStage($c, 'tender', 'boshlanmagan');
+        $this->setStage($a, 'tender', 'tasdiqlangan');
+        $this->setStage($b, 'tender', 'tasdiqlash_kutilmoqda');
+        $this->setStage($c, 'tender', 'kutilmoqda');
 
         $t = $this->api('/api/qurilish/dashboard/executive')->assertOk()->json('tender_status');
 

@@ -36,12 +36,12 @@ class ExportController extends QurilishController
         $rows = $this->dashboard->svod($request->user(), $dimension);
 
         $xlsx = SimpleXlsx::build(
-            ['Nomi', 'Obyekt', 'Limit (mln)', 'Shartnoma (mln)', 'O‘zlashtirilgan (mln)', '%', 'Topshirilgan', 'Muddat buzilgan'],
+            ['Номи', 'Объект', 'Лимит (млн)', 'Шартнома (млн)', 'Ўзлаштирилган (млн)', '%', 'Топширилган', 'Муддат бузилган'],
             array_map(fn (array $r): array => [
                 $r['name'], $r['objects'], $r['limit_total'], $r['contract_total'],
                 $r['disbursed_total'], $r['disbursed_pct'], $r['handover_done'], $r['overdue'],
             ], $rows),
-            'SVOD',
+            'СВОД',
         );
 
         return $this->file($xlsx, "qurilish-svod-{$dimension}.xlsx");
@@ -68,27 +68,27 @@ class ExportController extends QurilishController
             /** @var ConstructionObject $o */
             $rows[] = [
                 $o->external_id,
-                $o->name_lat ?: $o->name,
-                $o->program?->name_lat,
-                $o->sector?->name_lat,
-                $o->customer?->name_lat,
-                $o->contractor?->name_lat,
+                $o->name,
+                $o->program?->name_cyr,
+                $o->sector?->name_cyr,
+                $o->customer?->name_cyr,
+                $o->contractor?->name_cyr,
                 (float) $o->limit_amount,
                 (float) $o->contract_amount,
                 (float) $o->disbursed_amount,
                 $o->deadline_date?->toDateString(),
                 $o->current_stage,
                 $o->lifecycle,
-                $o->is_overdue ? 'ha' : 'yo‘q',
+                $o->is_overdue ? 'ҳа' : 'йўқ',
             ];
         }
 
         $xlsx = SimpleXlsx::build(
-            ['Obyekt ID', 'Nomi', 'Dastur', 'Soha', 'Buyurtmachi', 'Pudratchi',
-                'Limit (mln)', 'Shartnoma (mln)', 'O‘zlashtirilgan (mln)',
-                'Muddat', 'Joriy bosqich', 'Holat', 'Kechikkan'],
+            ['Объект ID', 'Номи', 'Дастур', 'Соҳа', 'Буюртмачи', 'Пудратчи',
+                'Лимит (млн)', 'Шартнома (млн)', 'Ўзлаштирилган (млн)',
+                'Муддат', 'Жорий босқич', 'Ҳолат', 'Кечиккан'],
             $rows,
-            'Obyektlar',
+            'Объектлар',
         );
 
         return $this->file($xlsx, 'qurilish-obyektlar.xlsx', $truncated ? ObjectService::MAX_EXPORT : null);

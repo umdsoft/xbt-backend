@@ -93,9 +93,23 @@ class ConstructionObject extends QurilishModel
         return $this->belongsTo(Organization::class, 'department_org_id');
     }
 
+    /**
+     * Bosqichlar HAR DOIM biznes tartibida qaytadi, jadval tartibida emas.
+     *
+     * Tartib relationga biriktirilgan — chaqiruvchi uni qayta saralashi
+     * shart emas. Aks holda SPA dagi «bosqichlar zanjiri» ba'zan aralash
+     * chiziladi (PostgreSQL ORDER BY siz tartibni kafolatlamaydi) va bu
+     * xato faqat ma'lumot yangilangandan keyin ko'rinadi.
+     *
+     * `STAGES` — kod ichidagi doimiy, snake_case identifikatorlar; SQL ga
+     * qo'shilishi xavfsiz.
+     */
     public function stages(): HasMany
     {
-        return $this->hasMany(ObjectStage::class, 'object_id');
+        $order = "'{".implode(',', self::STAGES)."}'::text[]";
+
+        return $this->hasMany(ObjectStage::class, 'object_id')
+            ->orderByRaw("array_position({$order}, stage_code)");
     }
 
     public function monthlyPlan(): HasMany

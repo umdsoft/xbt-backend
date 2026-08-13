@@ -130,11 +130,11 @@ class RepairNeedController extends QurilishController
         return [
             'id' => $n->id,
             'name' => $n->name,
-            'sector' => $n->sector?->name_lat,
+            'sector' => $n->sector?->name_cyr,
             'sector_id' => $n->sector_id,
             'district_id' => $n->district_id,
             'mahalla_id' => $n->mahalla_id,
-            'department' => $n->department?->name_lat,
+            'department' => $n->department?->name_cyr,
             'department_org_id' => $n->department_org_id,
             'condition_desc' => $n->condition_desc,
             'estimated_amount' => $n->estimated_amount === null ? null : (float) $n->estimated_amount,

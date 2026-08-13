@@ -32,14 +32,22 @@ class QurilishAccess
         'qurilish_admin',
     ];
 
-    /** Faqat ko'ruvchi rollar — yozish ruxsatlari berilmaydi. */
+    /**
+     * Obyekt ma'lumotini tahrirlay olmaydigan rollar (viloyat darajasi).
+     * Prokuratura shu ro'yxatda qoladi: u bosqichni MODERATSIYA qiladi,
+     * lekin obyekt maydonlarini o'zgartirmaydi.
+     */
     public const VIEWER_ROLES = ['qurilish_hokimlik', 'qurilish_prokuratura'];
 
     /** @var array<string, array<int, string>> */
     private const PERMISSIONS = [
         'qurilish_admin' => ['*'],
+        // Hokimlik — kuzatuvchi: hech nima yozmaydi.
         'qurilish_hokimlik' => ['qurilish.view', 'qurilish.export'],
-        'qurilish_prokuratura' => ['qurilish.view', 'qurilish.export'],
+        // Prokuratura — MODERATOR (TZ v2.0, 11.1). Obyekt ma'lumotini
+        // tahrirlamaydi, lekin bosqichni tasdiqlaydi yoki rad etadi:
+        // bosqich prokuratura tasdig'isiz yopilmaydi.
+        'qurilish_prokuratura' => ['qurilish.view', 'qurilish.export', 'qurilish.stage.moderate'],
         'qurilish_buyurtmachi' => [
             'qurilish.view',
             'qurilish.export',

@@ -117,18 +117,25 @@ abstract class QurilishTestCase extends TestCase
     {
         ObjectStage::query()->updateOrCreate(
             ['object_id' => $object->id, 'stage_code' => $code],
-            ['status' => $status],
+            ['status' => $status, 'tz_stage' => ObjectStage::TZ_STAGE[$code]],
         );
     }
 
-    /** Barcha oldingi bosqichlarni yakunlangan qilib qo'yadi. */
+    /**
+     * Barcha oldingi bosqichlarni tasdiqlangan, maqsadli bosqichni esa
+     * ochilgan qilib qo'yadi — ya'ni obyektni «shu bosqichga yetgan» holatga
+     * keltiradi. Moderatsiya sikli qo'lda o'tkazilmaydi: fikstura sikldan
+     * o'tishni emas, siklning natijasini yasaydi.
+     */
     protected function completeStagesBefore(ConstructionObject $object, string $stageCode): void
     {
         foreach (ConstructionObject::STAGES as $code) {
             if ($code === $stageCode) {
+                $this->setStage($object, $code, 'ochilgan');
+
                 return;
             }
-            $this->setStage($object, $code, 'yakunlangan');
+            $this->setStage($object, $code, 'tasdiqlangan');
         }
     }
 

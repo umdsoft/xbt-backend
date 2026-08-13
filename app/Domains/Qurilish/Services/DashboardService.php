@@ -28,12 +28,12 @@ class DashboardService
 
     /** Kesim nomlari -> (jadval, ustun, nom ustuni). */
     private const DIMENSIONS = [
-        'dastur' => ['qurilish.programs', 'program_id', 'name_lat', 'sort_order'],
-        'soha' => ['qurilish.sectors', 'sector_id', 'name_lat', 'sort_order'],
-        'tuman' => ['master.districts', 'district_id', 'name_lat', 'sort_order'],
-        'buyurtmachi' => ['qurilish.organizations', 'customer_org_id', 'name_lat', 'name_lat'],
-        'pudratchi' => ['qurilish.organizations', 'contractor_org_id', 'name_lat', 'name_lat'],
-        'boshqarma' => ['qurilish.organizations', 'department_org_id', 'name_lat', 'name_lat'],
+        'dastur' => ['qurilish.programs', 'program_id', 'name_cyr', 'sort_order'],
+        'soha' => ['qurilish.sectors', 'sector_id', 'name_cyr', 'sort_order'],
+        'tuman' => ['master.districts', 'district_id', 'name_cyr', 'sort_order'],
+        'buyurtmachi' => ['qurilish.organizations', 'customer_org_id', 'name_cyr', 'name_cyr'],
+        'pudratchi' => ['qurilish.organizations', 'contractor_org_id', 'name_cyr', 'name_cyr'],
+        'boshqarma' => ['qurilish.organizations', 'department_org_id', 'name_cyr', 'name_cyr'],
     ];
 
     /**
@@ -130,7 +130,7 @@ class DashboardService
 
             return [
                 'key' => $r->key,
-                'name' => $r->name ?? 'Aniqlanmagan',
+                'name' => $r->name ?? 'Аниқланмаган',
                 'objects' => (int) $r->objects,
                 'limit_total' => (float) $r->limit_total,
                 'contract_total' => $contract,
@@ -165,16 +165,20 @@ class DashboardService
         $out = [];
         foreach (ConstructionObject::STAGES as $i => $code) {
             $s = $byStage[$code] ?? [];
-            $done = ($s['yakunlangan'] ?? 0) + ($s['talab_etilmaydi'] ?? 0);
+            $done = ($s['tasdiqlangan'] ?? 0) + ($s['talab_etilmaydi'] ?? 0);
 
             $out[] = [
                 'stage_code' => $code,
                 'order' => $i + 1,
-                'yakunlangan' => $s['yakunlangan'] ?? 0,
+                'tasdiqlangan' => $s['tasdiqlangan'] ?? 0,
                 'talab_etilmaydi' => $s['talab_etilmaydi'] ?? 0,
-                'jarayonda' => $s['jarayonda'] ?? 0,
-                'etiroz_bilan_qaytarilgan' => $s['etiroz_bilan_qaytarilgan'] ?? 0,
-                'boshlanmagan' => $s['boshlanmagan'] ?? 0,
+                'qoralama' => $s['qoralama'] ?? 0,
+                // Voronkada «prokuraturada» bitta ustun: yuborilgan va ko'rilayotgan
+                // bosqich rahbariyat uchun bir xil ma'noda — javob kutilmoqda.
+                'tasdiqlash_kutilmoqda' => ($s['tasdiqlash_kutilmoqda'] ?? 0) + ($s['korib_chiqilmoqda'] ?? 0),
+                'rad_etilgan' => $s['rad_etilgan'] ?? 0,
+                // «Boshlanmagan» = navbat kelmagan + ochilgan-u to'ldirilmagan.
+                'kutilmoqda' => ($s['kutilmoqda'] ?? 0) + ($s['ochilgan'] ?? 0),
                 'done_total' => $done,
             ];
         }

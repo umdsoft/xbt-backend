@@ -117,15 +117,16 @@ class ObjectController extends QurilishController
         return [
             'id' => $o->id,
             'registry_id' => $this->registryId($o),
-            // Sahifada LOTIN (spec 9): manba kirill, `name` da asl matn saqlanadi.
-            'name' => $o->name_lat ?: $o->name,
-            'name_cyr' => $o->name,
-            'program' => $o->program?->name_lat,
-            'sector' => $o->sector?->name_lat,
+            // Sahifada KIRILL — manbadagi asl matn. Lotin ko'rinishi ham
+            // qaytariladi: qidiruv ikkala yozuvda ishlashi uchun kerak.
+            'name' => $o->name,
+            'name_lat' => $o->name_lat,
+            'program' => $o->program?->name_cyr,
+            'sector' => $o->sector?->name_cyr,
             'district_id' => $o->district_id,
-            'customer' => $o->customer?->name_lat,
-            'contractor' => $o->contractor?->name_lat,
-            'department' => $o->department?->name_lat,
+            'customer' => $o->customer?->name_cyr,
+            'contractor' => $o->contractor?->name_cyr,
+            'department' => $o->department?->name_cyr,
             'limit_amount' => (float) $o->limit_amount,
             'contract_amount' => (float) $o->contract_amount,
             'disbursed_amount' => (float) $o->disbursed_amount,
@@ -154,7 +155,7 @@ class ObjectController extends QurilishController
             'designer_org_id' => $o->designer_org_id,
             'contractor_org_id' => $o->contractor_org_id,
             'department_org_id' => $o->department_org_id,
-            'designer' => $o->designer?->name_lat,
+            'designer' => $o->designer?->name_cyr,
             'tender_amount' => (float) $o->tender_amount,
             'financed_amount' => (float) $o->financed_amount,
             // 2026-yilgi limit bilan tender qiymati farqi. MANFIY bo'lishi MUMKIN va
@@ -171,8 +172,11 @@ class ObjectController extends QurilishController
             'stages' => $o->stages->map(fn ($s) => [
                 'stage_code' => $s->stage_code,
                 'status' => $s->status,
+                'tz_stage' => $s->tz_stage,
                 'started_at' => $s->started_at?->toDateString(),
                 'completed_at' => $s->completed_at?->toDateString(),
+                'submitted_at' => $s->submitted_at?->toIso8601String(),
+                'rejection_reason' => $s->rejection_reason,
                 'note' => $s->note,
             ])->all(),
         ]);

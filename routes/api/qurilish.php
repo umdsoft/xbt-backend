@@ -43,9 +43,18 @@ Route::middleware(['auth:sanctum', 'qurilish'])
         Route::get('/objects/{object}', [ObjectController::class, 'show'])->name('objects.show');
         Route::patch('/objects/{object}', [ObjectController::class, 'update'])->name('objects.update');
 
-        // Bosqich workflow.
+        // Bosqich workflow — XNP TZ v2.0 moderatsiya sikli.
+        // `/moderation/queue` {object} marshrutlaridan mustaqil: u obyektga
+        // emas, foydalanuvchining butun navbatiga tegishli.
+        Route::get('/moderation/queue', [StageController::class, 'queue'])->name('stages.queue');
         Route::get('/objects/{object}/stages', [StageController::class, 'index'])->name('stages.index');
         Route::patch('/objects/{object}/stages/{stage}', [StageController::class, 'update'])->name('stages.update');
+        Route::post('/objects/{object}/stages/{stage}/submit', [StageController::class, 'submit'])->name('stages.submit');
+        Route::post('/objects/{object}/stages/{stage}/review', [StageController::class, 'review'])->name('stages.review');
+        Route::post('/objects/{object}/stages/{stage}/approve', [StageController::class, 'approve'])->name('stages.approve');
+        Route::post('/objects/{object}/stages/{stage}/reject', [StageController::class, 'reject'])->name('stages.reject');
+        Route::post('/objects/{object}/stages/{stage}/reopen', [StageController::class, 'reopen'])->name('stages.reopen');
+        Route::post('/objects/{object}/stages/{stage}/not-required', [StageController::class, 'notRequired'])->name('stages.not_required');
 
         // Oylik ijro grafigi.
         Route::get('/objects/{object}/monthly', [MonthlyController::class, 'index'])->name('monthly.index');
