@@ -41,3 +41,4 @@ docs/*.kml
 
 # ETL xom fayllari (xlsx/CSV) — repoga tushmasin
 /storage/app/import/
+.gstack/
