@@ -26,6 +26,9 @@ class SystemsSeeder extends Seeder
         ['code' => 'xbt', 'name' => 'Кадрлар бошқарув тизими (KBT)', 'sort_order' => 1],
         ['code' => 'mahalla', 'name' => 'Маҳалла мониторинги', 'sort_order' => 2],
         ['code' => 'advisor', 'name' => 'Ҳоким маслаҳатчилари платформаси', 'sort_order' => 3],
+        ['code' => 'murojaat', 'name' => 'Мурожаатлар мониторинги', 'sort_order' => 4],
+        ['code' => 'sport', 'name' => 'Спорт ва соғломлаштириш', 'sort_order' => 5],
+        ['code' => 'qurilish', 'name' => 'Қурилиш дастурлари ижроси', 'sort_order' => 6],
     ];
 
     public function run(): void
