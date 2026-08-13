@@ -8,8 +8,11 @@ use App\Domains\Qurilish\Models\ConstructionObject;
 use App\Domains\Qurilish\Models\ObjectStage;
 use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
+use App\Domains\Qurilish\Models\WeeklyReport;
 use App\Domains\Qurilish\Support\QurilishAccess;
+use App\Domains\Qurilish\Support\QurilishScope;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +38,7 @@ class ContextController extends Controller
         'handover' => 'Топшириш',
     ];
 
-    public function __invoke(Request $request, QurilishAccess $access): JsonResponse
+    public function __invoke(Request $request, QurilishAccess $access, QurilishScope $scope): JsonResponse
     {
         $user = $request->user();
         $profile = $access->profileFor($user);
@@ -48,6 +51,7 @@ class ContextController extends Controller
                 'login' => $user->login,
             ],
             'role' => $access->roleFor($user),
+            'role_name' => QurilishAccess::ROLE_NAMES[$access->roleFor($user)] ?? null,
             'permissions' => $access->permissionsFor($user),
             'sees_everything' => $access->seesEverything($user),
             'viewer_only' => $access->isViewerOnly($user),
@@ -56,6 +60,8 @@ class ContextController extends Controller
                 'organization_name' => $organization?->name_cyr,
                 'district_id' => $profile?->district_id,
             ],
+            // Navigatsiya nishonlari — SPA har sahifada qayta so'ramasin.
+            'badges' => $this->badges($user, $scope),
             'reference' => [
                 'programs' => Program::query()->where('is_active', true)
                     ->orderBy('sort_order')
@@ -72,6 +78,32 @@ class ContextController extends Controller
                 'work_types' => ConstructionObject::WORK_TYPES,
             ],
         ]);
+    }
+
+    /**
+     * Nishon sonlari: nechta bosqich va nechta haftalik hisobot javob kutmoqda.
+     *
+     * Scope obyektlar so'roviga qo'llanadi — buyurtmachi o'zi yuborganini,
+     * prokuratura hammasini ko'radi. Ikkala son ham BITTA kontekst so'rovidan
+     * keladi: har sahifa ochilganda navbatni qayta so'rash dashboard
+     * yuklanishini sekinlashtirardi.
+     *
+     * @return array<string, int>
+     */
+    private function badges(User $user, QurilishScope $scope): array
+    {
+        $visible = $scope->apply(ConstructionObject::query()->select('id'), $user);
+
+        return [
+            'stage_queue' => ObjectStage::query()
+                ->whereIn('status', ObjectStage::PENDING_STATUSES)
+                ->whereIn('object_id', $visible)
+                ->count(),
+            'weekly_queue' => WeeklyReport::query()
+                ->whereIn('status', WeeklyReport::PENDING_STATUSES)
+                ->whereIn('object_id', $visible)
+                ->count(),
+        ];
     }
 
     /** @return array<int, array{code: string, order: int, name: string}> */

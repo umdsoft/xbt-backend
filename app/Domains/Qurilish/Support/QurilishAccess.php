@@ -29,7 +29,18 @@ class QurilishAccess
         'qurilish_prokuratura',
         'qurilish_buyurtmachi',
         'qurilish_boshqarma',
+        'qurilish_moderator',
         'qurilish_admin',
+    ];
+
+    /** Rol nomlari (kirill) — UI va buyruq chiqishi uchun yagona manba. */
+    public const ROLE_NAMES = [
+        'qurilish_hokimlik' => 'Вилоят ҳокимлиги',
+        'qurilish_prokuratura' => 'Вилоят прокуратураси',
+        'qurilish_buyurtmachi' => 'Буюртмачи',
+        'qurilish_boshqarma' => 'Бошқарма',
+        'qurilish_moderator' => 'Тизим модератори',
+        'qurilish_admin' => 'Администратор',
     ];
 
     /**
@@ -37,11 +48,27 @@ class QurilishAccess
      * Prokuratura shu ro'yxatda qoladi: u bosqichni MODERATSIYA qiladi,
      * lekin obyekt maydonlarini o'zgartirmaydi.
      */
-    public const VIEWER_ROLES = ['qurilish_hokimlik', 'qurilish_prokuratura'];
+    public const VIEWER_ROLES = ['qurilish_hokimlik', 'qurilish_prokuratura', 'qurilish_moderator'];
+
+    /**
+     * Tizim moderatori — hisob va spravochnik boshqaruvi.
+     *
+     * NEGA ADMIN'DAN AJRATILGAN: hisob ochuvchi odam ayni paytda qurilish
+     * bosqichini tasdiqlay olsa, u o'ziga buyurtmachi hisobi ochib, o'zi
+     * yuborib, o'zi tasdiqlay olardi. Vakolatlar bo'linishi shuni to'sadi:
+     * moderatorda `qurilish.stage.moderate` ham, `object.update` ham YO'Q.
+     */
+    public const MODERATOR_ROLE = 'qurilish_moderator';
 
     /** @var array<string, array<int, string>> */
     private const PERMISSIONS = [
         'qurilish_admin' => ['*'],
+        'qurilish_moderator' => [
+            'qurilish.view',
+            'qurilish.export',
+            'qurilish.user.manage',       // login/parol ochish, faolsizlantirish
+            'qurilish.reference.manage',  // dastur, soha, tashkilot CRUD
+        ],
         // Hokimlik — kuzatuvchi: hech nima yozmaydi.
         'qurilish_hokimlik' => ['qurilish.view', 'qurilish.export'],
         // Prokuratura — MODERATOR (TZ v2.0, 11.1). Obyekt ma'lumotini
@@ -125,7 +152,9 @@ class QurilishAccess
     {
         $role = $this->roleFor($user);
 
-        return $role === 'qurilish_admin' || in_array($role, self::VIEWER_ROLES, true);
+        return $role === 'qurilish_admin'
+            || $role === self::MODERATOR_ROLE
+            || in_array($role, self::VIEWER_ROLES, true);
     }
 
     /** Faqat ko'ruvchimi (yozish taqiqlangan). */

@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Domains\Qurilish\Http\Controllers\Api\AdminController;
 use App\Domains\Qurilish\Http\Controllers\Api\AuditController;
 use App\Domains\Qurilish\Http\Controllers\Api\ContextController;
 use App\Domains\Qurilish\Http\Controllers\Api\DashboardController;
 use App\Domains\Qurilish\Http\Controllers\Api\DocumentController;
 use App\Domains\Qurilish\Http\Controllers\Api\ExportController;
+use App\Domains\Qurilish\Http\Controllers\Api\MediaController;
 use App\Domains\Qurilish\Http\Controllers\Api\MonthlyController;
 use App\Domains\Qurilish\Http\Controllers\Api\ObjectController;
 use App\Domains\Qurilish\Http\Controllers\Api\RepairNeedController;
 use App\Domains\Qurilish\Http\Controllers\Api\StageController;
+use App\Domains\Qurilish\Http\Controllers\Api\WeeklyController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -60,6 +63,23 @@ Route::middleware(['auth:sanctum', 'qurilish'])
         Route::get('/objects/{object}/monthly', [MonthlyController::class, 'index'])->name('monthly.index');
         Route::put('/objects/{object}/monthly', [MonthlyController::class, 'upsert'])->name('monthly.upsert');
 
+        // Bosqich dalillari — surat va video.
+        Route::get('/objects/{object}/media', [MediaController::class, 'index'])->name('media.index');
+        Route::post('/objects/{object}/media', [MediaController::class, 'store'])->name('media.store');
+        Route::get('/objects/{object}/media/{media}/file', [MediaController::class, 'show'])->name('media.file');
+        Route::post('/objects/{object}/media/{media}/cover', [MediaController::class, 'setCover'])->name('media.cover');
+        Route::delete('/objects/{object}/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
+
+        // Haftalik ijro hisoboti va arxivi.
+        // `/weekly/queue` obyektga bog'lanmagan — u butun portfel navbati.
+        Route::get('/weekly/queue', [WeeklyController::class, 'queue'])->name('weekly.queue');
+        Route::get('/objects/{object}/weekly', [WeeklyController::class, 'index'])->name('weekly.index');
+        Route::post('/objects/{object}/weekly', [WeeklyController::class, 'store'])->name('weekly.store');
+        Route::post('/objects/{object}/weekly/{report}/submit', [WeeklyController::class, 'submit'])->name('weekly.submit');
+        Route::post('/objects/{object}/weekly/{report}/review', [WeeklyController::class, 'review'])->name('weekly.review');
+        Route::post('/objects/{object}/weekly/{report}/approve', [WeeklyController::class, 'approve'])->name('weekly.approve');
+        Route::post('/objects/{object}/weekly/{report}/reject', [WeeklyController::class, 'reject'])->name('weekly.reject');
+
         // Hujjatlar.
         Route::get('/objects/{object}/documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::post('/objects/{object}/documents', [DocumentController::class, 'store'])->name('documents.store');
@@ -77,4 +97,33 @@ Route::middleware(['auth:sanctum', 'qurilish'])
 
         // Audit jurnali.
         Route::get('/objects/{object}/audit', AuditController::class)->name('audit');
+
+        /*
+         * TIZIM MODERATORI ish o'rni. Alohida prefiks `/admin`: bu marshrutlar
+         * obyekt ma'lumotiga emas, tizimning O'ZIGA tegishli va ularning
+         * ruxsati ham boshqacha (`user.manage` / `reference.manage`).
+         */
+        Route::prefix('admin')->name('admin.')->group(function () {
+            Route::get('/users', [AdminController::class, 'userIndex'])->name('users.index');
+            Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
+            Route::patch('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
+            Route::post('/users/{user}/password', [AdminController::class, 'userResetPassword'])->name('users.password');
+            Route::post('/users/{user}/active', [AdminController::class, 'userSetActive'])->name('users.active');
+
+            Route::get('/programs', [AdminController::class, 'programIndex'])->name('programs.index');
+            Route::post('/programs', [AdminController::class, 'programStore'])->name('programs.store');
+            Route::patch('/programs/{program}', [AdminController::class, 'programUpdate'])->name('programs.update');
+            Route::delete('/programs/{program}', [AdminController::class, 'programDestroy'])->name('programs.destroy');
+
+            Route::get('/sectors', [AdminController::class, 'sectorIndex'])->name('sectors.index');
+            Route::post('/sectors', [AdminController::class, 'sectorStore'])->name('sectors.store');
+            Route::patch('/sectors/{sector}', [AdminController::class, 'sectorUpdate'])->name('sectors.update');
+            Route::delete('/sectors/{sector}', [AdminController::class, 'sectorDestroy'])->name('sectors.destroy');
+
+            Route::get('/organizations', [AdminController::class, 'organizationIndex'])->name('orgs.index');
+            Route::post('/organizations', [AdminController::class, 'organizationSave'])->name('orgs.store');
+            Route::patch('/organizations/{organization}', [AdminController::class, 'organizationSave'])->name('orgs.update');
+
+            Route::get('/audit', [AdminController::class, 'auditIndex'])->name('audit');
+        });
     });
