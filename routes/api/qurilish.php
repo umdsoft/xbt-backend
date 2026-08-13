@@ -2,13 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Domains\Qurilish\Http\Controllers\Api\AuditController;
 use App\Domains\Qurilish\Http\Controllers\Api\ContextController;
+use App\Domains\Qurilish\Http\Controllers\Api\DocumentController;
+use App\Domains\Qurilish\Http\Controllers\Api\MonthlyController;
+use App\Domains\Qurilish\Http\Controllers\Api\ObjectController;
+use App\Domains\Qurilish\Http\Controllers\Api\StageController;
 use Illuminate\Support\Facades\Route;
 
 /*
  * QURILISH domeni API (davlat dasturlari qurilish/ta'mirlash ijrosi).
  * auth:sanctum + qurilish gvardiyasi. Auth-siz -> 401; rolsiz -> 403.
- * Rol ichidagi vakolat (buyurtmachi/boshqarma scope) QurilishScope da.
+ * Rol ichidagi vakolat (buyurtmachi/boshqarma scope) QurilishScope da,
+ * aniq amal ruxsati QurilishController::authorizeAction da.
  */
 Route::middleware(['auth:sanctum', 'qurilish'])
     ->prefix('qurilish')
@@ -16,4 +22,27 @@ Route::middleware(['auth:sanctum', 'qurilish'])
     ->group(function () {
         // SPA boshlanish konteksti: rol, ruxsat, scope, spravochniklar.
         Route::get('/context', ContextController::class)->name('context');
+
+        // Obyekt reyestri.
+        Route::get('/objects', [ObjectController::class, 'index'])->name('objects.index');
+        Route::post('/objects', [ObjectController::class, 'store'])->name('objects.store');
+        Route::get('/objects/{object}', [ObjectController::class, 'show'])->name('objects.show');
+        Route::patch('/objects/{object}', [ObjectController::class, 'update'])->name('objects.update');
+
+        // Bosqich workflow.
+        Route::get('/objects/{object}/stages', [StageController::class, 'index'])->name('stages.index');
+        Route::patch('/objects/{object}/stages/{stage}', [StageController::class, 'update'])->name('stages.update');
+
+        // Oylik ijro grafigi.
+        Route::get('/objects/{object}/monthly', [MonthlyController::class, 'index'])->name('monthly.index');
+        Route::put('/objects/{object}/monthly', [MonthlyController::class, 'upsert'])->name('monthly.upsert');
+
+        // Hujjatlar.
+        Route::get('/objects/{object}/documents', [DocumentController::class, 'index'])->name('documents.index');
+        Route::post('/objects/{object}/documents', [DocumentController::class, 'store'])->name('documents.store');
+        Route::get('/objects/{object}/documents/{document}', [DocumentController::class, 'download'])->name('documents.download');
+        Route::delete('/objects/{object}/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+
+        // Audit jurnali.
+        Route::get('/objects/{object}/audit', AuditController::class)->name('audit');
     });

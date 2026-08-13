@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Qurilish;
 
+use App\Domains\Qurilish\Models\ConstructionObject;
+use App\Domains\Qurilish\Models\ObjectStage;
+use App\Domains\Qurilish\Services\StageService;
 use App\Domains\Qurilish\Support\QurilishAccess;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -86,6 +89,47 @@ abstract class QurilishTestCase extends TestCase
     {
         return (string) DB::connection('master')->table('districts')
             ->whereNotNull('soato_code')->orderBy('sort_order')->value('id');
+    }
+
+    /**
+     * Test uchun obyekt yaratadi (8 bosqichi bilan).
+     *
+     * DIQQAT: testlar UMUMIY dev bazasida yuradi va u yerda haqiqiy import
+     * ma'lumoti turishi mumkin. Shuning uchun har obyekt nomi noyob prefiks
+     * bilan belgilanadi — assertion'lar shu bo'yicha cheklanadi.
+     *
+     * @param  array<string, mixed>  $attrs
+     */
+    protected function makeObject(array $attrs = []): ConstructionObject
+    {
+        $object = ConstructionObject::query()->create(array_merge([
+            'name' => 'TEST-'.Str::random(8),
+            'lifecycle' => 'reja',
+        ], $attrs));
+
+        app(StageService::class)->ensureStages($object);
+
+        return $object->refresh();
+    }
+
+    /** Bosqichni to'g'ridan-to'g'ri (qoidalarni chetlab) qo'yadi — fikstura uchun. */
+    protected function setStage(ConstructionObject $object, string $code, string $status): void
+    {
+        ObjectStage::query()->updateOrCreate(
+            ['object_id' => $object->id, 'stage_code' => $code],
+            ['status' => $status],
+        );
+    }
+
+    /** Barcha oldingi bosqichlarni yakunlangan qilib qo'yadi. */
+    protected function completeStagesBefore(ConstructionObject $object, string $stageCode): void
+    {
+        foreach (ConstructionObject::STAGES as $code) {
+            if ($code === $stageCode) {
+                return;
+            }
+            $this->setStage($object, $code, 'yakunlangan');
+        }
     }
 
     /**
