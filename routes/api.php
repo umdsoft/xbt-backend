@@ -37,3 +37,4 @@ require __DIR__.'/api/hr.php';
 require __DIR__.'/api/advisor.php';
 require __DIR__.'/api/murojaat.php';
 require __DIR__.'/api/sport.php';
+require __DIR__.'/api/qurilish.php';
