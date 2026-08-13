@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
         // AdvisorAccess — singleton: roleFor()/advisorFor() natijasi so'rov davomida
         // memo keshda baham ko'riladi (kontroller + middleware + service bir instance).
         $this->app->singleton(\App\Domains\Advisor\Support\AdvisorAccess::class);
+
+        // QurilishAccess — singleton: roleFor()/profileFor() natijasi so'rov davomida
+        // keshlanadi, aks holda har ruxsat tekshiruvida auth schema'ga so'rov ketardi
+        // (middleware -> kontroller -> scope zanjirida 3+ marta).
+        $this->app->singleton(\App\Domains\Qurilish\Support\QurilishAccess::class);
     }
 
     /**
