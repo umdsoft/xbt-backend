@@ -117,7 +117,9 @@ class ObjectController extends QurilishController
         return [
             'id' => $o->id,
             'registry_id' => $this->registryId($o),
-            'name' => $o->name,
+            // Sahifada LOTIN (spec 9): manba kirill, `name` da asl matn saqlanadi.
+            'name' => $o->name_lat ?: $o->name,
+            'name_cyr' => $o->name,
             'program' => $o->program?->name_lat,
             'sector' => $o->sector?->name_lat,
             'district_id' => $o->district_id,

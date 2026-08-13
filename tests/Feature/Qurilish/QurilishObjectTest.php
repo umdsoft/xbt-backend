@@ -72,6 +72,32 @@ class QurilishObjectTest extends QurilishObjectTestCase
         $this->assertEqualsWithDelta(50, $res->json('data.progress_pct'), 0.001);
     }
 
+    public function test_api_returns_latin_name_and_search_matches_both_scripts(): void
+    {
+        $object = $this->makeObject([
+            'name' => $this->tag('Хива шаҳри'),
+            'name_lat' => $this->tag('Xiva shahri'),
+        ]);
+        $user = $this->makeUser('qurilish_hokimlik');
+
+        // Kartochkada lotin nomi, asl kirill esa `name_cyr` da.
+        $res = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/qurilish/objects/'.$object->id)->assertOk();
+        $this->assertSame($this->tag('Xiva shahri'), $res->json('data.name'));
+        $this->assertSame($this->tag('Хива шаҳри'), $res->json('data.name_cyr'));
+
+        // Qidiruv ikkala yozuvda ham ishlaydi.
+        foreach (['Xiva shahri', 'Хива шаҳри'] as $needle) {
+            $this->assertSame(
+                1,
+                $this->actingAs($user, 'sanctum')
+                    ->getJson('/api/qurilish/objects?q='.urlencode($this->prefix.'-'.$needle))
+                    ->assertOk()->json('meta.total'),
+                $needle,
+            );
+        }
+    }
+
     public function test_registry_id_hides_synthetic_keys(): void
     {
         $real = $this->makeObject(['name' => $this->tag('R'), 'external_id' => '9911334060102001']);

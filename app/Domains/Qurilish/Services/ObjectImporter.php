@@ -14,6 +14,7 @@ use App\Domains\Qurilish\Support\OrgRegistry;
 use App\Domains\Qurilish\Support\SectorClassifier;
 use App\Domains\Qurilish\Support\SoatoResolver;
 use App\Domains\Qurilish\Support\StageMapper;
+use App\Domains\Qurilish\Support\Translit;
 use App\Domains\Qurilish\Support\WorkTypeClassifier;
 
 /**
@@ -141,6 +142,7 @@ class ObjectImporter
                 'sector_id' => $sectorId,
                 'district_id' => $districtId,
                 'name' => $name,
+                'name_lat' => Translit::toLatin($name),
                 'work_type' => $this->workTypes->classify($row['work_type_label'] ?? null, $name),
                 'customer_org_id' => $this->orgs->resolve($row['customer_raw'] ?? null, 'is_customer'),
                 'designer_org_id' => $this->orgs->resolve($row['designer_raw'] ?? null, 'is_designer'),

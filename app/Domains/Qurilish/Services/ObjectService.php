@@ -7,6 +7,7 @@ namespace App\Domains\Qurilish\Services;
 use App\Domains\Qurilish\Models\ConstructionObject;
 use App\Domains\Qurilish\Support\QurilishAccess;
 use App\Domains\Qurilish\Support\QurilishScope;
+use App\Domains\Qurilish\Support\Translit;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -116,6 +117,10 @@ class ObjectService
         }
 
         // Dasturi ko'rsatilmagan obyekt — kelajakdagi (ta'mirtalab) obyekt: qoralama.
+        if (isset($fields['name'])) {
+            $fields['name_lat'] = Translit::toLatin((string) $fields['name']);
+        }
+
         $fields['lifecycle'] = ($fields['program_id'] ?? null) === null ? 'qoralama' : 'reja';
         $fields['source'] = 'manual';
         $fields['created_by'] = $user->id;
@@ -138,6 +143,10 @@ class ObjectService
 
         if ($fields === []) {
             return $object;
+        }
+
+        if (isset($fields['name'])) {
+            $fields['name_lat'] = Translit::toLatin((string) $fields['name']);
         }
 
         $before = $object->only(array_keys($fields));
@@ -186,8 +195,11 @@ class ObjectService
                     ->whereDate('deadline_date', '<', now()->toDateString())
                     ->where('handover_done', false),
             )
+            // Qidiruv IKKALA ustun bo'yicha: foydalanuvchi lotin ham, kirill ham
+            // yozishi mumkin (nom manbada kirill, sahifada lotin ko'rinadi).
             ->when($f['q'] ?? null, fn (Builder $q, $v) => $q->where(
                 fn (Builder $w) => $w->where('name', 'ilike', '%'.$v.'%')
+                    ->orWhere('name_lat', 'ilike', '%'.$v.'%')
                     ->orWhere('external_id', 'ilike', $v.'%'),
             ));
     }

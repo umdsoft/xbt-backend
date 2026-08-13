@@ -9,6 +9,7 @@ use App\Domains\Qurilish\Models\ObjectStage;
 use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
 use App\Domains\Qurilish\Support\QurilishAccess;
+use App\Domains\Qurilish\Support\Translit;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class ContextController extends Controller
         return response()->json([
             'user' => [
                 'id' => $user->id,
-                'name' => $user->name,
+                'name' => Translit::toLatin($user->name),
                 'login' => $user->login,
             ],
             'role' => $access->roleFor($user),
@@ -52,7 +53,10 @@ class ContextController extends Controller
             'viewer_only' => $access->isViewerOnly($user),
             'scope' => [
                 'organization_id' => $profile?->organization_id,
-                'organization_name' => $organization?->name_cyr,
+                // Lotin (spec 9). `name_lat` bo'sh bo'lsa kirillni o'giramiz.
+                'organization_name' => $organization === null
+                    ? null
+                    : ($organization->name_lat ?: Translit::toLatin($organization->name_cyr)),
                 'district_id' => $profile?->district_id,
             ],
             'reference' => [

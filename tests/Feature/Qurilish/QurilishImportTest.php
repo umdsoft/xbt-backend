@@ -186,6 +186,18 @@ class QurilishImportTest extends QurilishTestCase
         $this->assertSame('tugallangan', $this->find('9901332170101013')->lifecycle);
     }
 
+    public function test_import_stores_latin_name_alongside_cyrillic(): void
+    {
+        // Spec 9: sahifada lotin. Kirill asl matni `name` da SAQLANADI —
+        // eksport va manba bilan solishtirish uchun kerak.
+        $this->import([$this->row(['name' => 'Хива шаҳридаги мактабни таъмирлаш'])]);
+
+        $object = $this->find(self::ID_A);
+
+        $this->assertSame('Хива шаҳридаги мактабни таъмирлаш', $object->name);
+        $this->assertSame("Xiva shahridagi maktabni ta'mirlash", $object->name_lat);
+    }
+
     public function test_import_records_objects_without_district(): void
     {
         // 992000 — «туманлараро» maxsus kodi; tuman biriktirilmaydi.

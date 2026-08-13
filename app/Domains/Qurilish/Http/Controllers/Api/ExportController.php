@@ -68,7 +68,7 @@ class ExportController extends QurilishController
             /** @var ConstructionObject $o */
             $rows[] = [
                 $o->external_id,
-                $o->name,
+                $o->name_lat ?: $o->name,
                 $o->program?->name_lat,
                 $o->sector?->name_lat,
                 $o->customer?->name_lat,
