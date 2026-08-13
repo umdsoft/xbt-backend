@@ -9,6 +9,7 @@ use App\Domains\Qurilish\Http\Controllers\Api\DocumentController;
 use App\Domains\Qurilish\Http\Controllers\Api\ExportController;
 use App\Domains\Qurilish\Http\Controllers\Api\MonthlyController;
 use App\Domains\Qurilish\Http\Controllers\Api\ObjectController;
+use App\Domains\Qurilish\Http\Controllers\Api\RepairNeedController;
 use App\Domains\Qurilish\Http\Controllers\Api\StageController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +55,15 @@ Route::middleware(['auth:sanctum', 'qurilish'])
         Route::post('/objects/{object}/documents', [DocumentController::class, 'store'])->name('documents.store');
         Route::get('/objects/{object}/documents/{document}', [DocumentController::class, 'download'])->name('documents.download');
         Route::delete('/objects/{object}/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+
+        // Ta'mirtalab obyektlar reyestri (2-maqsad) + ПАСПОРТ jonli hisoboti.
+        // DIQQAT: `/pasport` `{need}` dan OLDIN turishi shart, aks holda
+        // 'pasport' so'zi {need} parametri sifatida ushlanib qolardi.
+        Route::get('/repair-needs/pasport', [RepairNeedController::class, 'pasport'])->name('repair.pasport');
+        Route::get('/repair-needs', [RepairNeedController::class, 'index'])->name('repair.index');
+        Route::post('/repair-needs', [RepairNeedController::class, 'store'])->name('repair.store');
+        Route::patch('/repair-needs/{need}', [RepairNeedController::class, 'update'])->name('repair.update');
+        Route::post('/repair-needs/{need}/promote', [RepairNeedController::class, 'promote'])->name('repair.promote');
 
         // Audit jurnali.
         Route::get('/objects/{object}/audit', AuditController::class)->name('audit');
