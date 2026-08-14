@@ -27,8 +27,19 @@ use Illuminate\Validation\ValidationException;
  */
 class UserAdminService
 {
-    /** Bu rollar tashkilotsiz hech narsa ko'rmaydi (fail-closed scope). */
-    private const NEEDS_ORG = ['qurilish_buyurtmachi', 'qurilish_boshqarma'];
+    /**
+     * Bu rollar tashkilotsiz hech narsa ko'rmaydi (fail-closed scope).
+     * Qiymat — tashkilot QAYSI TURDA bo'lishi kerakligi.
+     *
+     * Tur muhim: `QurilishScope` boshqarmani `department_org_id` bo'yicha,
+     * buyurtmachini `customer_org_id` bo'yicha cheklaydi. Boshqarma
+     * xodimiga pudratchi MChJ biriktirilsa, so'rov hech qachon mos
+     * kelmaydi va u bo'sh ro'yxat ko'radi — sabab esa ko'rinmaydi.
+     */
+    private const NEEDS_ORG = [
+        'qurilish_buyurtmachi' => 'is_customer',
+        'qurilish_boshqarma' => 'is_department',
+    ];
 
     public function __construct(
         private readonly QurilishAccess $access,
@@ -261,9 +272,10 @@ class UserAdminService
     private function assertOrganization(string $role, mixed $orgId): ?string
     {
         $orgId = $orgId === '' ? null : $orgId;
+        $required = self::NEEDS_ORG[$role] ?? null;
 
         if ($orgId === null) {
-            if (in_array($role, self::NEEDS_ORG, true)) {
+            if ($required !== null) {
                 throw ValidationException::withMessages([
                     'organization_id' => 'Бу роль учун ташкилот танланиши шарт — усиз фойдаланувчи ҳеч қандай объект кўрмайди.',
                 ]);
@@ -272,8 +284,20 @@ class UserAdminService
             return null;
         }
 
-        if (! Organization::query()->whereKey($orgId)->exists()) {
+        $organization = Organization::query()->find($orgId);
+
+        if ($organization === null) {
             throw ValidationException::withMessages(['organization_id' => 'Ташкилот топилмади.']);
+        }
+
+        // Tur mos kelmasa — hisob ochiladi-yu, foydalanuvchi bo'sh ro'yxat
+        // ko'radi. Buni keyin topish qiyin, shuning uchun hozir to'xtatamiz.
+        if ($required !== null && ! $organization->getAttribute($required)) {
+            $expected = $required === 'is_department' ? 'бошқарма' : 'буюртмачи';
+            throw ValidationException::withMessages([
+                'organization_id' => "«{$organization->name_cyr}» {$expected} эмас. "
+                    .'Бу роль учун мос турдаги ташкилотни танланг.',
+            ]);
         }
 
         return (string) $orgId;

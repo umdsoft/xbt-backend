@@ -254,15 +254,26 @@ class AdminController extends QurilishController
         ]);
     }
 
-    /** @return array<int, array{code: string, name: string, needs_org: bool}> */
+    /**
+     * Rol ro'yxati + har biri uchun tashkilot talabi.
+     *
+     * `org_flag` — SPA qaysi TURDAGI tashkilotni ko'rsatishini biladi:
+     * boshqarmaga pudratchi MChJ taklif qilinmasin.
+     *
+     * @return array<int, array{code: string, name: string, needs_org: bool, org_flag: ?string}>
+     */
     private function roleOptions(): array
     {
-        $needsOrg = ['qurilish_buyurtmachi', 'qurilish_boshqarma'];
+        $needsOrg = [
+            'qurilish_buyurtmachi' => 'is_customer',
+            'qurilish_boshqarma' => 'is_department',
+        ];
 
         return array_map(fn (string $code) => [
             'code' => $code,
             'name' => QurilishAccess::ROLE_NAMES[$code] ?? $code,
-            'needs_org' => in_array($code, $needsOrg, true),
+            'needs_org' => isset($needsOrg[$code]),
+            'org_flag' => $needsOrg[$code] ?? null,
         ], QurilishAccess::ROLES);
     }
 }

@@ -119,6 +119,50 @@ class QurilishAdminTest extends QurilishObjectTestCase
             ->assertJsonValidationErrors('organization_id');
     }
 
+    public function test_organization_type_must_match_the_role(): void
+    {
+        $moderator = $this->makeUser('qurilish_moderator');
+
+        // Пудратчи МЧЖ — на бошқарма, на буюртмачи.
+        $contractor = $this->makeOrganization('«Синов қурилиш» МЧЖ', ['is_contractor' => true]);
+        $department = $this->makeOrganization('Синов бошқармаси', ['is_department' => true]);
+
+        // Нотўғри тур: ҳисоб очилса ҳам, фойдаланувчи бўш рўйхат кўрарди —
+        // сабабини кейин топиш қийин, шунинг учун ҳозир тўхтатилади.
+        $this->actingAs($moderator, 'sanctum')
+            ->postJson('/api/qurilish/admin/users', [
+                'login' => 'test_'.Str::lower(Str::random(8)),
+                'name' => 'Нотўғри доира',
+                'role' => 'qurilish_boshqarma',
+                'organization_id' => $contractor,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('organization_id');
+
+        $this->actingAs($moderator, 'sanctum')
+            ->postJson('/api/qurilish/admin/users', [
+                'login' => 'test_'.Str::lower(Str::random(8)),
+                'name' => 'Синов бошқармаси',
+                'role' => 'qurilish_boshqarma',
+                'organization_id' => $department,
+            ])
+            ->assertStatus(201);
+    }
+
+    public function test_role_options_carry_the_required_organization_type(): void
+    {
+        $res = $this->actingAs($this->makeUser('qurilish_moderator'), 'sanctum')
+            ->getJson('/api/qurilish/admin/users')->assertOk();
+
+        $roles = collect($res->json('roles'))->keyBy('code');
+
+        // SPA шу маълумотдан қайси турдаги ташкилотни кўрсатишни билади.
+        $this->assertSame('is_department', $roles['qurilish_boshqarma']['org_flag']);
+        $this->assertSame('is_customer', $roles['qurilish_buyurtmachi']['org_flag']);
+        $this->assertNull($roles['qurilish_prokuratura']['org_flag']);
+        $this->assertFalse($roles['qurilish_prokuratura']['needs_org']);
+    }
+
     public function test_duplicate_login_is_rejected(): void
     {
         $moderator = $this->makeUser('qurilish_moderator');
