@@ -66,9 +66,13 @@ class YoshlarAccess
             'yoshlar.task.view',
             'yoshlar.task.manage',
             'yoshlar.employment.view',
+            'yoshlar.case.view',
+            'yoshlar.case.manage',
+            'yoshlar.patronage.view',
         ],
         'yoshlar_hokim_orinbosari' => [
             'yoshlar.view', 'yoshlar.export', 'yoshlar.task.view', 'yoshlar.employment.view',
+            'yoshlar.case.view', 'yoshlar.patronage.view',
         ],
         'yoshlar_boshqarma' => [
             'yoshlar.view',
@@ -79,6 +83,8 @@ class YoshlarAccess
             'yoshlar.task.view',
             'yoshlar.task.review.youth',
             'yoshlar.employment.view',
+            'yoshlar.case.view',
+            'yoshlar.patronage.view',
         ],
         'yoshlar_bolim' => [
             'yoshlar.view',
@@ -91,6 +97,9 @@ class YoshlarAccess
             // lekin o'z tumanidagi ijro holatini ko'radi — nazorat uchun.
             'yoshlar.task.view',
             'yoshlar.employment.view',
+            'yoshlar.case.view',
+            'yoshlar.case.manage',
+            'yoshlar.patronage.view',
         ],
         'sektor_boshqarma' => [
             'yoshlar.view',
@@ -102,6 +111,8 @@ class YoshlarAccess
             // Soliq tasdigʻi: RUXSAT rolda, lekin SEKTOR tekshiruvi servisda
             // (faqat sector=soliq tashkiloti tasdiqlay oladi).
             'yoshlar.employment.review.province',
+            'yoshlar.case.view',
+            'yoshlar.patronage.view',
         ],
         'sektor_bolim' => [
             'yoshlar.view',
@@ -111,6 +122,10 @@ class YoshlarAccess
             'yoshlar.employment.view',
             'yoshlar.employment.create',
             'yoshlar.employment.review.district',
+            'yoshlar.case.view',
+            'yoshlar.case.manage',
+            'yoshlar.patronage.view',
+            'yoshlar.patronage.manage',
         ],
     ];
 

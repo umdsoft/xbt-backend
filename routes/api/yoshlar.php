@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domains\Yoshlar\Http\Controllers\Api\AdminController;
 use App\Domains\Yoshlar\Http\Controllers\Api\AuditController;
+use App\Domains\Yoshlar\Http\Controllers\Api\CaseController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
 use App\Domains\Yoshlar\Http\Controllers\Api\EmploymentController;
 use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
@@ -61,6 +62,21 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
         Route::post('/employment', [EmploymentController::class, 'store'])->name('employment.store');
         Route::get('/employment/{employment}', [EmploymentController::class, 'show'])->name('employment.show');
         Route::post('/employment/{employment}/review', [EmploymentController::class, 'review'])->name('employment.review');
+
+        // F4 — muammolar (case management).
+        Route::get('/cases/stats', [CaseController::class, 'stats'])->name('cases.stats');
+        Route::get('/cases', [CaseController::class, 'index'])->name('cases.index');
+        Route::post('/cases', [CaseController::class, 'store'])->name('cases.store');
+        Route::get('/cases/{case}', [CaseController::class, 'show'])->name('cases.show');
+        Route::patch('/cases/{case}', [CaseController::class, 'update'])->name('cases.update');
+
+        // F4 — otaliq.
+        Route::get('/patronage/stats', [CaseController::class, 'patronageStats'])->name('patronage.stats');
+        Route::get('/patronage', [CaseController::class, 'patronageIndex'])->name('patronage.index');
+        Route::post('/patronage', [CaseController::class, 'patronageStore'])->name('patronage.store');
+        Route::get('/patronage/{patronage}', [CaseController::class, 'patronageShow'])->name('patronage.show');
+        Route::post('/patronage/{patronage}/end', [CaseController::class, 'patronageEnd'])->name('patronage.end');
+        Route::post('/patronage/{patronage}/logs', [CaseController::class, 'patronageLog'])->name('patronage.log');
 
         // Spravochniklar (o'qish — barcha rol, yozish — admin).
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
