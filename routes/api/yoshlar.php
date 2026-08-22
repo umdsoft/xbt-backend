@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domains\Yoshlar\Http\Controllers\Api\AdminController;
 use App\Domains\Yoshlar\Http\Controllers\Api\AuditController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
+use App\Domains\Yoshlar\Http\Controllers\Api\EmploymentController;
 use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
 use App\Domains\Yoshlar\Http\Controllers\Api\SectorController;
 use App\Domains\Yoshlar\Http\Controllers\Api\StaffController;
@@ -52,6 +53,14 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
         Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
         Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
         Route::post('/task-updates/{update}/review', [TaskController::class, 'review'])->name('tasks.review');
+
+        // F3 — bandlik: 3 tomonlama tasdiqlash zanjiri.
+        Route::get('/employment/stats', [EmploymentController::class, 'stats'])->name('employment.stats');
+        Route::get('/employment/queue', [EmploymentController::class, 'queue'])->name('employment.queue');
+        Route::get('/employment', [EmploymentController::class, 'index'])->name('employment.index');
+        Route::post('/employment', [EmploymentController::class, 'store'])->name('employment.store');
+        Route::get('/employment/{employment}', [EmploymentController::class, 'show'])->name('employment.show');
+        Route::post('/employment/{employment}/review', [EmploymentController::class, 'review'])->name('employment.review');
 
         // Spravochniklar (o'qish — barcha rol, yozish — admin).
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');

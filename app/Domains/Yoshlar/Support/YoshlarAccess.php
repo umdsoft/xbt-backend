@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Support;
 
+use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Staff;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -64,8 +65,11 @@ class YoshlarAccess
             'yoshlar.audit.view',
             'yoshlar.task.view',
             'yoshlar.task.manage',
+            'yoshlar.employment.view',
         ],
-        'yoshlar_hokim_orinbosari' => ['yoshlar.view', 'yoshlar.export', 'yoshlar.task.view'],
+        'yoshlar_hokim_orinbosari' => [
+            'yoshlar.view', 'yoshlar.export', 'yoshlar.task.view', 'yoshlar.employment.view',
+        ],
         'yoshlar_boshqarma' => [
             'yoshlar.view',
             'yoshlar.export',
@@ -74,6 +78,7 @@ class YoshlarAccess
             'yoshlar.audit.view',
             'yoshlar.task.view',
             'yoshlar.task.review.youth',
+            'yoshlar.employment.view',
         ],
         'yoshlar_bolim' => [
             'yoshlar.view',
@@ -85,6 +90,7 @@ class YoshlarAccess
             // Tuman yoshlar bo'limi topshiriq zanjirida QATNASHMAYDI (TZ 8),
             // lekin o'z tumanidagi ijro holatini ko'radi — nazorat uchun.
             'yoshlar.task.view',
+            'yoshlar.employment.view',
         ],
         'sektor_boshqarma' => [
             'yoshlar.view',
@@ -92,12 +98,19 @@ class YoshlarAccess
             'yoshlar.task.view',
             'yoshlar.task.execute',
             'yoshlar.task.review.sector',
+            'yoshlar.employment.view',
+            // Soliq tasdigʻi: RUXSAT rolda, lekin SEKTOR tekshiruvi servisda
+            // (faqat sector=soliq tashkiloti tasdiqlay oladi).
+            'yoshlar.employment.review.province',
         ],
         'sektor_bolim' => [
             'yoshlar.view',
             'yoshlar.youth.create',
             'yoshlar.task.view',
             'yoshlar.task.execute',
+            'yoshlar.employment.view',
+            'yoshlar.employment.create',
+            'yoshlar.employment.review.district',
         ],
     ];
 
@@ -150,6 +163,26 @@ class YoshlarAccess
         }
 
         return $this->staffCache[$user->id];
+    }
+
+    /**
+     * Foydalanuvchi tashkilotining sektor KODI (`bandlik`, `soliq`, ...).
+     *
+     * NEGA KERAK: F3 bandlik zanjiri rolga emas, rol + SEKTOR juftligiga
+     * bog'lanadi — `sektor_bolim` roli ham bandlik, ham soliq bo'limida
+     * bo'lishi mumkin, lekin soliq tasdig'ini faqat soliqchi bera oladi.
+     * Shu tufayli yangi tasdiqlovchi organ qo'shish kod emas, ma'lumot
+     * masalasiga aylanadi.
+     */
+    public function sectorCodeFor(User $user): ?string
+    {
+        $sectorId = $this->staffFor($user)?->organization?->sector_id;
+
+        if ($sectorId === null) {
+            return null;
+        }
+
+        return Sector::query()->whereKey($sectorId)->value('code');
     }
 
     /** Viloyat darajasi — reyestrni to'liq ko'radi (geo scope qo'llanmaydi). */

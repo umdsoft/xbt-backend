@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
+use App\Domains\Yoshlar\Models\EmploymentCase;
 use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Domains\Yoshlar\Models\Youth;
+use App\Domains\Yoshlar\Services\EmploymentService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Http\Controllers\Controller;
@@ -55,6 +57,7 @@ class ContextController extends Controller
                 'task_queue' => $this->taskQueueCount($user, $access, $scope),
                 // Muddati o'tgan topshiriqlar — menyuda qizil nishon.
                 'tasks_overdue' => $scope->applyTask(Task::query(), $user)->overdue()->count(),
+                'employment_queue' => $this->employmentQueueCount($user, $access, $scope),
             ],
             'reference' => [
                 'districts' => DB::connection('master')->table('districts')
@@ -74,6 +77,7 @@ class ContextController extends Controller
                 'roles' => YoshlarAccess::ROLE_NAMES,
                 'task_statuses' => Task::STATUSES,
                 'task_priorities' => Task::PRIORITIES,
+                'employment_statuses_chain' => EmploymentCase::STATUSES,
             ],
         ]);
     }
@@ -100,5 +104,41 @@ class ContextController extends Controller
             ->where('review_stage', $stage)
             ->whereIn('task_id', $scope->applyTask(Task::query()->select('id'), $user))
             ->count();
+    }
+
+    /**
+     * Soliq tasdig'i kutilayotgan bandlik arizalari.
+     *
+     * Faqat SOLIQ sektori xodimida ko'rinadi: bandlik bo'limi o'z arizasini
+     * o'zi tasdiqlamaydi, shuning uchun unda navbat ham bo'lmaydi.
+     */
+    private function employmentQueueCount(User $user, YoshlarAccess $access, YoshlarScope $scope): int
+    {
+        if ($access->sectorCodeFor($user) !== EmploymentService::TAX_SECTOR) {
+            return 0;
+        }
+
+        $status = match (true) {
+            $access->can($user, 'yoshlar.employment.review.district') => EmploymentCase::STATUS_SUBMITTED,
+            $access->can($user, 'yoshlar.employment.review.province') => EmploymentCase::STATUS_TAX_DISTRICT,
+            default => null,
+        };
+
+        if ($status === null) {
+            return 0;
+        }
+
+        $districts = $scope->districtIds($user);
+        $query = EmploymentCase::query()->where('status', $status);
+
+        if ($districts === []) {
+            return 0;
+        }
+
+        if ($districts !== null) {
+            $query->whereIn('district_id', $districts);
+        }
+
+        return $query->count();
     }
 }

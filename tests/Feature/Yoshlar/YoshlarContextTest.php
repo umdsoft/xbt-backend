@@ -19,7 +19,7 @@ class YoshlarContextTest extends YoshlarTestCase
                     'districts', 'mahallas', 'sectors', 'organizations',
                     'education_statuses', 'employment_statuses', 'roles',
                 ],
-                'badges' => ['pending_youth', 'task_queue', 'tasks_overdue'],
+                'badges' => ['pending_youth', 'task_queue', 'tasks_overdue', 'employment_queue'],
             ]);
 
         $this->assertNotEmpty($response->json('reference.districts'));
