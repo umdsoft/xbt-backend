@@ -29,6 +29,7 @@ class SystemsSeeder extends Seeder
         ['code' => 'murojaat', 'name' => 'Мурожаатлар мониторинги', 'sort_order' => 4],
         ['code' => 'sport', 'name' => 'Спорт ва соғломлаштириш', 'sort_order' => 5],
         ['code' => 'qurilish', 'name' => 'Қурилиш дастурлари ижроси', 'sort_order' => 6],
+        ['code' => 'yoshlar', 'name' => 'Ёшлар ишлари мониторинги', 'sort_order' => 7],
     ];
 
     public function run(): void
