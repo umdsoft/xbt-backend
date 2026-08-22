@@ -7,6 +7,8 @@ use App\Domains\Yoshlar\Http\Controllers\Api\AuditController;
 use App\Domains\Yoshlar\Http\Controllers\Api\CaseController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
 use App\Domains\Yoshlar\Http\Controllers\Api\EmploymentController;
+use App\Domains\Yoshlar\Http\Controllers\Api\ExecutiveController;
+use App\Domains\Yoshlar\Http\Controllers\Api\ExportController;
 use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
 use App\Domains\Yoshlar\Http\Controllers\Api\SectorController;
 use App\Domains\Yoshlar\Http\Controllers\Api\StaffController;
@@ -77,6 +79,13 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
         Route::get('/patronage/{patronage}', [CaseController::class, 'patronageShow'])->name('patronage.show');
         Route::post('/patronage/{patronage}/end', [CaseController::class, 'patronageEnd'])->name('patronage.end');
         Route::post('/patronage/{patronage}/logs', [CaseController::class, 'patronageLog'])->name('patronage.log');
+
+        // F5 — rahbariyat paneli va Excel eksport (doiradan o'tadi, PII yo'q).
+        Route::get('/executive', ExecutiveController::class)->name('executive');
+        Route::get('/export/youth', [ExportController::class, 'youth'])->name('export.youth');
+        Route::get('/export/tasks', [ExportController::class, 'tasks'])->name('export.tasks');
+        Route::get('/export/employment', [ExportController::class, 'employment'])->name('export.employment');
+        Route::get('/export/cases', [ExportController::class, 'cases'])->name('export.cases');
 
         // Spravochniklar (o'qish — barcha rol, yozish — admin).
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
