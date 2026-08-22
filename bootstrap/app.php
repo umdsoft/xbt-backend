@@ -40,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'advisor' => \App\Domains\Advisor\Http\Middleware\EnsureAdvisor::class,
             'murojaat' => \App\Domains\Murojaat\Http\Middleware\EnsureMurojaat::class,
             'qurilish' => \App\Domains\Qurilish\Http\Middleware\EnsureQurilish::class,
+            'yoshlar' => \App\Domains\Yoshlar\Http\Middleware\EnsureYoshlar::class,
         ]);
 
         // HR tenant konteksti route-model binding'dan OLDIN o'rnatilishi shart —
