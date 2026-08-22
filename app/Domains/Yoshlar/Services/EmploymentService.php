@@ -11,6 +11,7 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -202,21 +203,23 @@ class EmploymentService
             return $case->refresh();
         }
 
-        $case->update([
-            'status' => EmploymentCase::STATUS_CONFIRMED,
-            'tax_province_by' => $user->id,
-            'tax_province_at' => now(),
-        ]);
+        // ATOMAR: ariza holati va reyestr birga o'zgaradi. Aks holda
+        // ikkinchi so'rov yiqilsa, ariza «rasman band» bo'lib, reyestrda
+        // odam «band emas» bo'lib qolardi — ikki joyda ikki xil haqiqat.
+        DB::connection('yoshlar')->transaction(function () use ($case, $user): void {
+            $case->update([
+                'status' => EmploymentCase::STATUS_CONFIRMED,
+                'tax_province_by' => $user->id,
+                'tax_province_at' => now(),
+            ]);
 
-        // REYESTR BILAN BOGʻLANISH: rasman band boʻlgach, yoshning bandlik
-        // holati ham yangilanadi — aks holda ikki joyda ikki xil haqiqat
-        // qolardi (reyestrda «band emas», bandlikda «rasman band»).
-        Youth::query()->whereKey($case->youth_id)->update([
-            'employment_status' => 'band',
-            'workplace' => $case->employer_name,
-            'is_neet' => false,
-            'is_graduate_unemployed' => false,
-        ]);
+            Youth::query()->whereKey($case->youth_id)->update([
+                'employment_status' => 'band',
+                'workplace' => $case->employer_name,
+                'is_neet' => false,
+                'is_graduate_unemployed' => false,
+            ]);
+        });
 
         $this->audit->log($user, 'employment.approve.tax_province', 'employment', $case->id);
 

@@ -29,6 +29,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ExportController extends Controller
 {
+    /** Bir martada xotiraga olinadigan yozuvlar soni. */
+    private const CHUNK = 1000;
+
     public function __construct(
         private readonly YoshlarAccess $access,
         private readonly YoshlarScope $scope,
@@ -39,27 +42,34 @@ class ExportController extends Controller
     {
         $this->authorizeExport($request);
 
-        $rows = $this->scope->applyYouth(Youth::query(), $request->user())
-            ->where('registry_status', 'active')
-            ->where('verification_status', 'verified')
-            ->orderBy('last_name')
-            ->get();
-
         $districts = $this->districtNames();
         $mahallas = $this->mahallaNames();
 
-        $data = $rows->map(fn (Youth $y): array => [
-            $y->full_name,
-            $y->age,
-            $y->gender,
-            $districts[$y->district_id] ?? '',
-            $mahallas[$y->mahalla_id] ?? '',
-            $y->education_status,
-            $y->employment_status,
-            $y->is_neet ? 'ha' : '',
-            $y->in_patronage ? 'ha' : '',
-            $y->phone ?? '',
-        ])->all();
+        // CHUNK: reyestrda 100 000+ yozuv bo'lishi mumkin. `get()` ularning
+        // hammasini Eloquent modeliga aylantirib xotiraga solardi va eksport
+        // katta viloyatda 512 MB limitiga urilardi.
+        $data = [];
+
+        $this->scope->applyYouth(Youth::query(), $request->user())
+            ->where('registry_status', 'active')
+            ->where('verification_status', 'verified')
+            ->orderBy('last_name')
+            ->chunk(self::CHUNK, function ($chunk) use (&$data, $districts, $mahallas): void {
+                foreach ($chunk as $y) {
+                    $data[] = [
+                        $y->full_name,
+                        $y->age,
+                        $y->gender,
+                        $districts[$y->district_id] ?? '',
+                        $mahallas[$y->mahalla_id] ?? '',
+                        $y->education_status,
+                        $y->employment_status,
+                        $y->is_neet ? 'ha' : '',
+                        $y->in_patronage ? 'ha' : '',
+                        $y->phone ?? '',
+                    ];
+                }
+            });
 
         $this->audit->log($request->user(), 'export.youth', 'youth', null, ['rows' => count($data)]);
 
@@ -77,19 +87,23 @@ class ExportController extends Controller
     {
         $this->authorizeExport($request, 'yoshlar.task.view');
 
-        $rows = $this->scope->applyTask(Task::query()->with('organization:id,name_lat'), $request->user())
-            ->orderBy('deadline')
-            ->get();
+        $data = [];
 
-        $data = $rows->map(fn (Task $t): array => [
-            $t->title,
-            $t->organization?->name_lat ?? '',
-            $t->deadline?->format('Y-m-d') ?? '',
-            $t->priority,
-            $t->status,
-            $t->progress,
-            $t->is_overdue ? 'ha' : '',
-        ])->all();
+        $this->scope->applyTask(Task::query()->with('organization:id,name_lat'), $request->user())
+            ->orderBy('deadline')
+            ->chunk(self::CHUNK, function ($chunk) use (&$data): void {
+                foreach ($chunk as $t) {
+                    $data[] = [
+                        $t->title,
+                        $t->organization?->name_lat ?? '',
+                        $t->deadline?->format('Y-m-d') ?? '',
+                        $t->priority,
+                        $t->status,
+                        $t->progress,
+                        $t->is_overdue ? 'ha' : '',
+                    ];
+                }
+            });
 
         $this->audit->log($request->user(), 'export.tasks', 'task', null, ['rows' => count($data)]);
 
@@ -109,26 +123,28 @@ class ExportController extends Controller
 
         $districts = $this->districtNames();
 
-        $rows = EmploymentCase::query()
-            ->with('youth:id,last_name,first_name,middle_name,birth_date')
-            ->when($this->scope->districtIds($request->user()) !== null, function ($q) use ($request) {
-                $ids = $this->scope->districtIds($request->user());
-                $ids === [] ? $q->whereRaw('1 = 0') : $q->whereIn('district_id', $ids);
-            })
-            ->orderByDesc('submitted_at')
-            ->get();
+        $ids = $this->scope->districtIds($request->user());
+        $data = [];
 
-        $data = $rows->map(fn (EmploymentCase $c): array => [
-            $c->youth?->full_name ?? '',
-            $districts[$c->district_id] ?? '',
-            $c->employer_name,
-            $c->employer_inn ?? '',
-            $c->position ?? '',
-            $c->start_date?->format('Y-m-d') ?? '',
-            $c->status,
-            $c->tax_district_at?->format('Y-m-d') ?? '',
-            $c->tax_province_at?->format('Y-m-d') ?? '',
-        ])->all();
+        EmploymentCase::query()
+            ->with('youth:id,last_name,first_name,middle_name,birth_date')
+            ->when($ids !== null, fn ($q) => $ids === [] ? $q->whereRaw('1 = 0') : $q->whereIn('district_id', $ids))
+            ->orderByDesc('submitted_at')
+            ->chunk(self::CHUNK, function ($chunk) use (&$data, $districts): void {
+                foreach ($chunk as $c) {
+                    $data[] = [
+                        $c->youth?->full_name ?? '',
+                        $districts[$c->district_id] ?? '',
+                        $c->employer_name,
+                        $c->employer_inn ?? '',
+                        $c->position ?? '',
+                        $c->start_date?->format('Y-m-d') ?? '',
+                        $c->status,
+                        $c->tax_district_at?->format('Y-m-d') ?? '',
+                        $c->tax_province_at?->format('Y-m-d') ?? '',
+                    ];
+                }
+            });
 
         $this->audit->log($request->user(), 'export.employment', 'employment', null, ['rows' => count($data)]);
 
@@ -149,23 +165,27 @@ class ExportController extends Controller
         $districts = $this->districtNames();
         $ids = $this->scope->districtIds($request->user());
 
-        $rows = YouthCase::query()
+        $data = [];
+
+        YouthCase::query()
             ->with('youth:id,last_name,first_name,middle_name,birth_date')
             ->when($ids !== null, fn ($q) => $ids === [] ? $q->whereRaw('1 = 0') : $q->whereIn('district_id', $ids))
             ->orderByDesc('created_at')
-            ->get();
-
-        $data = $rows->map(fn (YouthCase $c): array => [
-            $c->youth?->full_name ?? '',
-            $districts[$c->district_id] ?? '',
-            $c->category,
-            $c->title,
-            $c->source,
-            $c->status,
-            $c->sla_deadline?->format('Y-m-d') ?? '',
-            $c->resolved_at?->format('Y-m-d') ?? '',
-            $c->resolution_note ?? '',
-        ])->all();
+            ->chunk(self::CHUNK, function ($chunk) use (&$data, $districts): void {
+                foreach ($chunk as $c) {
+                    $data[] = [
+                        $c->youth?->full_name ?? '',
+                        $districts[$c->district_id] ?? '',
+                        $c->category,
+                        $c->title,
+                        $c->source,
+                        $c->status,
+                        $c->sla_deadline?->format('Y-m-d') ?? '',
+                        $c->resolved_at?->format('Y-m-d') ?? '',
+                        $c->resolution_note ?? '',
+                    ];
+                }
+            });
 
         $this->audit->log($request->user(), 'export.cases', 'case', null, ['rows' => count($data)]);
 

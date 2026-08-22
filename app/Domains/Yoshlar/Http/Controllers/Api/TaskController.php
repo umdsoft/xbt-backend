@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
+use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Protocol;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\TaskUpdate;
+use App\Domains\Yoshlar\Services\AuditLogger;
 use App\Domains\Yoshlar\Services\TaskService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Http\Controllers\Controller;
@@ -19,6 +21,7 @@ class TaskController extends Controller
     public function __construct(
         private readonly TaskService $service,
         private readonly YoshlarAccess $access,
+        private readonly AuditLogger $audit,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -77,6 +80,17 @@ class TaskController extends Controller
             'priority' => ['required', Rule::in(Task::PRIORITIES)],
         ]);
 
+        $org = Organization::query()->find($data['assigned_org_id']);
+
+        abort_if($org === null, 422, 'Tashkilot topilmadi.');
+        abort_unless(
+            in_array($org->type, [Organization::TYPE_TUMAN_SEKTOR, Organization::TYPE_VILOYAT_SEKTOR], true),
+            422,
+            'Topshiriq faqat sektoral tashkilotga biriktiriladi.',
+        );
+
+        $data['district_id'] = $org->district_id;
+
         return response()->json(['data' => $this->service->create($request->user(), $data)], 201);
     }
 
@@ -96,7 +110,27 @@ class TaskController extends Controller
             'priority' => ['sometimes', Rule::in(Task::PRIORITIES)],
         ]);
 
+        // Mas'ul tashkilot ALMASHTIRILSA, u haqiqatan mavjud va ijrochi
+        // tur boʻlishi kerak: `uuid` validatsiyasi mavjudlikni tekshirmaydi
+        // va topshiriq hech kim koʻrmaydigan tashkilotga tushib qolardi.
+        if (isset($data['assigned_org_id'])) {
+            $org = Organization::query()->find($data['assigned_org_id']);
+
+            abort_if($org === null, 422, 'Tashkilot topilmadi.');
+            abort_unless(
+                in_array($org->type, [Organization::TYPE_TUMAN_SEKTOR, Organization::TYPE_VILOYAT_SEKTOR], true),
+                422,
+                'Topshiriq faqat sektoral tashkilotga biriktiriladi.',
+            );
+
+            // Tuman ham tashkilotdan olinadi — qoʻlda kiritilgan qiymat
+            // tashkilot bilan mos kelmasligi mumkin.
+            $data['district_id'] = $org->district_id;
+        }
+
         $model->update($data);
+
+        $this->audit->log($request->user(), 'task.update', 'task', $model->id, $data);
 
         return response()->json(['data' => $model->refresh()]);
     }

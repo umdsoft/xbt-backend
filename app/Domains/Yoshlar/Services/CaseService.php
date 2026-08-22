@@ -14,6 +14,7 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -89,19 +90,38 @@ class CaseService
 
         $staff = $this->access->staffFor($user);
 
+        // Biriktirilgan tashkilot mavjudligini tekshiramiz: `uuid` qoidasi
+        // faqat SHAKLNI tekshiradi, mavjudlikni emas — muammo yoʻq
+        // tashkilotga biriktirilsa, u hech kimning navbatiga tushmaydi.
+        if (! empty($data['assigned_org_id'])) {
+            $exists = \App\Domains\Yoshlar\Models\Organization::query()
+                ->whereKey($data['assigned_org_id'])->where('is_active', true)->exists();
+
+            if (! $exists) {
+                throw ValidationException::withMessages([
+                    'assigned_org_id' => 'Tashkilot topilmadi yoki faol emas.',
+                ]);
+            }
+        }
+
         $slaDays = self::DEFAULT_SLA_DAYS[$data['category']] ?? 14;
 
-        $case = YouthCase::query()->create([
-            ...$data,
-            'district_id' => $youth->district_id,
-            'status' => 'royxatda',
-            'sla_deadline' => $data['sla_deadline'] ?? now()->addDays($slaDays)->toDateString(),
-            'created_by' => $user->id,
-            'created_by_org_id' => $staff?->org_id,
-        ]);
+        // ATOMAR: muammo va reyestr bayrog'i birga yoziladi.
+        $case = DB::connection('yoshlar')->transaction(function () use ($data, $youth, $slaDays, $user, $staff): YouthCase {
+            $created = YouthCase::query()->create([
+                ...$data,
+                'district_id' => $youth->district_id,
+                'status' => 'royxatda',
+                'sla_deadline' => $data['sla_deadline'] ?? now()->addDays($slaDays)->toDateString(),
+                'created_by' => $user->id,
+                'created_by_org_id' => $staff?->org_id,
+            ]);
 
-        // Reyestrdagi bayroq: yoshda ochiq muammo bor.
-        $youth->update(['has_open_case' => true]);
+            // Reyestrdagi bayroq: yoshda ochiq muammo bor.
+            $youth->update(['has_open_case' => true]);
+
+            return $created;
+        });
 
         $this->audit->log($user, 'case.create', 'case', $case->id, [
             'youth_id' => $youth->id,
@@ -127,13 +147,15 @@ class CaseService
             $data['resolved_at'] = now();
         }
 
-        $case->update($data);
+        DB::connection('yoshlar')->transaction(function () use ($case, $data): void {
+            $case->update($data);
 
-        // Yoshda boshqa ochiq muammo qolmagan bo'lsa — bayroqni tushiramiz.
-        if (($data['status'] ?? null) === 'hal_etildi') {
-            $stillOpen = YouthCase::query()->where('youth_id', $case->youth_id)->open()->exists();
-            Youth::query()->whereKey($case->youth_id)->update(['has_open_case' => $stillOpen]);
-        }
+            // Yoshda boshqa ochiq muammo qolmagan bo'lsa — bayroqni tushiramiz.
+            if (($data['status'] ?? null) === 'hal_etildi') {
+                $stillOpen = YouthCase::query()->where('youth_id', $case->youth_id)->open()->exists();
+                Youth::query()->whereKey($case->youth_id)->update(['has_open_case' => $stillOpen]);
+            }
+        });
 
         $this->audit->log($user, 'case.update', 'case', $case->id, $data);
 
@@ -200,17 +222,21 @@ class CaseService
             ]);
         }
 
-        $patronage = Patronage::query()->create([
-            'youth_id' => $youth->id,
-            'mentor_staff_id' => $mentor->id,
-            'district_id' => $youth->district_id,
-            'started_at' => $data['started_at'] ?? now()->toDateString(),
-            'is_active' => true,
-            'note' => $data['note'] ?? null,
-            'created_by' => $user->id,
-        ]);
+        $patronage = DB::connection('yoshlar')->transaction(function () use ($youth, $mentor, $data, $user): Patronage {
+            $created = Patronage::query()->create([
+                'youth_id' => $youth->id,
+                'mentor_staff_id' => $mentor->id,
+                'district_id' => $youth->district_id,
+                'started_at' => $data['started_at'] ?? now()->toDateString(),
+                'is_active' => true,
+                'note' => $data['note'] ?? null,
+                'created_by' => $user->id,
+            ]);
 
-        $youth->update(['in_patronage' => true]);
+            $youth->update(['in_patronage' => true]);
+
+            return $created;
+        });
 
         $this->audit->log($user, 'patronage.assign', 'patronage', $patronage->id, [
             'youth_id' => $youth->id,
@@ -222,13 +248,15 @@ class CaseService
 
     public function endPatronage(User $user, Patronage $patronage, ?string $note): Patronage
     {
-        $patronage->update([
-            'is_active' => false,
-            'ended_at' => now()->toDateString(),
-            'note' => $note ?? $patronage->note,
-        ]);
+        DB::connection('yoshlar')->transaction(function () use ($patronage, $note): void {
+            $patronage->update([
+                'is_active' => false,
+                'ended_at' => now()->toDateString(),
+                'note' => $note ?? $patronage->note,
+            ]);
 
-        Youth::query()->whereKey($patronage->youth_id)->update(['in_patronage' => false]);
+            Youth::query()->whereKey($patronage->youth_id)->update(['in_patronage' => false]);
+        });
 
         $this->audit->log($user, 'patronage.end', 'patronage', $patronage->id);
 

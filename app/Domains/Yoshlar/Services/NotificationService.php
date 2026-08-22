@@ -9,6 +9,7 @@ use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Staff;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * In-app bildirishnomalar (TZ 5.8).
@@ -92,35 +93,47 @@ class NotificationService
      */
     public function notifyUsers(array $userIds, string $type, array $payload): int
     {
-        $count = 0;
-
-        foreach ($userIds as $userId) {
-            // Takroriy o'qilmagan yozuv bo'lsa — o'tkazib yuboramiz.
-            $exists = Notification::query()
-                ->where('user_id', $userId)
-                ->where('type', $type)
-                ->where('entity_id', $payload['entity_id'] ?? null)
-                ->whereNull('read_at')
-                ->exists();
-
-            if ($exists) {
-                continue;
-            }
-
-            Notification::query()->create([
-                'user_id' => $userId,
-                'type' => $type,
-                'title' => $payload['title'],
-                'body' => $payload['body'] ?? null,
-                'link' => $payload['link'] ?? null,
-                'entity_type' => $payload['entity_type'] ?? null,
-                'entity_id' => $payload['entity_id'] ?? null,
-            ]);
-
-            $count++;
+        if ($userIds === []) {
+            return 0;
         }
 
-        return $count;
+        $entityId = $payload['entity_id'] ?? null;
+
+        // IKKI SO'ROV, foydalanuvchi soniga bog'liq emas: avval kimda
+        // o'qilmagan bir xil xabar borligini BIR marta so'raymiz, so'ng
+        // qolganlarini BIR marta yozamiz. Ilgari har foydalanuvchi uchun
+        // ikki so'rov ketardi — 50 xodimli boshqarmada 100 so'rov.
+        $already = Notification::query()
+            ->whereIn('user_id', $userIds)
+            ->where('type', $type)
+            ->when($entityId !== null, fn ($q) => $q->where('entity_id', $entityId))
+            ->when($entityId === null, fn ($q) => $q->whereNull('entity_id'))
+            ->whereNull('read_at')
+            ->pluck('user_id')
+            ->all();
+
+        $targets = array_values(array_diff($userIds, $already));
+
+        if ($targets === []) {
+            return 0;
+        }
+
+        $now = now();
+
+        Notification::query()->insert(array_map(fn (string $userId): array => [
+            'id' => (string) Str::uuid(),
+            'user_id' => $userId,
+            'type' => $type,
+            'title' => $payload['title'],
+            'body' => $payload['body'] ?? null,
+            'link' => $payload['link'] ?? null,
+            'entity_type' => $payload['entity_type'] ?? null,
+            'entity_id' => $entityId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $targets));
+
+        return count($targets);
     }
 
     public function unreadCount(User $user): int

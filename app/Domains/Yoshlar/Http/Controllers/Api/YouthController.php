@@ -119,7 +119,20 @@ class YouthController extends Controller
 
         $this->authorizeUpdate($request, $model);
 
-        return response()->json(['data' => $this->service->update($user, $model, $request->validated())]);
+        $data = $request->validated();
+
+        // YANGI tuman ham doirada boʻlishi shart. Aks holda xodim oʻz
+        // tumanidagi yozuvni boshqa tumanga koʻchirib yuborishi mumkin edi —
+        // yozuv uning uchun ham, yangi tuman uchun ham «yoʻqolgan» boʻlardi.
+        if (isset($data['district_id']) && $data['district_id'] !== $model->district_id) {
+            abort_unless(
+                $this->scope->canTouchDistrict($user, $data['district_id']),
+                403,
+                'Yozuvni sizning doirangizdan tashqariga koʻchirib boʻlmaydi.',
+            );
+        }
+
+        return response()->json(['data' => $this->service->update($user, $model, $data)]);
     }
 
     public function destroy(Request $request, string $youth): JsonResponse
