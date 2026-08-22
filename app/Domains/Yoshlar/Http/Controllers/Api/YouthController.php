@@ -1,0 +1,186 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domains\Yoshlar\Http\Controllers\Api;
+
+use App\Domains\Yoshlar\Http\Requests\YouthStoreRequest;
+use App\Domains\Yoshlar\Http\Requests\YouthUpdateRequest;
+use App\Domains\Yoshlar\Models\Youth;
+use App\Domains\Yoshlar\Services\PiiGuard;
+use App\Domains\Yoshlar\Services\YouthService;
+use App\Domains\Yoshlar\Support\YoshlarAccess;
+use App\Domains\Yoshlar\Support\YoshlarScope;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class YouthController extends Controller
+{
+    public function __construct(
+        private readonly YouthService $service,
+        private readonly YoshlarAccess $access,
+        private readonly YoshlarScope $scope,
+        private readonly PiiGuard $pii,
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.view');
+
+        $page = $this->service->paginate($request->user(), $request->query());
+
+        return response()->json([
+            'data' => $page->items(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
+    /** Reyestr statistikasi — dashboard uchun (marshruti `{youth}` dan OLDIN). */
+    public function stats(Request $request): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.view');
+
+        $user = $request->user();
+        $base = fn () => $this->scope->applyYouth(Youth::query(), $user)
+            ->where('registry_status', 'active');
+
+        return response()->json([
+            'total' => $base()->visibleInRegistry()->count(),
+            'neet' => $base()->visibleInRegistry()->where('is_neet', true)->count(),
+            'pending' => $base()->where('verification_status', 'pending')->count(),
+            'by_district' => $base()->visibleInRegistry()
+                ->selectRaw('district_id, count(*) as total')
+                ->groupBy('district_id')->pluck('total', 'district_id'),
+        ]);
+    }
+
+    public function show(Request $request, string $youth): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.view');
+
+        $model = $this->service->find($request->user(), $youth);
+
+        // Doiradan tashqaridagi yozuv uchun 404 — 403 emas: 403 yozuv MAVJUDLIGINI
+        // oshkor qilardi (mavjudlik ham ma'lumot).
+        abort_if($model === null, 404, 'Yozuv topilmadi.');
+
+        return response()->json(['data' => $model]);
+    }
+
+    public function store(YouthStoreRequest $request): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.youth.create');
+
+        $data = $request->validated();
+
+        abort_unless(
+            $this->scope->canTouchDistrict($request->user(), $data['district_id']),
+            403,
+            'Bu tuman sizning doirangizda emas.',
+        );
+
+        $youth = $this->service->create($request->user(), $data);
+
+        return response()->json([
+            'data' => $youth,
+            'duplicate_warning' => empty($data['pinfl'])
+                ? max(0, $this->service->possibleDuplicates($data) - 1)
+                : 0,
+        ], 201);
+    }
+
+    public function update(YouthUpdateRequest $request, string $youth): JsonResponse
+    {
+        $user = $request->user();
+        $model = $this->service->find($user, $youth);
+        abort_if($model === null, 404, 'Yozuv topilmadi.');
+
+        $this->authorizeUpdate($request, $model);
+
+        return response()->json(['data' => $this->service->update($user, $model, $request->validated())]);
+    }
+
+    public function destroy(Request $request, string $youth): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.youth.delete');
+
+        $model = $this->service->find($request->user(), $youth);
+        abort_if($model === null, 404, 'Yozuv topilmadi.');
+
+        $model->delete();
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function verify(Request $request, string $youth): JsonResponse
+    {
+        $model = $this->findVerifiable($request, $youth);
+
+        return response()->json(['data' => $this->service->verify($request->user(), $model)]);
+    }
+
+    public function reject(Request $request, string $youth): JsonResponse
+    {
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $model = $this->findVerifiable($request, $youth);
+
+        return response()->json([
+            'data' => $this->service->reject($request->user(), $model, $validated['reason']),
+        ]);
+    }
+
+    public function revealPii(Request $request, string $youth): JsonResponse
+    {
+        $model = $this->service->find($request->user(), $youth);
+        abort_if($model === null, 404, 'Yozuv topilmadi.');
+
+        return response()->json($this->pii->reveal($request->user(), $model));
+    }
+
+    private function findVerifiable(Request $request, string $youth): Youth
+    {
+        $this->authorizeAction($request, 'yoshlar.youth.verify');
+
+        $model = $this->service->find($request->user(), $youth);
+        abort_if($model === null, 404, 'Yozuv topilmadi.');
+
+        return $model;
+    }
+
+    /**
+     * Yozish huquqi. `sektor_bolim` istisno: u FAQAT o'zi kiritgan va hali
+     * tasdiqlanmagan (`pending`/`rejected`) yozuvni tuzatishi mumkin — rad
+     * etilgan taklifni qayta yuborish uchun.
+     */
+    private function authorizeUpdate(Request $request, Youth $youth): void
+    {
+        $user = $request->user();
+
+        if ($this->access->can($user, 'yoshlar.youth.update')) {
+            abort_unless(
+                $this->scope->canTouchDistrict($user, $youth->district_id),
+                403,
+                'Bu tuman sizning doirangizda emas.',
+            );
+
+            return;
+        }
+
+        $isOwnPending = $this->access->roleFor($user) === 'sektor_bolim'
+            && $youth->created_by === $user->id
+            && in_array($youth->verification_status, ['pending', 'rejected'], true);
+
+        abort_unless($isOwnPending, 403, 'Bu yozuvni tahrirlash huquqingiz yo‘q.');
+    }
+
+    private function authorizeAction(Request $request, string $permission): void
+    {
+        abort_unless($this->access->can($request->user(), $permission), 403, 'Ruxsat yo‘q.');
+    }
+}
