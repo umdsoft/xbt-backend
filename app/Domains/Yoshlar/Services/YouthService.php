@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Services;
 
+use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Youth;
 use App\Domains\Yoshlar\Support\Translit;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
@@ -25,6 +26,7 @@ class YouthService
         private readonly YoshlarAccess $access,
         private readonly YoshlarScope $scope,
         private readonly AuditLogger $audit,
+        private readonly NotificationService $notify,
     ) {}
 
     /**
@@ -65,6 +67,24 @@ class YouthService
         $this->audit->log($user, 'youth.create', 'youth', $youth->id, [
             'verification_status' => $data['verification_status'],
         ]);
+
+        // Taklif tushdi — tuman yoshlar bo'limiga xabar (reyestrga u egalik qiladi).
+        if ($data['verification_status'] === 'pending') {
+            $officeId = Organization::query()
+                ->where('type', Organization::TYPE_TUMAN_YOSHLAR)
+                ->where('district_id', $youth->district_id)
+                ->value('id');
+
+            if ($officeId !== null) {
+                $this->notify->notifyOrganization((string) $officeId, 'youth.pending', [
+                    'title' => 'Reyestrga yangi taklif',
+                    'body' => $youth->full_name,
+                    'link' => '/navbat',
+                    'entity_type' => 'youth',
+                    'entity_id' => $youth->id,
+                ]);
+            }
+        }
 
         return $youth;
     }

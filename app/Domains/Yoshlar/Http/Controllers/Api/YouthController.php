@@ -6,7 +6,10 @@ namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
 use App\Domains\Yoshlar\Http\Requests\YouthStoreRequest;
 use App\Domains\Yoshlar\Http\Requests\YouthUpdateRequest;
+use App\Domains\Yoshlar\Models\EmploymentCase;
+use App\Domains\Yoshlar\Models\Patronage;
 use App\Domains\Yoshlar\Models\Youth;
+use App\Domains\Yoshlar\Models\YouthCase;
 use App\Domains\Yoshlar\Services\PiiGuard;
 use App\Domains\Yoshlar\Services\YouthService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
@@ -70,7 +73,20 @@ class YouthController extends Controller
         // oshkor qilardi (mavjudlik ham ma'lumot).
         abort_if($model === null, 404, 'Yozuv topilmadi.');
 
-        return response()->json(['data' => $model]);
+        // Yoshning BUTUN tarixi bitta so'rovda: muammolari, otaligʻi,
+        // bandlik arizalari. Aks holda xodim to'rt sahifani ochib, o'zi
+        // bog'lashi kerak bo'lardi va aloqa ko'rinmay qolardi.
+        return response()->json([
+            'data' => $model,
+            'related' => [
+                'cases' => YouthCase::query()->where('youth_id', $model->id)
+                    ->orderByDesc('created_at')->get(),
+                'patronage' => Patronage::query()->with('mentor:id,position,org_id')
+                    ->where('youth_id', $model->id)->orderByDesc('started_at')->get(),
+                'employment' => EmploymentCase::query()->where('youth_id', $model->id)
+                    ->orderByDesc('submitted_at')->get(),
+            ],
+        ]);
     }
 
     public function store(YouthStoreRequest $request): JsonResponse

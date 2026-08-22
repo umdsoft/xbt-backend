@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
 use App\Domains\Yoshlar\Models\EmploymentCase;
+use App\Domains\Yoshlar\Models\Notification;
 use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Task;
@@ -58,6 +59,8 @@ class ContextController extends Controller
                 // Muddati o'tgan topshiriqlar — menyuda qizil nishon.
                 'tasks_overdue' => $scope->applyTask(Task::query(), $user)->overdue()->count(),
                 'employment_queue' => $this->employmentQueueCount($user, $access, $scope),
+                // O'qilmagan bildirishnomalar — qo'ng'iroq nishoni (TZ 5.8).
+                'notifications' => Notification::query()->where('user_id', $user->id)->unread()->count(),
             ],
             'reference' => [
                 'districts' => DB::connection('master')->table('districts')
@@ -78,6 +81,9 @@ class ContextController extends Controller
                 'task_statuses' => Task::STATUSES,
                 'task_priorities' => Task::PRIORITIES,
                 'employment_statuses_chain' => EmploymentCase::STATUSES,
+                'document_categories' => \App\Domains\Yoshlar\Models\Document::CATEGORIES,
+                'case_categories' => \App\Domains\Yoshlar\Models\YouthCase::CATEGORIES,
+                'case_statuses' => \App\Domains\Yoshlar\Models\YouthCase::STATUSES,
             ],
         ]);
     }

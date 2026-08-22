@@ -30,6 +30,7 @@ class EmploymentService
         private readonly YoshlarAccess $access,
         private readonly YoshlarScope $scope,
         private readonly AuditLogger $audit,
+        private readonly NotificationService $notify,
     ) {}
 
     /**
@@ -106,6 +107,15 @@ class EmploymentService
             'employer' => $data['employer_name'],
         ]);
 
+        // Zanjirning 1-bo'g'ini — SHU TUMAN soliq bo'limi.
+        $this->notify->notifySector(self::TAX_SECTOR, 'tuman_sektor', $youth->district_id, 'employment.pending', [
+            'title' => 'Bandlik arizasi tasdiq kutmoqda',
+            'body' => $data['employer_name'],
+            'link' => '/bandlik-navbati',
+            'entity_type' => 'employment',
+            'entity_id' => $case->id,
+        ]);
+
         return $case;
     }
 
@@ -157,6 +167,16 @@ class EmploymentService
 
             $this->audit->log($user, "employment.return.{$stage}", 'employment', $case->id, ['reason' => $comment]);
 
+            if ($case->submitted_org_id !== null) {
+                $this->notify->notifyOrganization($case->submitted_org_id, 'employment.returned', [
+                    'title' => 'Bandlik arizasi qaytarildi',
+                    'body' => $case->employer_name.' — '.($comment ?? ''),
+                    'link' => '/bandlik',
+                    'entity_type' => 'employment',
+                    'entity_id' => $case->id,
+                ]);
+            }
+
             return $case->refresh();
         }
 
@@ -169,6 +189,15 @@ class EmploymentService
             ]);
 
             $this->audit->log($user, 'employment.approve.tax_district', 'employment', $case->id);
+
+            // Keyingi bo'g'in — VILOYAT soliq boshqarmasi (tumansiz).
+            $this->notify->notifySector(self::TAX_SECTOR, 'viloyat_sektor', null, 'employment.pending', [
+                'title' => 'Yakuniy soliq tasdigʻi kutilmoqda',
+                'body' => $case->employer_name,
+                'link' => '/bandlik-navbati',
+                'entity_type' => 'employment',
+                'entity_id' => $case->id,
+            ]);
 
             return $case->refresh();
         }

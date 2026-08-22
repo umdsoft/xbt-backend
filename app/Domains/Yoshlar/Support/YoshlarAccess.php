@@ -69,6 +69,7 @@ class YoshlarAccess
             'yoshlar.case.view',
             'yoshlar.case.manage',
             'yoshlar.patronage.view',
+            'yoshlar.document.manage',
         ],
         'yoshlar_hokim_orinbosari' => [
             'yoshlar.view', 'yoshlar.export', 'yoshlar.task.view', 'yoshlar.employment.view',
@@ -100,6 +101,7 @@ class YoshlarAccess
             'yoshlar.case.view',
             'yoshlar.case.manage',
             'yoshlar.patronage.view',
+            'yoshlar.document.manage',
         ],
         'sektor_boshqarma' => [
             'yoshlar.view',
@@ -113,6 +115,7 @@ class YoshlarAccess
             'yoshlar.employment.review.province',
             'yoshlar.case.view',
             'yoshlar.patronage.view',
+            'yoshlar.document.manage',
         ],
         'sektor_bolim' => [
             'yoshlar.view',
@@ -126,6 +129,7 @@ class YoshlarAccess
             'yoshlar.case.manage',
             'yoshlar.patronage.view',
             'yoshlar.patronage.manage',
+            'yoshlar.document.manage',
         ],
     ];
 

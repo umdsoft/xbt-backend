@@ -6,9 +6,11 @@ use App\Domains\Yoshlar\Http\Controllers\Api\AdminController;
 use App\Domains\Yoshlar\Http\Controllers\Api\AuditController;
 use App\Domains\Yoshlar\Http\Controllers\Api\CaseController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
+use App\Domains\Yoshlar\Http\Controllers\Api\DocumentController;
 use App\Domains\Yoshlar\Http\Controllers\Api\EmploymentController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ExecutiveController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ExportController;
+use App\Domains\Yoshlar\Http\Controllers\Api\NotificationController;
 use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
 use App\Domains\Yoshlar\Http\Controllers\Api\SectorController;
 use App\Domains\Yoshlar\Http\Controllers\Api\StaffController;
@@ -86,6 +88,19 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
         Route::get('/export/tasks', [ExportController::class, 'tasks'])->name('export.tasks');
         Route::get('/export/employment', [ExportController::class, 'employment'])->name('export.employment');
         Route::get('/export/cases', [ExportController::class, 'cases'])->name('export.cases');
+
+        // TZ 5.7 — hujjat/media (barcha modullar uchun yagona endpoint).
+        // DIQQAT: `download` `{entityType}/{entityId}` dan OLDIN — aks holda
+        // `/documents/<uuid>/download` unga mos kelib, `download` so'zi
+        // `entityId` sifatida ushlanardi.
+        Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+        Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+        Route::get('/documents/{entityType}/{entityId}', [DocumentController::class, 'index'])->name('documents.index');
+        Route::post('/documents/{entityType}/{entityId}', [DocumentController::class, 'store'])->name('documents.store');
+
+        // TZ 5.8 — in-app bildirishnomalar (har kim faqat o'zinikini ko'radi).
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
         // Spravochniklar (o'qish — barcha rol, yozish — admin).
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');

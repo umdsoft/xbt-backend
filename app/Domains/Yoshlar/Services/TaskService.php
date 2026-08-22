@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Services;
 
+use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
@@ -31,6 +32,7 @@ class TaskService
         private readonly YoshlarAccess $access,
         private readonly YoshlarScope $scope,
         private readonly AuditLogger $audit,
+        private readonly NotificationService $notify,
     ) {}
 
     /**
@@ -109,6 +111,20 @@ class TaskService
 
         $this->audit->log($user, 'task.submit', 'task', $task->id, ['progress' => $data['progress']]);
 
+        // Zanjirdagi KEYINGI bo'g'inga xabar: sektor boshqarmasi (ijrochi
+        // tashkilotning otasi). Xabarsiz hisobot navbatda unutilib qolardi.
+        $parentOrgId = Organization::query()->whereKey($task->assigned_org_id)->value('parent_id');
+
+        if ($parentOrgId !== null) {
+            $this->notify->notifyOrganization((string) $parentOrgId, 'task.pending_review', [
+                'title' => 'Ijro hisoboti tasdiq kutmoqda',
+                'body' => $task->title,
+                'link' => '/topshiriqlar/'.$task->id,
+                'entity_type' => 'task',
+                'entity_id' => $task->id,
+            ]);
+        }
+
         return $update;
     }
 
@@ -140,6 +156,14 @@ class TaskService
             $task->update(['status' => 'qaytarildi']);
             $this->audit->log($user, "task.return.{$stage}", 'task', $task->id, ['reason' => $comment]);
 
+            $this->notify->notifyOrganization($task->assigned_org_id, 'task.returned', [
+                'title' => 'Hisobot qayta ishlashga qaytarildi',
+                'body' => $task->title.' — '.($comment ?? ''),
+                'link' => '/topshiriqlar/'.$task->id,
+                'entity_type' => 'task',
+                'entity_id' => $task->id,
+            ]);
+
             return $update->refresh();
         }
 
@@ -152,6 +176,15 @@ class TaskService
             ]);
 
             $this->audit->log($user, 'task.approve.sector', 'task', $task->id);
+
+            // Yakuniy tasdiq viloyat yoshlar boshqarmasida — o'sha rolga xabar.
+            $this->notify->notifyRole('yoshlar_boshqarma', 'task.pending_review', [
+                'title' => 'Yakuniy tasdiq kutilmoqda',
+                'body' => $task->title,
+                'link' => '/topshiriqlar/'.$task->id,
+                'entity_type' => 'task',
+                'entity_id' => $task->id,
+            ]);
 
             return $update->refresh();
         }

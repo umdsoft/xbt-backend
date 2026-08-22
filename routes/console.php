@@ -11,6 +11,7 @@ use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use App\Domains\Qurilish\Console\Commands\ImportQurilishCommand;
 use App\Domains\Qurilish\Console\Commands\MakeQurilishUserCommand;
 use App\Domains\Sport\Console\Commands\ImportTrainersCommand;
+use App\Domains\Yoshlar\Console\Commands\CheckDeadlinesCommand;
 use App\Domains\Yoshlar\Console\Commands\MakeYoshlarUserCommand;
 use App\Domains\Yoshlar\Console\Commands\RefreshRegistryCommand;
 use Illuminate\Console\Application as ConsoleApplication;
@@ -49,6 +50,7 @@ ConsoleApplication::starting(function ($artisan) {
     // Yoshlar domeni: hisob yaratish va reyestr yosh chegarasini yangilash.
     $artisan->resolve(MakeYoshlarUserCommand::class);
     $artisan->resolve(RefreshRegistryCommand::class);
+    $artisan->resolve(CheckDeadlinesCommand::class);
 });
 
 /*
@@ -68,4 +70,9 @@ Schedule::command('mahalla:reanalyze-stuck')
 // Yoshlar reyestri: 30 yoshdan oshganlar tunda arxivga o'tadi (o'chirilmaydi).
 Schedule::command('yoshlar:refresh-registry')
     ->dailyAt('02:30')
+    ->withoutOverlapping();
+
+// Muddat nazorati va eskalatsiya — ish kuni boshlanishidan oldin.
+Schedule::command('yoshlar:check-deadlines')
+    ->dailyAt('07:00')
     ->withoutOverlapping();
