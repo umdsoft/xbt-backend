@@ -8,6 +8,7 @@ use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
 use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
 use App\Domains\Yoshlar\Http\Controllers\Api\SectorController;
 use App\Domains\Yoshlar\Http\Controllers\Api\StaffController;
+use App\Domains\Yoshlar\Http\Controllers\Api\TaskController;
 use App\Domains\Yoshlar\Http\Controllers\Api\YouthController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +38,20 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
 
         // Maxfiy maydonni ochish — har chaqiruv jurnalga tushadi.
         Route::post('/youth/{youth}/reveal-pii', [YouthController::class, 'revealPii'])->name('youth.reveal_pii');
+
+        // F2 — protokol va topshiriq ijrosi.
+        // `stats`/`queue`/`protocols` `{task}` dan OLDIN: aks holda ular
+        // parametr sifatida ushlanadi.
+        Route::get('/tasks/stats', [TaskController::class, 'stats'])->name('tasks.stats');
+        Route::get('/tasks/queue', [TaskController::class, 'queue'])->name('tasks.queue');
+        Route::get('/protocols', [TaskController::class, 'protocols'])->name('protocols.index');
+        Route::post('/protocols', [TaskController::class, 'storeProtocol'])->name('protocols.store');
+        Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
+        Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+        Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
+        Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+        Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
+        Route::post('/task-updates/{update}/review', [TaskController::class, 'review'])->name('tasks.review');
 
         // Spravochniklar (o'qish — barcha rol, yozish — admin).
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');

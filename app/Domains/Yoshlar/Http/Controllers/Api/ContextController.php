@@ -6,10 +6,13 @@ namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
 use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Sector;
+use App\Domains\Yoshlar\Models\Task;
+use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Domains\Yoshlar\Models\Youth;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +51,10 @@ class ContextController extends Controller
             'badges' => [
                 'pending_youth' => $scope->applyYouth(Youth::query(), $user)
                     ->where('verification_status', 'pending')->count(),
+                // Tasdiqlash navbati — foydalanuvchi qaysi bosqichda ishlasa, o'sha.
+                'task_queue' => $this->taskQueueCount($user, $access, $scope),
+                // Muddati o'tgan topshiriqlar — menyuda qizil nishon.
+                'tasks_overdue' => $scope->applyTask(Task::query(), $user)->overdue()->count(),
             ],
             'reference' => [
                 'districts' => DB::connection('master')->table('districts')
@@ -65,7 +72,33 @@ class ContextController extends Controller
                 'registry_statuses' => Youth::REGISTRY_STATUSES,
                 'organization_types' => Organization::TYPES,
                 'roles' => YoshlarAccess::ROLE_NAMES,
+                'task_statuses' => Task::STATUSES,
+                'task_priorities' => Task::PRIORITIES,
             ],
         ]);
+    }
+
+    /**
+     * Foydalanuvchi tasdiqlashi kutilayotgan hisobotlar soni.
+     *
+     * Bosqich roldan kelib chiqadi: sektor boshqarmasi `sector_review` ni,
+     * yoshlar boshqarmasi `youth_review` ni ko'radi. Ikkalasi ham bo'lmasa 0.
+     */
+    private function taskQueueCount(User $user, YoshlarAccess $access, YoshlarScope $scope): int
+    {
+        $stage = match (true) {
+            $access->can($user, 'yoshlar.task.review.sector') => 'sector_review',
+            $access->can($user, 'yoshlar.task.review.youth') => 'youth_review',
+            default => null,
+        };
+
+        if ($stage === null) {
+            return 0;
+        }
+
+        return TaskUpdate::query()
+            ->where('review_stage', $stage)
+            ->whereIn('task_id', $scope->applyTask(Task::query()->select('id'), $user))
+            ->count();
     }
 }

@@ -62,14 +62,18 @@ class YoshlarAccess
             'yoshlar.staff.manage',
             'yoshlar.user.manage',
             'yoshlar.audit.view',
+            'yoshlar.task.view',
+            'yoshlar.task.manage',
         ],
-        'yoshlar_hokim_orinbosari' => ['yoshlar.view', 'yoshlar.export'],
+        'yoshlar_hokim_orinbosari' => ['yoshlar.view', 'yoshlar.export', 'yoshlar.task.view'],
         'yoshlar_boshqarma' => [
             'yoshlar.view',
             'yoshlar.export',
             'yoshlar.youth.verify',
             'yoshlar.pii.reveal',
             'yoshlar.audit.view',
+            'yoshlar.task.view',
+            'yoshlar.task.review.youth',
         ],
         'yoshlar_bolim' => [
             'yoshlar.view',
@@ -78,9 +82,23 @@ class YoshlarAccess
             'yoshlar.youth.update',
             'yoshlar.youth.verify',
             'yoshlar.pii.reveal',
+            // Tuman yoshlar bo'limi topshiriq zanjirida QATNASHMAYDI (TZ 8),
+            // lekin o'z tumanidagi ijro holatini ko'radi — nazorat uchun.
+            'yoshlar.task.view',
         ],
-        'sektor_boshqarma' => ['yoshlar.view', 'yoshlar.export'],
-        'sektor_bolim' => ['yoshlar.view', 'yoshlar.youth.create'],
+        'sektor_boshqarma' => [
+            'yoshlar.view',
+            'yoshlar.export',
+            'yoshlar.task.view',
+            'yoshlar.task.execute',
+            'yoshlar.task.review.sector',
+        ],
+        'sektor_bolim' => [
+            'yoshlar.view',
+            'yoshlar.youth.create',
+            'yoshlar.task.view',
+            'yoshlar.task.execute',
+        ],
     ];
 
     /** @var array<string, ?string> */

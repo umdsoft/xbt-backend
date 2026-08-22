@@ -81,6 +81,42 @@ class YoshlarScope
         return $query->whereIn('district_id', $districts);
     }
 
+    /**
+     * Topshiriq so'roviga doira qo'llaydi.
+     *
+     * Reyestrdan FARQI: topshiriq tashkilotga biriktiriladi, shuning uchun
+     * asosiy o'lchov — ORG. Istisno `yoshlar_bolim`: u zanjirda qatnashmaydi,
+     * lekin o'z TUMANIDAGI ijro holatini ko'radi (nazorat uchun) — unga geo
+     * o'lchov qo'llanadi.
+     *
+     * @param  Builder<\App\Domains\Yoshlar\Models\Task>  $query
+     * @return Builder<\App\Domains\Yoshlar\Models\Task>
+     */
+    public function applyTask(Builder $query, User $user): Builder
+    {
+        if ($this->access->roleFor($user) === 'yoshlar_bolim') {
+            $districts = $this->districtIds($user);
+
+            if ($districts === []) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $districts === null ? $query : $query->whereIn('district_id', $districts);
+        }
+
+        $orgIds = $this->orgIds($user);
+
+        if ($orgIds === null) {
+            return $query;
+        }
+
+        if ($orgIds === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('assigned_org_id', $orgIds);
+    }
+
     /** Bitta yozuv tekshiruvi: shu tumanga tegishli amal qila oladimi. */
     public function canTouchDistrict(User $user, ?string $districtId): bool
     {
