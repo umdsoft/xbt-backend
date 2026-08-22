@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Domains\Yoshlar\Http\Controllers\Api\AdminController;
+use App\Domains\Yoshlar\Http\Controllers\Api\AuditController;
 use App\Domains\Yoshlar\Http\Controllers\Api\ContextController;
+use App\Domains\Yoshlar\Http\Controllers\Api\OrganizationController;
+use App\Domains\Yoshlar\Http\Controllers\Api\SectorController;
+use App\Domains\Yoshlar\Http\Controllers\Api\StaffController;
 use App\Domains\Yoshlar\Http\Controllers\Api\YouthController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,4 +37,21 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
 
         // Maxfiy maydonni ochish — har chaqiruv jurnalga tushadi.
         Route::post('/youth/{youth}/reveal-pii', [YouthController::class, 'revealPii'])->name('youth.reveal_pii');
+
+        // Spravochniklar (o'qish — barcha rol, yozish — admin).
+        Route::get('/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+        Route::post('/organizations', [OrganizationController::class, 'store'])->name('organizations.store');
+        Route::patch('/organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
+        Route::get('/sectors', [SectorController::class, 'index'])->name('sectors.index');
+        Route::post('/sectors', [SectorController::class, 'store'])->name('sectors.store');
+        Route::patch('/sectors/{sector}', [SectorController::class, 'update'])->name('sectors.update');
+        Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::patch('/staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
+
+        // Hisob boshqaruvi (faqat admin) va audit jurnali.
+        Route::get('/admin/users', [AdminController::class, 'index'])->name('admin.users.index');
+        Route::post('/admin/users', [AdminController::class, 'store'])->name('admin.users.store');
+        Route::patch('/admin/users/{user}', [AdminController::class, 'update'])->name('admin.users.update');
+        Route::get('/audit', AuditController::class)->name('audit');
     });

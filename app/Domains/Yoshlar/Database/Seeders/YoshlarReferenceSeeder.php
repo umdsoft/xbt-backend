@@ -56,7 +56,9 @@ class YoshlarReferenceSeeder extends Seeder
             ->orderBy('sort_order')->get(['id', 'name_cyr', 'name_lat']);
 
         foreach ($districts as $district) {
-            $lat = ((string) $district->name_lat).' tuman yoshlar bo‘limi';
+            // `districts.name_lat` allaqachon «... tumani» / «... shahri» shaklida —
+            // yana «tuman» qo'shsak «Xiva tumani tuman yoshlar bo'limi» chiqadi.
+            $lat = ((string) $district->name_lat).' yoshlar bo‘limi';
 
             Organization::query()->firstOrCreate(
                 ['type' => Organization::TYPE_TUMAN_YOSHLAR, 'district_id' => $district->id],

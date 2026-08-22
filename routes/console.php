@@ -11,6 +11,8 @@ use App\Domains\Mahalla\Console\Commands\MakeViewerCommand;
 use App\Domains\Qurilish\Console\Commands\ImportQurilishCommand;
 use App\Domains\Qurilish\Console\Commands\MakeQurilishUserCommand;
 use App\Domains\Sport\Console\Commands\ImportTrainersCommand;
+use App\Domains\Yoshlar\Console\Commands\MakeYoshlarUserCommand;
+use App\Domains\Yoshlar\Console\Commands\RefreshRegistryCommand;
 use Illuminate\Console\Application as ConsoleApplication;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -44,6 +46,9 @@ ConsoleApplication::starting(function ($artisan) {
     // Qurilish domeni: ETL va hisob yaratish.
     $artisan->resolve(ImportQurilishCommand::class);
     $artisan->resolve(MakeQurilishUserCommand::class);
+    // Yoshlar domeni: hisob yaratish va reyestr yosh chegarasini yangilash.
+    $artisan->resolve(MakeYoshlarUserCommand::class);
+    $artisan->resolve(RefreshRegistryCommand::class);
 });
 
 /*
@@ -58,4 +63,9 @@ Schedule::command('mahalla:prune-interior-photos')
 
 Schedule::command('mahalla:reanalyze-stuck')
     ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
+// Yoshlar reyestri: 30 yoshdan oshganlar tunda arxivga o'tadi (o'chirilmaydi).
+Schedule::command('yoshlar:refresh-registry')
+    ->dailyAt('02:30')
     ->withoutOverlapping();

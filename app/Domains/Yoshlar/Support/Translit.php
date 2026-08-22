@@ -36,7 +36,8 @@ class Translit
         'H' => 'Ҳ', 'I' => 'И', 'J' => 'Ж', 'K' => 'К', 'L' => 'Л', 'M' => 'М',
         'N' => 'Н', 'O' => 'О', 'P' => 'П', 'Q' => 'Қ', 'R' => 'Р', 'S' => 'С',
         'T' => 'Т', 'U' => 'У', 'V' => 'В', 'X' => 'Х', 'Y' => 'Й', 'Z' => 'З',
-        'ʼ' => 'ъ', '‘' => 'ъ', "'" => 'ъ',
+        // Turli apostrof variantlari (U+02BC, U+02BB, U+2018, ASCII) — hammasi «ъ».
+        'ʼ' => 'ъ', 'ʻ' => 'ъ', '‘' => 'ъ', "'" => 'ъ',
     ];
 
     /** @var array<string, string> Kirill -> lotin: faqat qidiruvni normallashtirish uchun. */
