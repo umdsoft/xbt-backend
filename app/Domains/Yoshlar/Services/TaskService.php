@@ -64,14 +64,91 @@ class TaskService
         $data['status'] = 'belgilandi';
         $data['progress'] = 0;
 
+        // Hujjat ichidagi oʻrni — kiritilmagan boʻlsa oxiriga qoʻyiladi.
+        // Nol qoldirilsa barcha bandlar bir xil tartibga tushib, ekranda
+        // ular tasodifiy ketma-ketlikda chiqardi.
+        if (($data['protocol_id'] ?? null) !== null && ! isset($data['sort_order'])) {
+            $data['sort_order'] = $this->nextSortOrder((string) $data['protocol_id']);
+        }
+
+        $this->guardItemNumber($data['protocol_id'] ?? null, $data['item_number'] ?? null, null);
+
         $task = Task::query()->create($data);
 
         $this->audit->log($user, 'task.create', 'task', $task->id, [
             'assigned_org_id' => $data['assigned_org_id'],
             'deadline' => $data['deadline'],
+            'protocol_id' => $data['protocol_id'] ?? null,
+            'item_number' => $data['item_number'] ?? null,
         ]);
 
         return $task;
+    }
+
+    /** Hujjatdagi oxirgi banddan keyingi oʻrin. */
+    private function nextSortOrder(string $protocolId): int
+    {
+        return (int) Task::query()->where('protocol_id', $protocolId)->max('sort_order') + 1;
+    }
+
+    /**
+     * Hujjat ichida band raqami takrorlanmasligi.
+     *
+     * Bazada qisman unikal indeks bor va u yakuniy himoya. Bu yerdagi
+     * tekshiruv esa foydalanuvchiga TUSHUNARLI xato beradi: indeks buzilsa
+     * 500 xato chiqib, «6-band allaqachon kiritilgan» degani koʻrinmasdi.
+     */
+    private function guardItemNumber(?string $protocolId, ?string $itemNumber, ?string $exceptTaskId): void
+    {
+        if ($protocolId === null || $itemNumber === null || $itemNumber === '') {
+            return;
+        }
+
+        $taken = Task::query()
+            ->where('protocol_id', $protocolId)
+            ->where('item_number', $itemNumber)
+            ->when($exceptTaskId !== null, fn ($q) => $q->whereKeyNot($exceptTaskId))
+            ->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages([
+                'item_number' => "Bu hujjatda «{$itemNumber}» bandi allaqachon kiritilgan.",
+            ]);
+        }
+    }
+
+    /**
+     * Oʻlchanadigan maqsad bajarilishini yangilash.
+     *
+     * Maqsaddan OSHIB ketishga yoʻl qoʻyilmaydi: bazada CHECK bor, bu yerda
+     * esa sabab tushuntiriladi. Rejadan ortiq ish alohida band boʻlishi
+     * kerak — shu bandning sonini shishirsak, umumiy foiz 100 dan oshib,
+     * hisobotni buzardi.
+     */
+    public function updateTarget(User $user, Task $task, int $done): Task
+    {
+        if ($task->target_value === null) {
+            throw ValidationException::withMessages([
+                'target_done' => 'Bu bandda oʻlchanadigan maqsad belgilanmagan.',
+            ]);
+        }
+
+        if ($done < 0 || $done > $task->target_value) {
+            throw ValidationException::withMessages([
+                'target_done' => "Qiymat 0 va {$task->target_value} oraligʻida boʻlishi kerak.",
+            ]);
+        }
+
+        $before = $task->target_done;
+        $task->update(['target_done' => $done]);
+
+        $this->audit->log($user, 'task.target', 'task', $task->id, [
+            'from' => $before,
+            'to' => $done,
+            'of' => $task->target_value,
+        ]);
+
+        return $task->refresh();
     }
 
     /**

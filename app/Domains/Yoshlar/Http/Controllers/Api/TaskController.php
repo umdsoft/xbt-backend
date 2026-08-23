@@ -9,6 +9,7 @@ use App\Domains\Yoshlar\Models\Protocol;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Domains\Yoshlar\Services\AuditLogger;
+use App\Domains\Yoshlar\Services\ProtocolService;
 use App\Domains\Yoshlar\Services\TaskService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Http\Controllers\Controller;
@@ -20,6 +21,7 @@ class TaskController extends Controller
 {
     public function __construct(
         private readonly TaskService $service,
+        private readonly ProtocolService $protocols,
         private readonly YoshlarAccess $access,
         private readonly AuditLogger $audit,
     ) {}
@@ -78,6 +80,24 @@ class TaskController extends Controller
             'district_id' => ['nullable', 'uuid'],
             'deadline' => ['required', 'date'],
             'priority' => ['required', Rule::in(Task::PRIORITIES)],
+            // ── Hujjat bandi maydonlari ──────────────────────────────
+            // Barchasi IXTIYORIY: topshiriq hujjatsiz ham (mustaqil ish
+            // sifatida) yaratilishi mumkin. Hujjatdan kelganda esa
+            // qogʻozdagi har ustun oʻz maydoniga tushadi.
+            'section_title' => ['nullable', 'string', 'max:300'],
+            'item_number' => ['nullable', 'string', 'max:16'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'mechanism' => ['nullable', 'string'],
+            'steps' => ['nullable', 'array', 'max:20'],
+            'steps.*.no' => ['required_with:steps', 'integer', 'min:1'],
+            'steps.*.text' => ['required_with:steps', 'string', 'max:1000'],
+            'steps.*.deadline' => ['nullable', 'date'],
+            'deadline_text' => ['nullable', 'string', 'max:200'],
+            'responsible_text' => ['nullable', 'string', 'max:1000'],
+            'applicant_youth_id' => ['nullable', 'uuid'],
+            'applicant_name' => ['nullable', 'string', 'max:300'],
+            'target_value' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'target_unit' => ['nullable', 'string', 'max:60'],
         ]);
 
         $org = Organization::query()->find($data['assigned_org_id']);
@@ -108,6 +128,24 @@ class TaskController extends Controller
             'district_id' => ['nullable', 'uuid'],
             'deadline' => ['sometimes', 'date'],
             'priority' => ['sometimes', Rule::in(Task::PRIORITIES)],
+            // ── Hujjat bandi maydonlari ──────────────────────────────
+            // Barchasi IXTIYORIY: topshiriq hujjatsiz ham (mustaqil ish
+            // sifatida) yaratilishi mumkin. Hujjatdan kelganda esa
+            // qogʻozdagi har ustun oʻz maydoniga tushadi.
+            'section_title' => ['nullable', 'string', 'max:300'],
+            'item_number' => ['nullable', 'string', 'max:16'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'mechanism' => ['nullable', 'string'],
+            'steps' => ['nullable', 'array', 'max:20'],
+            'steps.*.no' => ['required_with:steps', 'integer', 'min:1'],
+            'steps.*.text' => ['required_with:steps', 'string', 'max:1000'],
+            'steps.*.deadline' => ['nullable', 'date'],
+            'deadline_text' => ['nullable', 'string', 'max:200'],
+            'responsible_text' => ['nullable', 'string', 'max:1000'],
+            'applicant_youth_id' => ['nullable', 'uuid'],
+            'applicant_name' => ['nullable', 'string', 'max:300'],
+            'target_value' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'target_unit' => ['nullable', 'string', 'max:60'],
         ]);
 
         // Mas'ul tashkilot ALMASHTIRILSA, u haqiqatan mavjud va ijrochi
@@ -186,12 +224,45 @@ class TaskController extends Controller
 
     // ---------- Protokollar ----------
 
+    /** Hujjatlar roʻyxati — har biri boʻyicha ijro tallysi bilan. */
     public function protocols(Request $request): JsonResponse
     {
         $this->authorizeAction($request, 'yoshlar.task.view');
 
         return response()->json([
-            'data' => Protocol::query()->withCount('tasks')->orderByDesc('protocol_date')->get(),
+            'data' => $this->protocols->list($request->user(), $request->query()),
+        ]);
+    }
+
+    /**
+     * Bitta hujjat — RASMIY KOʻRINISHDA: boʻlimlar, bandlar, qogʻozdagi
+     * tartib. Roʻyxat endpointidan farqi shu: bu yerda javob hujjat
+     * tuzilishini takrorlaydi, tekis massiv emas.
+     */
+    public function protocolOverview(Request $request, string $protocol): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.task.view');
+
+        $model = Protocol::query()->find($protocol);
+        abort_if($model === null, 404, 'Hujjat topilmadi.');
+
+        return response()->json($this->protocols->overview($request->user(), $model));
+    }
+
+    /** Oʻlchanadigan maqsad bajarilishini yangilash («7/10»). */
+    public function updateTarget(Request $request, string $task): JsonResponse
+    {
+        $this->authorizeAction($request, 'yoshlar.task.manage');
+
+        $model = $this->service->find($request->user(), $task);
+        abort_if($model === null, 404, 'Topshiriq topilmadi.');
+
+        $data = $request->validate([
+            'target_done' => ['required', 'integer', 'min:0'],
+        ]);
+
+        return response()->json([
+            'data' => $this->service->updateTarget($request->user(), $model, (int) $data['target_done']),
         ]);
     }
 
@@ -205,7 +276,14 @@ class TaskController extends Controller
             'topic' => ['required', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'issued_by' => ['nullable', 'string', 'max:300'],
+            'type' => ['required', Rule::in(Protocol::TYPES)],
+            'event_title' => ['nullable', 'string', 'max:300'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
+
+        // Yil koʻrsatilmasa hujjat sanasidan olinadi: rejalarni yil
+        // boʻyicha filtrlash uchun bu ustun boʻsh qolmasligi kerak.
+        $data['year'] ??= (int) date('Y', strtotime($data['protocol_date']));
 
         $data['created_by'] = $request->user()->id;
 

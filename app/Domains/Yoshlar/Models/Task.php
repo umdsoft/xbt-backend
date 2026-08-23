@@ -46,20 +46,69 @@ class Task extends Model
     protected $fillable = [
         'protocol_id', 'title', 'description', 'assigned_org_id', 'district_id',
         'deadline', 'priority', 'status', 'progress', 'created_by',
+
+        // Hujjat bandi maydonlari (migratsiyada nega kerakligi yozilgan).
+        'section_title', 'item_number', 'sort_order',
+        'mechanism', 'steps', 'deadline_text', 'responsible_text',
+        'applicant_youth_id', 'applicant_name',
+        'target_value', 'target_unit', 'target_done',
     ];
 
     /** @var array<int, string> */
-    protected $appends = ['deadline_state', 'days_left', 'is_overdue'];
+    protected $appends = ['deadline_state', 'days_left', 'is_overdue', 'target_percent'];
 
     protected function casts(): array
     {
-        return ['deadline' => 'date', 'progress' => 'integer'];
+        return [
+            'deadline' => 'date',
+            'progress' => 'integer',
+            'steps' => 'array',
+            'sort_order' => 'integer',
+            'target_value' => 'integer',
+            'target_done' => 'integer',
+        ];
     }
 
     /** @return BelongsTo<Protocol, Task> */
     public function protocol(): BelongsTo
     {
         return $this->belongsTo(Protocol::class, 'protocol_id');
+    }
+
+    /**
+     * Murojaatchi — yoʻl xaritasida taklif kiritgan yosh.
+     *
+     * @return BelongsTo<Youth, Task>
+     */
+    public function applicant(): BelongsTo
+    {
+        return $this->belongsTo(Youth::class, 'applicant_youth_id');
+    }
+
+    /**
+     * Ekranda koʻrsatiladigan murojaatchi nomi.
+     *
+     * Reyestrdagi yozuv USTUN turadi: hujjatda ism xato yozilgan boʻlishi
+     * mumkin, reyestrdagisi esa tasdiqlangan. Bogʻlanish yoʻq boʻlsa —
+     * hujjatdagi matn.
+     */
+    public function getApplicantLabelAttribute(): ?string
+    {
+        return $this->applicant?->full_name ?? $this->applicant_name;
+    }
+
+    /**
+     * Oʻlchanadigan maqsad bajarilishi. Maqsad belgilanmagan boʻlsa `null`
+     * — nol EMAS: «maqsad yoʻq» va «maqsad bor, lekin hech nima
+     * qilinmagan» ekranda bir xil koʻrinmasligi kerak.
+     */
+    public function getTargetPercentAttribute(): ?int
+    {
+        if ($this->target_value === null || $this->target_value <= 0) {
+            return null;
+        }
+
+        return (int) round(($this->target_done / $this->target_value) * 100);
     }
 
     /** @return BelongsTo<Organization, Task> */

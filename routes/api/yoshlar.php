@@ -52,11 +52,15 @@ Route::middleware(['auth:sanctum', 'yoshlar'])
         Route::get('/tasks/queue', [TaskController::class, 'queue'])->name('tasks.queue');
         Route::get('/protocols', [TaskController::class, 'protocols'])->name('protocols.index');
         Route::post('/protocols', [TaskController::class, 'storeProtocol'])->name('protocols.store');
+        // Hujjatning RASMIY koʻrinishi (boʻlim → band). Roʻyxatdan keyin,
+        // chunki `/protocols` aniq yoʻl va parametrli yoʻlni soya qilmaydi.
+        Route::get('/protocols/{protocol}', [TaskController::class, 'protocolOverview'])->name('protocols.show');
         Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
         Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
         Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
         Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
         Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
+        Route::patch('/tasks/{task}/target', [TaskController::class, 'updateTarget'])->name('tasks.target');
         Route::post('/task-updates/{update}/review', [TaskController::class, 'review'])->name('tasks.review');
 
         // F3 — bandlik: 3 tomonlama tasdiqlash zanjiri.
