@@ -31,17 +31,29 @@ class YoshlarContextTest extends YoshlarTestCase
         $own = $this->someDistrictId();
         $other = $this->otherDistrictId($own);
 
-        $this->pendingYouth($own);
-        $this->pendingYouth($other);
-
         $user = $this->makeUser('yoshlar_bolim', $this->makeOrganization(
             Organization::TYPE_TUMAN_YOSHLAR, ['district_id' => $own],
         )->id);
 
-        $badge = $this->actingAs($user, 'sanctum')
+        $badge = fn (): int => $this->actingAs($user, 'sanctum')
             ->getJson('/api/yoshlar/context')->assertOk()->json('badges.pending_youth');
 
-        $this->assertSame(1, $badge);
+        // O'LCHOV — MUTLAQ SON EMAS, FARQ.
+        //
+        // Testlar dev bazasida `DatabaseTransactions` bilan ishlaydi, ya'ni
+        // bazada boshqa yozuvlar ham turadi. `assertSame(1, ...)` demak
+        // «bazada mendan boshqa hech kim yo'q» degan taxminga tayanardi va
+        // reyestrga bir yozuv qo'shilishi bilan sinardi.
+        //
+        // Tekshirilayotgan HAQIQIY qoida: o'z tumaniga qo'shilgan yozuv
+        // hisobga tushadi, begona tumaniki esa tushmaydi.
+        $before = $badge();
+
+        $this->pendingYouth($own);
+        $this->assertSame($before + 1, $badge(), 'Oʻz tumanidagi yozuv hisobga tushmadi.');
+
+        $this->pendingYouth($other);
+        $this->assertSame($before + 1, $badge(), 'Begona tumandagi yozuv hisobga tushib ketdi.');
     }
 
     public function test_stats_endpoint_returns_district_breakdown(): void
@@ -49,7 +61,26 @@ class YoshlarContextTest extends YoshlarTestCase
         $this->actingAs($this->makeUser('yoshlar_admin'), 'sanctum')
             ->getJson('/api/yoshlar/youth/stats')
             ->assertOk()
-            ->assertJsonStructure(['total', 'neet', 'pending', 'by_district']);
+            ->assertJsonStructure([
+                'total', 'neet', 'pending', 'by_district',
+                'by_age' => ['14-17', '18-22', '23-26', '27-30'],
+                'by_education', 'by_employment',
+            ]);
+    }
+
+    public function test_age_bands_cover_every_registry_record(): void
+    {
+        // Yosh oraliqlari sana chegaralari bilan hisoblanadi. Agar chegaralar
+        // ustma-ust tushsa yozuv IKKI marta, orada bo'shliq qolsa esa umuman
+        // sanalmasdi. Yig'indi = jami bo'lishi shuni ushlab turadi.
+        $stats = $this->actingAs($this->makeUser('yoshlar_admin'), 'sanctum')
+            ->getJson('/api/yoshlar/youth/stats')->assertOk()->json();
+
+        $this->assertSame(
+            $stats['total'],
+            array_sum($stats['by_age']),
+            'Yosh oraliqlari yigʻindisi reyestr jamiga teng emas.',
+        );
     }
 
     public function test_stats_route_is_not_swallowed_by_show_route(): void

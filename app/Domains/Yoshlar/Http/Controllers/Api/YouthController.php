@@ -53,6 +53,22 @@ class YouthController extends Controller
         $base = fn () => $this->scope->applyYouth(Youth::query(), $user)
             ->where('registry_status', 'active');
 
+        // Yosh oraliqlari `age()` ORQALI EMAS, sana chegaralari bilan: `age()`
+        // PostgreSQL'da STABLE (IMMUTABLE emas), shuning uchun u indeksdan
+        // foydalana olmaydi. Chegaralarni oldindan hisoblab, `birth_date`
+        // ustunidagi indeks ishlaydigan solishtirishga aylantiramiz.
+        $bound = static fn (int $years): string => now()->subYears($years)->toDateString();
+
+        $ageBands = $base()->visibleInRegistry()
+            ->selectRaw(
+                'count(*) filter (where birth_date > ?) as b14,'
+                .' count(*) filter (where birth_date <= ? and birth_date > ?) as b18,'
+                .' count(*) filter (where birth_date <= ? and birth_date > ?) as b23,'
+                .' count(*) filter (where birth_date <= ?) as b27',
+                [$bound(18), $bound(18), $bound(23), $bound(23), $bound(27), $bound(27)],
+            )
+            ->first();
+
         return response()->json([
             'total' => $base()->visibleInRegistry()->count(),
             'neet' => $base()->visibleInRegistry()->where('is_neet', true)->count(),
@@ -60,6 +76,22 @@ class YouthController extends Controller
             'by_district' => $base()->visibleInRegistry()
                 ->selectRaw('district_id, count(*) as total')
                 ->groupBy('district_id')->pluck('total', 'district_id'),
+
+            // Uchta kesim BITTA so'rovdan emas, uchta guruhlashdan keladi —
+            // ammo har biri bitta so'rov, sahifadagi har kartochka uchun
+            // alohida so'rov EMAS (N+1 dashboard'da ham xatarli).
+            'by_age' => [
+                '14-17' => (int) ($ageBands->b14 ?? 0),
+                '18-22' => (int) ($ageBands->b18 ?? 0),
+                '23-26' => (int) ($ageBands->b23 ?? 0),
+                '27-30' => (int) ($ageBands->b27 ?? 0),
+            ],
+            'by_education' => $base()->visibleInRegistry()
+                ->selectRaw('education_status, count(*) as total')
+                ->groupBy('education_status')->pluck('total', 'education_status'),
+            'by_employment' => $base()->visibleInRegistry()
+                ->selectRaw('employment_status, count(*) as total')
+                ->groupBy('employment_status')->pluck('total', 'employment_status'),
         ]);
     }
 
