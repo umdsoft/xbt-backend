@@ -62,10 +62,27 @@ class YoshlarContextTest extends YoshlarTestCase
             ->getJson('/api/yoshlar/youth/stats')
             ->assertOk()
             ->assertJsonStructure([
-                'total', 'neet', 'pending', 'by_district',
+                'total', 'added_7d', 'growth_7d', 'neet', 'pending', 'by_district',
                 'by_age' => ['14-17', '18-22', '23-26', '27-30'],
                 'by_education', 'by_employment',
             ]);
+    }
+
+    public function test_growth_is_null_when_there_is_nothing_to_compare(): void
+    {
+        // Oʻsish foizi bosh maxrajga boʻlinmaydi. Reyestrdagi HAMMA yozuv
+        // oxirgi 7 kunda qoʻshilgan boʻlsa, «oldin qancha edi» degan savol
+        // maʼnosiz — `null` qaytadi, «0% oʻsish» EMAS.
+        $stats = $this->actingAs($this->makeUser('yoshlar_admin'), 'sanctum')
+            ->getJson('/api/yoshlar/youth/stats')->assertOk()->json();
+
+        $this->assertArrayHasKey('growth_7d', $stats);
+
+        if ($stats['total'] === $stats['added_7d']) {
+            $this->assertNull($stats['growth_7d'], 'Solishtirish asosi yoʻqda oʻsish null boʻlishi kerak.');
+        } else {
+            $this->assertIsNumeric($stats['growth_7d']);
+        }
     }
 
     public function test_age_bands_cover_every_registry_record(): void

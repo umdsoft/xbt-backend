@@ -69,8 +69,28 @@ class YouthController extends Controller
             )
             ->first();
 
+        // OʻSISH — HAQIQIY, oʻylab topilgan emas.
+        //
+        // Panelda «↗ 2.4%» kabi belgi koʻrsatiladi. Uni chiroy uchun
+        // toʻqib chiqarish mumkin emas: rahbar shu raqamga qarab qaror
+        // qabul qiladi. Shuning uchun oʻlchov aniq: oxirgi 7 kunda
+        // qoʻshilgan yozuvlarning undan oldingi bazaga nisbati.
+        $total = $base()->visibleInRegistry()->count();
+
+        $addedLast7 = $base()->visibleInRegistry()
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
+
+        $before = $total - $addedLast7;
+        $growth = $before > 0 ? round(($addedLast7 / $before) * 100, 1) : null;
+
         return response()->json([
-            'total' => $base()->visibleInRegistry()->count(),
+            'total' => $total,
+            'added_7d' => $addedLast7,
+
+            // `null` — solishtirish uchun asos yoʻq (reyestr boʻsh edi).
+            // Nol EMAS: «oʻsish boʻlmadi» va «oʻlchab boʻlmaydi» boshqa gap.
+            'growth_7d' => $growth,
             'neet' => $base()->visibleInRegistry()->where('is_neet', true)->count(),
             'pending' => $base()->where('verification_status', 'pending')->count(),
             'by_district' => $base()->visibleInRegistry()
