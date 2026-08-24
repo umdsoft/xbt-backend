@@ -39,8 +39,8 @@ final class PlanBuilder
                     'seat_count' => $r->seat_count,
                     'seat_start' => $r->seat_start,
                     'points' => $r->points_json,   // [[x,y],...] obyekt-lokal mm, yoki null (formula)
-                ])->values(),
-            ])->values();
+                ])->values()->all(),
+            ])->values()->all();   // ->all() => oddiy massiv (kesh round-trip'dan keyin ham JSON array)
 
             return [
                 'venue' => [
@@ -54,9 +54,9 @@ final class PlanBuilder
                 'stage' => $venue->stage_json,
                 'sectors' => $sectors,
                 'totals' => [
-                    'sectors' => $sectors->count(),
-                    'rows' => (int) $sectors->sum(fn ($s) => count($s['rows'])),
-                    'seats' => (int) $sectors->sum('seat_total'),
+                    'sectors' => count($sectors),
+                    'rows' => array_sum(array_map(fn ($s) => count($s['rows']), $sectors)),
+                    'seats' => (int) array_sum(array_column($sectors, 'seat_total')),
                 ],
             ];
         });
