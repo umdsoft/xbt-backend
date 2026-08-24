@@ -193,4 +193,9 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
         Route::middleware('hr.can:seating.print')->group(function () {
             Route::post('events/{event}/print', [EventController::class, 'print'])->name('events.print');
         });
+        // Obekt import + geometriya kalibrлаш — venues.manage
+        Route::middleware('hr.can:venues.manage')->group(function () {
+            Route::post('venues/import', [VenueController::class, 'import'])->name('venues.import');
+            Route::put('venues/{slug}/calibrate', [VenueController::class, 'calibrate'])->name('venues.calibrate');
+        });
     });

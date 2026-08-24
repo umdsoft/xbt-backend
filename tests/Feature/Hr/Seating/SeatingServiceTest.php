@@ -150,6 +150,24 @@ class SeatingServiceTest extends TestCase
         $this->assertSame(1, EventSnapshot::where('event_id', $event->id)->count());
     }
 
+    public function test_calibrate_updates_geometry_and_busts_cache(): void
+    {
+        $venue = $this->avesto();
+        $s8 = Sector::where('venue_id', $venue->id)->where('code', '8')->firstOrFail();
+        $origX = $s8->anchor_x;
+
+        app(PlanBuilder::class)->build($venue); // keshlanadi
+
+        $s8->update(['anchor_x' => $origX + 9999, 'rotation' => 42]);
+        $venue->touch(); // plan keshi (updated_at kaliti) yangilanadi
+
+        $after = app(PlanBuilder::class)->build($venue->fresh());
+        $s8After = collect($after['sectors'])->firstWhere('code', '8');
+
+        $this->assertSame((float) ($origX + 9999), (float) $s8After['anchor_x']);
+        $this->assertSame(42.0, (float) $s8After['rotation']);
+    }
+
     public function test_writer_replace_all_is_idempotent(): void
     {
         $venue = $this->avesto();
