@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Domains\Hr\Http\Controllers\Api\AuditController;
 use App\Domains\Hr\Http\Controllers\Api\CatalogController;
+use App\Domains\Hr\Http\Controllers\Api\Seating\EventController;
+use App\Domains\Hr\Http\Controllers\Api\Seating\VenueController;
 use App\Domains\Hr\Http\Controllers\Api\CitizenAppealController;
 use App\Domains\Hr\Http\Controllers\Api\ControlPlanController;
 use App\Domains\Hr\Http\Controllers\Api\DashboardController;
@@ -167,5 +169,24 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::get('/departments', [CatalogController::class, 'departments'])->name('departments');
             Route::get('/positions', [CatalogController::class, 'positions'])->name('positions');
             Route::get('/departments/{department}/positions', [CatalogController::class, 'positions'])->name('department.positions');
+        });
+
+        // ===== Tadbirlar va o'rindiq sxemalari (venue seating) =====
+        // Ko'rish (obyekt/plan/tadbir/sig'im) — seating.view
+        Route::middleware('hr.can:seating.view')->group(function () {
+            Route::get('venues', [VenueController::class, 'index'])->name('venues.index');
+            Route::get('venues/{slug}/plan', [VenueController::class, 'plan'])->name('venues.plan');
+            Route::get('events', [EventController::class, 'index'])->name('events.index');
+            Route::get('events/{event}', [EventController::class, 'show'])->name('events.show');
+            Route::get('events/{event}/capacity', [EventController::class, 'capacity'])->name('events.capacity');
+        });
+        // Yaratish/belgilash — seating.mark
+        Route::middleware('hr.can:seating.mark')->group(function () {
+            Route::post('events', [EventController::class, 'store'])->name('events.store');
+            Route::post('events/{event}/duplicate', [EventController::class, 'duplicate'])->name('events.duplicate');
+            Route::match(['put', 'patch'], 'events/{event}', [EventController::class, 'update'])->name('events.update');
+            Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+            Route::put('events/{event}/groups', [EventController::class, 'syncGroups'])->name('events.groups.sync');
+            Route::put('events/{event}/allocations', [EventController::class, 'syncAllocations'])->name('events.allocations.sync');
         });
     });

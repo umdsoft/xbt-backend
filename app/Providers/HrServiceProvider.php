@@ -84,6 +84,7 @@ class HrServiceProvider extends ServiceProvider
             MahallaCouncil::class => MahallaCouncilPolicy::class,
             HokimYordamchisi::class => HokimYordamchisiPolicy::class,
             YoshlarYetakchisi::class => YoshlarYetakchisiPolicy::class,
+            \App\Domains\Hr\Models\Event::class => \App\Domains\Hr\Policies\EventPolicy::class,
         ];
     }
 }
