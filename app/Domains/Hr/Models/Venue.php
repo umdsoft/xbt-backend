@@ -22,7 +22,7 @@ class Venue extends Model
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'name', 'slug', 'unit', 'viewbox_json', 'stage_json',
+        'uuid', 'name', 'slug', 'unit', 'viewbox_json', 'stage_json', 'floor_json',
         'capacity_cached', 'is_active', 'notes', 'created_by',
     ];
 
@@ -31,6 +31,7 @@ class Venue extends Model
         return [
             'viewbox_json' => 'array',
             'stage_json' => 'array',
+            'floor_json' => 'array',
             'capacity_cached' => 'integer',
             'is_active' => 'boolean',
         ];

@@ -52,6 +52,7 @@ final class PlanBuilder
                 ],
                 'viewbox' => $venue->viewbox_json,
                 'stage' => $venue->stage_json,
+                'floor' => $venue->floor_json,   // [[[x,y],...],...] zinapoya/yo'lak konturlari
                 'sectors' => $sectors,
                 'totals' => [
                     'sectors' => count($sectors),

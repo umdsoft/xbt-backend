@@ -51,6 +51,7 @@ class AvestoVenueSeeder extends Seeder
                 'unit' => 'mm',
                 'viewbox_json' => $data['viewbox_json'] ?? null,
                 'stage_json' => $data['stage_json'] ?? null,
+                'floor_json' => $data['floor_json'] ?? null,
                 'capacity_cached' => $capacity,
                 'is_active' => true,
                 'notes' => 'CAD chizmasidan (2026). Geometriya provizion — CalibrationEditor bilan kalibrlanadi.',
