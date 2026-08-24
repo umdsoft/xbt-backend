@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "venue": "Avesto majmuasi — katta zal",
+    "unit": "mm",
+    "source": "CAD chizmasi (2026) — original + yaqinlashtirilgan skrinshotlar asosida",
+    "derivation": "Radial 'taqa' (horseshoe) fan. Sahna/prezidium egri devor tomonida (fokus nuqtasi). Ichki yarus (1-4) prezidiumga yaqin, tashqi taqa (5-11) o'raladi. Koordinatalar simmetriya + fokusdan formula bilan chiqarilgan; aniq joylashuv CalibrationEditor'da chizma ustiga qo'yib kalibrlanadi.",
+    "coordinate_model": {
+      "origin": "Fokus nuqtasi = prezidium/sahna markazi (0,0)",
+      "axes": "+x = o'ng, +y = sahnadan audytoriyaga (SVG: pastga). Simmetriya o'qi x=0.",
+      "sector_local": "anchor = 1-qator markazi. Lokal +y = sahnadan uzoqlashish (qator indeksi), lokal +x = o'rindiq raqami ortishi.",
+      "seat_formula": "x = (i - (n-1)/2) * seat_pitch ;  y = row_index * row_pitch  (row_index 0-based, 1-qator = 0). So'ng Rotate(rotation) + anchor.",
+      "rotation": "gradus; 0 = sahnaga to'g'ri qaragan (markaziy). Manfiy = chap qanot, musbat = o'ng qanot. Simmetrik juftlar: anchor_x va rotation belgisi teskari."
+    },
+    "confirmed_from_drawing": {
+      "row_pitch_mm": 1050,
+      "seat_pitch_mm": 550,
+      "sector_2_rows": "yorliqlar (2-SEKTOR 1..8-QATOR = 1-17..1-32) → [17,20,24,26,27,29,30,32] MOS",
+      "sector_8_rows": "8-SEKTOR ..-QATOR (1-27) → 27 li qatorlar MOS",
+      "sector_9_rows": "9-SEKTOR 1..-QATOR (1-16,1-17,1-19,1-21..) MOS"
+    },
+    "totals": { "sectors": 11, "rows": 109, "seats": 2379 },
+    "tiers": { "inner": [1,2,3,4], "outer": [5,6,7,8,9,10,11] },
+    "symmetry_pairs": [[5,11],[6,10],[7,9],[1,4],[2,3]],
+    "center_sector": 8,
+    "status": "PROVISIONAL — struktura aniq (11 sektor / 109 qator / 2379 o'rindiq), joylashuv kalibrlash uchun boshlang'ich."
+  },
+  "viewbox_json": { "x": -27000, "y": -6000, "width": 54000, "height": 40000, "note": "render vaqtida real o'rindiq chegaralaridan qayta hisoblanadi" },
+  "stage_json": {
+    "focus": { "x": 0, "y": 0 },
+    "presidium": { "type": "rect", "x": -4200, "y": -3600, "width": 8400, "height": 3200, "label": "ПРЕЗИДИУМ / САҲНА" },
+    "back_wall": { "type": "arc", "note": "egri devor prezidium orqasida (chizmadagi yoy) — kalibrlashda aniqlanadi" }
+  },
+  "sectors": [
+    { "code": "1",  "tier": "inner", "sort_order": 1,  "anchor_x": -3635,  "anchor_y": 5389,  "rotation": -34, "row_pitch": 1050, "seat_pitch": 550, "row_count": 8,  "seat_total": 113, "rows": [9,9,11,13,14,17,19,21] },
+    { "code": "2",  "tier": "inner", "sort_order": 2,  "anchor_x": -1240,  "anchor_y": 6380,  "rotation": -11, "row_pitch": 1050, "seat_pitch": 550, "row_count": 8,  "seat_total": 205, "rows": [17,20,24,26,27,29,30,32] },
+    { "code": "3",  "tier": "inner", "sort_order": 3,  "anchor_x": 1240,   "anchor_y": 6380,  "rotation": 11,  "row_pitch": 1050, "seat_pitch": 550, "row_count": 8,  "seat_total": 193, "rows": [16,20,21,24,26,28,28,30] },
+    { "code": "4",  "tier": "inner", "sort_order": 4,  "anchor_x": 3635,   "anchor_y": 5389,  "rotation": 34,  "row_pitch": 1050, "seat_pitch": 550, "row_count": 8,  "seat_total": 121, "rows": [9,10,12,14,16,18,20,22] },
+    { "code": "5",  "tier": "outer", "sort_order": 5,  "anchor_x": -16823, "anchor_y": 4823,  "rotation": -74, "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 225, "rows": [15,15,17,19,21,23,23,23,23,23,23] },
+    { "code": "6",  "tier": "outer", "sort_order": 6,  "anchor_x": -13405, "anchor_y": 11249, "rotation": -50, "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 229, "rows": [19,19,19,19,19,19,23,23,23,23,23] },
+    { "code": "7",  "tier": "outer", "sort_order": 7,  "anchor_x": -7396,  "anchor_y": 15861, "rotation": -25, "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 284, "rows": [15,17,19,21,23,24,30,32,33,34,36] },
+    { "code": "8",  "tier": "outer", "sort_order": 8,  "anchor_x": 0,      "anchor_y": 17500, "rotation": 0,   "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 271, "rows": [27,27,27,27,27,27,27,27,27,14,14] },
+    { "code": "9",  "tier": "outer", "sort_order": 9,  "anchor_x": 7396,   "anchor_y": 15861, "rotation": 25,  "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 284, "rows": [16,17,19,21,22,24,29,31,33,35,37] },
+    { "code": "10", "tier": "outer", "sort_order": 10, "anchor_x": 13405,  "anchor_y": 11249, "rotation": 50,  "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 229, "rows": [19,19,19,19,19,19,23,23,23,23,23] },
+    { "code": "11", "tier": "outer", "sort_order": 11, "anchor_x": 16823,  "anchor_y": 4823,  "rotation": 74,  "row_pitch": 1050, "seat_pitch": 550, "row_count": 11, "seat_total": 225, "rows": [15,15,17,19,21,23,23,23,23,23,23] }
+  ]
+}

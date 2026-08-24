@@ -61,6 +61,12 @@ class RolePermissionSeeder extends Seeder
             'meetings.update',
             'meetings.delete',
 
+            // Tadbirlar va o'rindiq sxemalari moduli (venue seating)
+            'seating.view',     // sxemani ko'rish + tadbirlar ro'yxati
+            'seating.mark',     // guruh belgilash / autosave
+            'seating.print',    // pechat / PDF
+            'venues.manage',    // obyekt + geometriya kalibrlash (admin)
+
             // Murojaatlar moduli
             'appeals.view',
             'appeals.view-all',     // tenant ichida boshqa mahallani ham ko'rish
@@ -120,6 +126,7 @@ class RolePermissionSeeder extends Seeder
             'hokim-yordamchilari.view',
             'yoshlar.view',
             'meetings.view', 'meetings.create', 'meetings.update',
+            'seating.view', 'seating.mark', 'seating.print', 'venues.manage',
             'appeals.view', 'appeals.view-all', 'appeals.assign', 'appeals.export',
             'councils.view', 'councils.manage',
             'tashkilotlar.view',
@@ -138,6 +145,7 @@ class RolePermissionSeeder extends Seeder
             'hokim-yordamchilari.view', 'hokim-yordamchilari.create', 'hokim-yordamchilari.update', 'hokim-yordamchilari.delete',
             'yoshlar.view', 'yoshlar.create', 'yoshlar.update', 'yoshlar.delete',
             'meetings.view', 'meetings.create', 'meetings.update', 'meetings.delete',
+            'seating.view', 'seating.mark', 'seating.print', 'venues.manage',
             'appeals.view', 'appeals.view-all', 'appeals.create', 'appeals.update', 'appeals.assign', 'appeals.export',
             'councils.view', 'councils.manage',
             'tashkilotlar.view', 'tashkilotlar.create', 'tashkilotlar.update', 'tashkilotlar.delete',
@@ -166,6 +174,7 @@ class RolePermissionSeeder extends Seeder
             'tadbirlar.view', 'tadbirlar.create', 'tadbirlar.update',
             'hokim-yordamchilari.view', 'hokim-yordamchilari.create', 'hokim-yordamchilari.update',
             'yoshlar.view',
+            'seating.view', 'seating.mark', 'seating.print',
             'audit.view',
             'dashboard.view',
         ]);
@@ -176,6 +185,7 @@ class RolePermissionSeeder extends Seeder
         $kotibyat = Role::findOrCreate('kotibyat-mudiri', self::GUARD);
         $kotibyat->givePermissionTo([
             'tadbirlar.view', 'tadbirlar.create', 'tadbirlar.update', 'tadbirlar.delete',
+            'seating.view', 'seating.mark', 'seating.print',
             'topshiriqlar.assign-org',
             'dashboard.view',
         ]);

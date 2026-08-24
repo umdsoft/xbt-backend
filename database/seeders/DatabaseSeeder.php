@@ -35,6 +35,8 @@ class DatabaseSeeder extends Seeder
             // Advisor poydevori — SuperAdminSeeder'dan KEYIN (global 'admin' ga
             // advisor ruxsati beriladi); tumanlar master'da mavjud bo'lishi shart.
             AdvisorSeeder::class,
+            // Tadbirlar/o'rindiq sxemasi — Avesto zali geometriyasi (obyekt ma'lumotnomasi).
+            AvestoVenueSeeder::class,
         ]);
     }
 }
