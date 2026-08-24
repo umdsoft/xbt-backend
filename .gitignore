@@ -42,3 +42,6 @@ docs/*.kml
 # ETL xom fayllari (xlsx/CSV) — repoga tushmasin
 /storage/app/import/
 .gstack/
+
+# ETL vendored deps (npm install qayta tiklaydi)
+/database/tools/venue-import/node_modules

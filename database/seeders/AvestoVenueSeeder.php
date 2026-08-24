@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domains\Hr\Models\SeatRow;
+use App\Domains\Hr\Models\RowCluster;
+use App\Domains\Hr\Models\Seat;
 use App\Domains\Hr\Models\Sector;
 use App\Domains\Hr\Models\Venue;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
- * Avesto majmuasi katta zali — obyekt + 6 jismoniy hudud (Президиум/Партер/Чап-Ўнг
- * қанот/ложалар) + 62 qator + 2384 o'rindiq. Manba: avesto.dwg (libredwg) → aniq
- * o'rindiq (x,y) koordinatalari database/seeders/data/avesto_venue_geometry.json'da.
- * Idempotent; qatorlar `points_json` bilan aniq chiziladi (alohida `seats` jadvali YO'Q).
+ * Avesto katta zali — geometriya avesto.dwg MTEXT yorliqlaridan CHIQARILGAN
+ * (formula YO'Q). Manba: database/seeders/data/avesto_venue.json (ETL build_venue.py).
+ * 2400 o'rindiq (1200 yorliq + mirror y=0), 156 qator-klaster.
+ * Boshlang'ich sektorlar = K/O/Y guruhlari; PDF 11-sektor moslashtirish admin UI'da.
  */
 class AvestoVenueSeeder extends Seeder
 {
@@ -23,77 +26,91 @@ class AvestoVenueSeeder extends Seeder
             return;
         }
 
-        $path = database_path('seeders/data/avesto_venue_geometry.json');
+        $path = database_path('seeders/data/avesto_venue.json');
         if (! is_file($path)) {
             $this->command?->warn("Geometriya fayli topilmadi: {$path}");
 
             return;
         }
 
-        /** @var array{viewbox_json?: array, stage_json?: array, sectors: array<int, array<string, mixed>>} $data */
+        /** @var array{venue:array,row_clusters:array,seats:array} $data */
         $data = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
-        $sectors = $data['sectors'] ?? [];
-
-        // Qatorlar endi obyekt: {index, seat_count, seat_start, points}. Eski format (int) ham qo'llab-quvvatlanadi.
-        $rowSeatCount = static fn ($row): int => is_array($row) ? (int) ($row['seat_count'] ?? 0) : (int) $row;
-
-        $capacity = 0;
-        foreach ($sectors as $s) {
-            foreach (($s['rows'] ?? []) as $row) {
-                $capacity += $rowSeatCount($row);
-            }
-        }
+        $v = $data['venue'];
 
         $venue = Venue::updateOrCreate(
-            ['slug' => 'avesto-katta-zal'],
+            ['slug' => $v['slug']],
             [
-                'name' => 'Avesto majmuasi — katta zal',
-                'unit' => 'mm',
-                'viewbox_json' => $data['viewbox_json'] ?? null,
-                'stage_json' => $data['stage_json'] ?? null,
-                'floor_json' => $data['floor_json'] ?? null,
-                'capacity_cached' => $capacity,
+                'name' => $v['name'],
+                'unit' => $v['unit'] ?? 'mm',
+                'source_file' => $v['source_file'] ?? null,
+                'bbox_json' => $v['bbox_json'] ?? null,
+                'mirror_axis_json' => $v['mirror_axis_json'] ?? null,
+                'stage_json' => $v['stage_json'] ?? null,
+                'viewbox_json' => null,
+                'capacity_cached' => (int) ($v['capacity'] ?? count($data['seats'])),
                 'is_active' => true,
-                'notes' => 'CAD chizmasidan (2026). Geometriya provizion — CalibrationEditor bilan kalibrlanadi.',
+                'notes' => 'CAD (avesto.dwg) yorliqlaridan aniq koordinata. Mirror y=0.',
             ],
         );
 
-        // Eski geometriyadan qolgan sektorlarni tozalash (kodlar to'plami o'zgargan bo'lishi mumkin).
-        $keepCodes = array_map(static fn ($s) => (string) $s['code'], $sectors);
-        $venue->sectors()->whereNotIn('code', $keepCodes)->delete();
+        // Toza qayta seed (eski geometriya butunlay boshqacha edi)
+        DB::connection('hr')->table('seats')->where('venue_id', $venue->id)->delete();
+        DB::connection('hr')->table('row_clusters')->where('venue_id', $venue->id)->delete();
+        DB::connection('hr')->table('sectors')->where('venue_id', $venue->id)->delete();
 
-        foreach ($sectors as $s) {
-            $sector = Sector::updateOrCreate(
-                ['venue_id' => $venue->id, 'code' => (string) $s['code']],
-                [
-                    'label' => $s['label'] ?? (($s['code'] ?? '').'-SEKTOR'),
-                    'anchor_x' => (float) $s['anchor_x'],
-                    'anchor_y' => (float) $s['anchor_y'],
-                    'rotation' => (float) $s['rotation'],
-                    'row_pitch' => (float) ($s['row_pitch'] ?? 1050),
-                    'seat_pitch' => (float) ($s['seat_pitch'] ?? 550),
-                    'tier' => $s['tier'] ?? null,
-                    'sort_order' => (int) ($s['sort_order'] ?? 0),
-                ],
-            );
-
-            // Eski qatorlarni tozalash (agar geometriya o'zgargan bo'lsa — qator soni farq qilishi mumkin).
-            SeatRow::where('sector_id', $sector->id)->delete();
-
-            foreach (($s['rows'] ?? []) as $i => $row) {
-                $isObj = is_array($row);
-                SeatRow::create([
-                    'sector_id' => $sector->id,
-                    'row_index' => $isObj ? (int) ($row['index'] ?? $i + 1) : $i + 1,
-                    'seat_count' => $rowSeatCount($row),
-                    'seat_start' => $isObj ? (int) ($row['seat_start'] ?? 1) : 1,
-                    'points_json' => $isObj ? ($row['points'] ?? null) : null,
-                ]);
-            }
+        // --- row_clusters ---
+        $rcMap = []; // code -> id
+        $now = now();
+        $rcRows = [];
+        foreach ($data['row_clusters'] as $rc) {
+            $id = (string) Str::uuid();
+            $rcMap[$rc['id']] = $id;
+            $rcRows[] = [
+                'id' => $id, 'uuid' => (string) Str::uuid(), 'venue_id' => $venue->id,
+                'code' => $rc['id'], 'angle' => $rc['angle'], 'seat_count' => $rc['seat_count'],
+                'centroid_x' => $rc['centroid_x'], 'centroid_y' => $rc['centroid_y'],
+                'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($rcRows, 200) as $chunk) {
+            DB::connection('hr')->table('row_clusters')->insert($chunk);
         }
 
-        $rows = SeatRow::whereIn('sector_id', $venue->sectors()->pluck('id'))->count();
-        $seats = (int) SeatRow::whereIn('sector_id', $venue->sectors()->pluck('id'))->sum('seat_count');
-        $this->command?->info("Avesto: {$venue->sectors()->count()} sektor · {$rows} qator · {$seats} o'rindiq (cache: {$venue->capacity_cached}).");
+        // --- sectors (K/O/Y) ---
+        $secDef = [
+            'K' => ['label' => 'Кўк гуруҳ', 'color' => '#2563eb', 'sort' => 1],
+            'O' => ['label' => 'Оқ гуруҳ', 'color' => '#94a3b8', 'sort' => 2],
+            'Y' => ['label' => 'Яшил гуруҳ', 'color' => '#16a34a', 'sort' => 3],
+        ];
+        $secMap = [];
+        foreach ($secDef as $g => $def) {
+            $sec = Sector::create([
+                'venue_id' => $venue->id, 'code' => $g, 'label' => $def['label'],
+                'color' => $def['color'], 'sort_order' => $def['sort'],
+            ]);
+            $secMap[$g] = $sec->id;
+        }
+
+        // --- seats ---
+        $seatRows = [];
+        foreach ($data['seats'] as $s) {
+            $seatRows[] = [
+                'id' => (string) Str::uuid(), 'uuid' => (string) Str::uuid(), 'venue_id' => $venue->id,
+                'code' => $s['code'], 'x' => $s['x'], 'y' => $s['y'], 'rotation' => $s['rotation'],
+                'seat_group' => $s['seat_group'], 'row_cluster_id' => $rcMap[$s['row_cluster_id']] ?? null,
+                'sector_id' => $secMap[$s['seat_group']] ?? null, 'is_mirrored' => $s['is_mirrored'],
+                'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($seatRows, 500) as $chunk) {
+            DB::connection('hr')->table('seats')->insert($chunk);
+        }
+
+        $venue->update(['capacity_cached' => count($seatRows)]);
+        $this->command?->info(sprintf(
+            'Avesto: %d sektor · %d klaster · %d o\'rindiq (bbox %s).',
+            count($secMap), count($rcRows), count($seatRows),
+            json_encode($venue->bbox_json)
+        ));
     }
 }

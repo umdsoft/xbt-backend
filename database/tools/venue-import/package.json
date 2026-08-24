@@ -1,0 +1,10 @@
+{
+  "name": "venue-import",
+  "version": "1.0.0",
+  "description": "DWG -> venue geometriya ETL (HR seating moduli, venue:import artisan komandasi uchun).",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@mlightcad/libredwg-web": "^0.7.10"
+  }
+}

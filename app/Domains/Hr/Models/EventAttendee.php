@@ -19,7 +19,7 @@ class EventAttendee extends Model
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'event_id', 'event_group_id', 'seat_row_id', 'seat_number',
+        'uuid', 'event_id', 'event_group_id', 'seat_id', 'seat_number',
         'full_name', 'org', 'present', 'checked_in_at',
     ];
 
@@ -47,5 +47,11 @@ class EventAttendee extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(EventGroup::class, 'event_group_id');
+    }
+
+    /** @return BelongsTo<Seat, $this> */
+    public function seat(): BelongsTo
+    {
+        return $this->belongsTo(Seat::class);
     }
 }

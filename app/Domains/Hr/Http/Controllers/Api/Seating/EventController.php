@@ -69,7 +69,7 @@ class EventController extends HrController
         $event->load([
             'venue:id,name,slug',
             'groups',
-            'allocations:id,event_id,sector_id,seat_row_id,event_group_id',
+            'allocations:id,event_id,sector_id,row_cluster_id,event_group_id',
         ]);
 
         return response()->json(['event' => $event]);
@@ -159,7 +159,7 @@ class EventController extends HrController
         $data = $request->validate([
             'allocations' => ['present', 'array'],
             'allocations.*.sector_id' => ['required', 'uuid', 'exists:sectors,id'],
-            'allocations.*.seat_row_id' => ['nullable', 'uuid', 'exists:seat_rows,id'],
+            'allocations.*.row_cluster_id' => ['nullable', 'uuid', 'exists:row_clusters,id'],
             'allocations.*.event_group_id' => ['required', 'uuid'],
         ]);
 
@@ -207,7 +207,7 @@ class EventController extends HrController
             foreach ($event->allocations()->get() as $a) {
                 $new->allocations()->create([
                     'sector_id' => $a->sector_id,
-                    'seat_row_id' => $a->seat_row_id,
+                    'row_cluster_id' => $a->row_cluster_id,
                     'event_group_id' => $map[$a->event_group_id] ?? null,
                 ]);
             }

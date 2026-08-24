@@ -22,14 +22,16 @@ class Venue extends Model
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'name', 'slug', 'unit', 'viewbox_json', 'stage_json', 'floor_json',
-        'capacity_cached', 'is_active', 'notes', 'created_by',
+        'uuid', 'name', 'slug', 'unit', 'viewbox_json', 'bbox_json', 'mirror_axis_json',
+        'source_file', 'stage_json', 'floor_json', 'capacity_cached', 'is_active', 'notes', 'created_by',
     ];
 
     protected function casts(): array
     {
         return [
             'viewbox_json' => 'array',
+            'bbox_json' => 'array',
+            'mirror_axis_json' => 'array',
             'stage_json' => 'array',
             'floor_json' => 'array',
             'capacity_cached' => 'integer',
@@ -46,6 +48,18 @@ class Venue extends Model
     public function sectors(): HasMany
     {
         return $this->hasMany(Sector::class)->orderBy('sort_order');
+    }
+
+    /** @return HasMany<Seat, $this> */
+    public function seats(): HasMany
+    {
+        return $this->hasMany(Seat::class);
+    }
+
+    /** @return HasMany<RowCluster, $this> */
+    public function rowClusters(): HasMany
+    {
+        return $this->hasMany(RowCluster::class);
     }
 
     /** @return HasMany<Event, $this> */

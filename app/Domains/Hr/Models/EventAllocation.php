@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
- * Belgilash — sektor yoki qatorni guruhga biriktirish.
- * seat_row_id = NULL → butun sektor guruhга tegishli.
+ * Belgilash — sektor yoki qator-klasterni guruhga biriktirish (koordinata SAQLAMAYDI).
+ * row_cluster_id = NULL → butun sektor guruhga tegishli.
  */
 class EventAllocation extends Model
 {
@@ -20,7 +20,7 @@ class EventAllocation extends Model
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'event_id', 'sector_id', 'seat_row_id', 'event_group_id',
+        'uuid', 'event_id', 'sector_id', 'row_cluster_id', 'event_group_id',
     ];
 
     protected static function booted(): void
@@ -40,10 +40,10 @@ class EventAllocation extends Model
         return $this->belongsTo(Sector::class);
     }
 
-    /** @return BelongsTo<SeatRow, $this> */
-    public function seatRow(): BelongsTo
+    /** @return BelongsTo<RowCluster, $this> */
+    public function rowCluster(): BelongsTo
     {
-        return $this->belongsTo(SeatRow::class);
+        return $this->belongsTo(RowCluster::class);
     }
 
     /** @return BelongsTo<EventGroup, $this> */

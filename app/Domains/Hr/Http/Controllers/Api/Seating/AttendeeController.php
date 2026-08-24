@@ -23,8 +23,9 @@ class AttendeeController extends HrController
         $this->authorize('view', $event);
 
         $attendees = EventAttendee::where('event_id', $event->id)
+            ->with('seat:id,code,row_label,seat_label')
             ->orderBy('event_group_id')->orderBy('seat_number')
-            ->get(['id', 'event_group_id', 'seat_row_id', 'seat_number', 'full_name', 'org', 'present', 'checked_in_at']);
+            ->get(['id', 'event_group_id', 'seat_id', 'seat_number', 'full_name', 'org', 'present', 'checked_in_at']);
 
         return response()->json(['attendees' => $attendees]);
     }

@@ -7,38 +7,40 @@ namespace App\Domains\Hr\Services\Seating;
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAttendee;
 use App\Domains\Hr\Models\EventGroup;
+use App\Domains\Hr\Models\Seat;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
- * Ismlarni guruhга biriktirilган o'rindiqlarга TARTIBLI taqsimlaydi
- * (sektor tartibi → qator → o'rindiq raqami). Ortiqcha ismlar o'rindiqsiz
- * (navbatда) saqlanadi. REPLACE-ALL: guruh mehmonlari qayta yoziladi.
+ * Ismlarni guruhga biriktirilgan o'rindiqlarga TARTIBLI taqsimlaydi
+ * (sektor sort_order → klaster centroid_y/x → o'rindiq y/x). Ortiqcha ismlar
+ * o'rindiqsiz (seat_id=null) saqlanadi. REPLACE-ALL: guruh mehmonlari qayta yoziladi.
  *
- * @return int  yaratilган mehmonlar soni
+ * @return int  yaratilgan mehmonlar soni
  */
 final class AttendeeDistributor
 {
     /** @param array<int, string> $names */
     public function distribute(Event $event, EventGroup $group, array $names): int
     {
-        $seats = $this->orderedSeats($event, $group); // [{seat_row_id, seat_number}]
+        $seatIds = $this->orderedSeatIds($event, $group);
 
         $names = array_values(array_filter(array_map('trim', $names), fn ($n) => $n !== ''));
 
-        return DB::connection('hr')->transaction(function () use ($event, $group, $names, $seats): int {
+        return DB::connection('hr')->transaction(function () use ($event, $group, $names, $seatIds): int {
             EventAttendee::where('event_group_id', $group->id)->delete();
 
             $now = now();
             $rows = [];
             foreach ($names as $i => $name) {
-                $seat = $seats[$i] ?? null;
+                $seatId = $seatIds[$i] ?? null;
                 $rows[] = [
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
-                    'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                    'id' => (string) Str::uuid(),
+                    'uuid' => (string) Str::uuid(),
                     'event_id' => $event->id,
                     'event_group_id' => $group->id,
-                    'seat_row_id' => $seat['seat_row_id'] ?? null,
-                    'seat_number' => $seat['seat_number'] ?? null,
+                    'seat_id' => $seatId,
+                    'seat_number' => $seatId !== null ? $i + 1 : null,
                     'full_name' => mb_substr($name, 0, 255),
                     'present' => false,
                     'created_at' => $now,
@@ -54,36 +56,47 @@ final class AttendeeDistributor
     }
 
     /**
-     * Guruhга biriktirilган o'rindiqlar TARTIBLI ro'yxati.
+     * Guruhga biriktirilgan o'rindiqlarning TARTIBLI ID ro'yxati. Klaster-belgilashlari
+     * (row_cluster_id) va butun-sektor belgilashlari (sector_id) o'rindiqlari birlashtiriladi.
      *
-     * @return array<int, array{seat_row_id: string, seat_number: int}>
+     * @return array<int, string>
      */
-    private function orderedSeats(Event $event, EventGroup $group): array
+    private function orderedSeatIds(Event $event, EventGroup $group): array
     {
-        $allocs = $event->allocations()->where('event_group_id', $group->id)
-            ->with(['sector.seatRows', 'seatRow.sector'])->get();
+        $allocs = $event->allocations()->where('event_group_id', $group->id)->get();
 
-        $rows = [];
+        $clusterIds = [];
+        $wholeSectorIds = [];
         foreach ($allocs as $a) {
-            if ($a->seat_row_id === null) {
-                foreach (($a->sector?->seatRows ?? collect()) as $r) {
-                    $rows[] = ['sort' => (int) ($a->sector->sort_order ?? 0), 'ri' => $r->row_index, 'row' => $r];
+            if ($a->row_cluster_id !== null) {
+                $clusterIds[] = $a->row_cluster_id;
+            } else {
+                $wholeSectorIds[] = $a->sector_id;
+            }
+        }
+
+        if ($clusterIds === [] && $wholeSectorIds === []) {
+            return [];
+        }
+
+        return Seat::query()
+            ->where('seats.venue_id', $event->venue_id)
+            ->leftJoin('sectors', 'seats.sector_id', '=', 'sectors.id')
+            ->leftJoin('row_clusters', 'seats.row_cluster_id', '=', 'row_clusters.id')
+            ->where(function ($q) use ($clusterIds, $wholeSectorIds) {
+                if ($clusterIds !== []) {
+                    $q->orWhereIn('seats.row_cluster_id', $clusterIds);
                 }
-            } elseif ($a->seatRow) {
-                $rows[] = ['sort' => (int) ($a->seatRow->sector->sort_order ?? 0), 'ri' => $a->seatRow->row_index, 'row' => $a->seatRow];
-            }
-        }
-
-        usort($rows, fn ($x, $y) => [$x['sort'], $x['ri']] <=> [$y['sort'], $y['ri']]);
-
-        $seats = [];
-        foreach ($rows as $r) {
-            $row = $r['row'];
-            for ($n = 0; $n < $row->seat_count; $n++) {
-                $seats[] = ['seat_row_id' => $row->id, 'seat_number' => (int) $row->seat_start + $n];
-            }
-        }
-
-        return $seats;
+                if ($wholeSectorIds !== []) {
+                    $q->orWhereIn('seats.sector_id', $wholeSectorIds);
+                }
+            })
+            ->orderByRaw('COALESCE(sectors.sort_order, 0)')
+            ->orderByRaw('COALESCE(row_clusters.centroid_y, 0)')
+            ->orderByRaw('COALESCE(row_clusters.centroid_x, 0)')
+            ->orderBy('seats.y')
+            ->orderBy('seats.x')
+            ->pluck('seats.id')
+            ->all();
     }
 }

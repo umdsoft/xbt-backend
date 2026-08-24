@@ -11,36 +11,32 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
- * Sektor — obyekt ichidagi burilgan o'rindiq bloki. O'rindiq koordinatasi
- * runtime formula bilan (anchor + rotation + lokal grid). Alohida `seats` yo'q.
+ * Qator klasteri — DWG'dan connected-components (600mm) bilan. angle 45/90/135.
+ * Belgilash (allocation) shu klasterga ishora qiladi (koordinata emas).
  */
-class Sector extends Model
+class RowCluster extends Model
 {
     use HasUuids;
 
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'venue_id', 'code', 'label', 'color', 'anchor_x', 'anchor_y', 'rotation',
-        'row_pitch', 'seat_pitch', 'polygon_json', 'tier', 'sort_order',
+        'uuid', 'venue_id', 'code', 'angle', 'seat_count', 'centroid_x', 'centroid_y',
     ];
 
     protected function casts(): array
     {
         return [
-            'anchor_x' => 'float',
-            'anchor_y' => 'float',
-            'rotation' => 'float',
-            'row_pitch' => 'float',
-            'seat_pitch' => 'float',
-            'polygon_json' => 'array',
-            'sort_order' => 'integer',
+            'angle' => 'float',
+            'seat_count' => 'integer',
+            'centroid_x' => 'float',
+            'centroid_y' => 'float',
         ];
     }
 
     protected static function booted(): void
     {
-        static::creating(fn (Sector $s) => $s->uuid ??= (string) Str::uuid());
+        static::creating(fn (RowCluster $r) => $r->uuid ??= (string) Str::uuid());
     }
 
     /** @return BelongsTo<Venue, $this> */
