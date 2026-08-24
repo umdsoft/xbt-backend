@@ -76,7 +76,11 @@ class ProtocolService
     {
         $tasks = $this->scope
             ->applyTask(Task::query(), $user)
-            ->with(['organization:id,name_lat,name_cyr', 'applicant:id,last_name,first_name,middle_name'])
+            ->with([
+                'organization:id,name_lat,name_cyr',
+                'coExecutors:id,name_lat,name_cyr',
+                'applicant:id,last_name,first_name,middle_name',
+            ])
             ->where('protocol_id', $protocol->id)
             ->orderBy('sort_order')
             ->orderBy('item_number')
@@ -135,6 +139,7 @@ class ProtocolService
             'days_left' => $task->days_left,
             'responsible_text' => $task->responsible_text,
             'organization' => $task->organization?->only(['id', 'name_lat', 'name_cyr']),
+            'co_executors' => $task->coExecutors->map->only(['id', 'name_lat', 'name_cyr'])->all(),
             'applicant' => $task->applicant_label,
             'applicant_youth_id' => $task->applicant_youth_id,
             'status' => $task->status,

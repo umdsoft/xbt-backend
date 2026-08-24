@@ -12,6 +12,7 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -52,7 +53,7 @@ class TaskService
 
     public function find(User $user, string $id): ?Task
     {
-        return $this->scope->applyTask(Task::query()->with(['organization', 'protocol', 'updates']), $user)
+        return $this->scope->applyTask(Task::query()->with(['organization', 'protocol', 'updates', 'coExecutors:id,name_lat,name_cyr,type']), $user)
             ->where('id', $id)
             ->first();
     }
@@ -73,16 +74,136 @@ class TaskService
 
         $this->guardItemNumber($data['protocol_id'] ?? null, $data['item_number'] ?? null, null);
 
-        $task = Task::query()->create($data);
+        // Hamkorlar alohida jadvalga tushadi — `Task::create` ularni
+        // fillable sifatida qabul qilmaydi.
+        $coExecutors = $this->normalizeCoExecutors(
+            $data['co_executor_ids'] ?? [],
+            (string) $data['assigned_org_id'],
+        );
+        unset($data['co_executor_ids']);
+
+        // Topshiriq va biriktirmalar BIRGA yoziladi: hamkorlar
+        // saqlanmasdan qolса, ular topshiriqni koʻrmay qolardi va buni
+        // hech kim sezmasdi.
+        $task = DB::transaction(function () use ($data, $coExecutors): Task {
+            $task = Task::query()->create($data);
+
+            if ($coExecutors !== []) {
+                $task->coExecutors()->sync($coExecutors);
+            }
+
+            return $task;
+        });
 
         $this->audit->log($user, 'task.create', 'task', $task->id, [
             'assigned_org_id' => $data['assigned_org_id'],
             'deadline' => $data['deadline'],
             'protocol_id' => $data['protocol_id'] ?? null,
             'item_number' => $data['item_number'] ?? null,
+            'co_executors' => count($coExecutors),
         ]);
 
+        $this->announce($task);
+
         return $task;
+    }
+
+    /**
+     * TOPSHIRIQ MASʼULLARGA YETKAZILADI.
+     *
+     * Yaratilgan zahoti bosh ijrochiga ham, hamkorlarga ham xabar
+     * boradi. Xabarsiz «biriktirish» faqat bazadagi qator boʻlib
+     * qolardi: masʼul tizimga kirib, oʻzi qidirib topishi kerak edi.
+     *
+     * Xabar matni ROLNI aytadi — «bosh ijrochi» va «hamkor» uchun bir
+     * xil matn yuborilsa, hamkor hisobot yuborishi kerak deb oʻylardi.
+     */
+    private function announce(Task $task): void
+    {
+        $deadline = $task->deadline?->format('d.m.Y') ?? '—';
+
+        $this->notify->notifyOrganization($task->assigned_org_id, 'task.assigned', [
+            'title' => 'Sizga topshiriq biriktirildi (bosh ijrochi)',
+            'body' => $task->title.' — muddat: '.$deadline,
+            'link' => '/topshiriqlar/'.$task->id,
+            'entity_type' => 'task',
+            'entity_id' => $task->id,
+        ]);
+
+        foreach ($task->coExecutors()->pluck('organizations.id') as $orgId) {
+            $this->notify->notifyOrganization((string) $orgId, 'task.assigned', [
+                'title' => 'Sizga topshiriq biriktirildi (hamkor ijrochi)',
+                'body' => $task->title.' — muddat: '.$deadline,
+                'link' => '/topshiriqlar/'.$task->id,
+                'entity_type' => 'task',
+                'entity_id' => $task->id,
+            ]);
+        }
+    }
+
+    /**
+     * Hamkorlar roʻyxatini tozalaydi.
+     *
+     * Bosh ijrochi roʻyxatdan CHIQARIB TASHLANADI: u allaqachon
+     * `assigned_org_id` da. Ikkala joyda turса, unga ikkita xabar
+     * borardi va ekranda ikki marta koʻrinardi.
+     *
+     * @param  array<int, string>  $ids
+     * @return array<int, string>
+     */
+    private function normalizeCoExecutors(array $ids, string $leadOrgId): array
+    {
+        $clean = array_values(array_unique(array_filter(
+            $ids,
+            fn ($id) => is_string($id) && $id !== '' && $id !== $leadOrgId,
+        )));
+
+        if ($clean === []) {
+            return [];
+        }
+
+        // Mavjudligi tekshiriladi: `uuid` validatsiyasi faqat SHAKLNI
+        // tekshiradi va topshiriq yoʻq tashkilotga biriktirilib qolardi.
+        $existing = Organization::query()->whereIn('id', $clean)->pluck('id')->all();
+
+        if (count($existing) !== count($clean)) {
+            throw ValidationException::withMessages([
+                'co_executor_ids' => 'Tanlangan hamkor tashkilotlardan biri topilmadi.',
+            ]);
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Hamkorlar roʻyxatini almashtiradi (update uchun).
+     *
+     * @param  array<int, string>  $ids
+     */
+    public function syncCoExecutors(User $user, Task $task, array $ids): void
+    {
+        $clean = $this->normalizeCoExecutors($ids, (string) $task->assigned_org_id);
+        $before = $task->coExecutors()->pluck('organizations.id')->all();
+
+        $task->coExecutors()->sync($clean);
+
+        $this->audit->log($user, 'task.co_executors', 'task', $task->id, [
+            'from' => count($before),
+            'to' => count($clean),
+        ]);
+
+        // FAQAT YANGI qoʻshilganlarga xabar — roʻyxat har tahrirda
+        // qayta yuborilsa, eski hamkorlar bir xil xabarni takroran
+        // olib, ularni umuman oʻqimay qoʻyardi.
+        foreach (array_diff($clean, $before) as $orgId) {
+            $this->notify->notifyOrganization((string) $orgId, 'task.assigned', [
+                'title' => 'Sizga topshiriq biriktirildi (hamkor ijrochi)',
+                'body' => $task->title.' — muddat: '.($task->deadline?->format('d.m.Y') ?? '—'),
+                'link' => '/topshiriqlar/'.$task->id,
+                'entity_type' => 'task',
+                'entity_id' => $task->id,
+            ]);
+        }
     }
 
     /** Hujjatdagi oxirgi banddan keyingi oʻrin. */

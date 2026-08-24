@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -115,6 +116,38 @@ class Task extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'assigned_org_id');
+    }
+
+    /**
+     * Hamkor ijrochilar — bosh ijrochidan TASHQARI masʼul tashkilotlar.
+     *
+     * Ular topshiriqni koʻradi va xabar oladi, lekin ijro hisobotini
+     * yubormaydi: hisobotni faqat bosh ijrochi (`assigned_org_id`)
+     * yuboradi, chunki tasdiqlash zanjiri bitta yuboruvchiga qurilgan.
+     *
+     * @return BelongsToMany<Organization, $this>
+     */
+    public function coExecutors(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Organization::class,
+            'yoshlar.task_co_executors',
+            'task_id',
+            'org_id',
+        );
+    }
+
+    /**
+     * Topshiriqni koʻrishi kerak boʻlgan BARCHA tashkilotlar.
+     *
+     * @return array<int, string>
+     */
+    public function responsibleOrgIds(): array
+    {
+        return array_values(array_unique(array_merge(
+            [$this->assigned_org_id],
+            $this->coExecutors()->pluck('organizations.id')->all(),
+        )));
     }
 
     /** @return HasMany<TaskUpdate> */

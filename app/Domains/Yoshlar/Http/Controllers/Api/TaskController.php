@@ -98,16 +98,17 @@ class TaskController extends Controller
             'applicant_name' => ['nullable', 'string', 'max:300'],
             'target_value' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'target_unit' => ['nullable', 'string', 'max:60'],
+
+            // Hamkor ijrochilar — bosh ijrochidan tashqari masʼullar.
+            'co_executor_ids' => ['nullable', 'array', 'max:10'],
+            'co_executor_ids.*' => ['uuid'],
         ]);
 
         $org = Organization::query()->find($data['assigned_org_id']);
 
         abort_if($org === null, 422, 'Tashkilot topilmadi.');
-        abort_unless(
-            in_array($org->type, [Organization::TYPE_TUMAN_SEKTOR, Organization::TYPE_VILOYAT_SEKTOR], true),
-            422,
-            'Topshiriq faqat sektoral tashkilotga biriktiriladi.',
-        );
+
+        $this->guardLeadExecutor($org);
 
         $data['district_id'] = $org->district_id;
 
@@ -146,27 +147,35 @@ class TaskController extends Controller
             'applicant_name' => ['nullable', 'string', 'max:300'],
             'target_value' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'target_unit' => ['nullable', 'string', 'max:60'],
+
+            // Hamkor ijrochilar — bosh ijrochidan tashqari masʼullar.
+            'co_executor_ids' => ['nullable', 'array', 'max:10'],
+            'co_executor_ids.*' => ['uuid'],
         ]);
 
-        // Mas'ul tashkilot ALMASHTIRILSA, u haqiqatan mavjud va ijrochi
-        // tur boʻlishi kerak: `uuid` validatsiyasi mavjudlikni tekshirmaydi
-        // va topshiriq hech kim koʻrmaydigan tashkilotga tushib qolardi.
+        // Masʼul tashkilot ALMASHTIRILSA, u haqiqatan MAVJUD boʻlishi
+        // kerak: `uuid` validatsiyasi faqat shaklni tekshiradi va
+        // topshiriq hech kim koʻrmaydigan tashkilotga tushib qolardi.
         if (isset($data['assigned_org_id'])) {
             $org = Organization::query()->find($data['assigned_org_id']);
 
             abort_if($org === null, 422, 'Tashkilot topilmadi.');
-            abort_unless(
-                in_array($org->type, [Organization::TYPE_TUMAN_SEKTOR, Organization::TYPE_VILOYAT_SEKTOR], true),
-                422,
-                'Topshiriq faqat sektoral tashkilotga biriktiriladi.',
-            );
+            $this->guardLeadExecutor($org);
 
             // Tuman ham tashkilotdan olinadi — qoʻlda kiritilgan qiymat
             // tashkilot bilan mos kelmasligi mumkin.
             $data['district_id'] = $org->district_id;
         }
 
+        // Hamkorlar alohida jadvalda — `update()` ularni bilmaydi.
+        $coExecutors = $data['co_executor_ids'] ?? null;
+        unset($data['co_executor_ids']);
+
         $model->update($data);
+
+        if ($coExecutors !== null) {
+            $this->service->syncCoExecutors($request->user(), $model, $coExecutors);
+        }
 
         $this->audit->log($request->user(), 'task.update', 'task', $model->id, $data);
 
@@ -288,6 +297,35 @@ class TaskController extends Controller
         $data['created_by'] = $request->user()->id;
 
         return response()->json(['data' => Protocol::query()->create($data)], 201);
+    }
+
+    /**
+     * BOSH IJROCHI zanjirning yakuniy tasdiqlovchisi boʻlolmaydi.
+     *
+     * Ilgari qoida kengroq edi: ijrochi FAQAT sektoral tashkilot boʻlishi
+     * mumkin edi. Ammo rasmiy hujjatda masʼul koʻpincha yoshlar
+     * vertikalining oʻzi — masalan tuman yoshlar boʻlimi — va uni tanlab
+     * boʻlmagani uchun band tizimga toʻgʻri kiritilmasdi.
+     *
+     * Endi cheklov ANIQ nuqtaga qaratilgan: viloyat yoshlar boshqarmasi
+     * zanjirda YAKUNIY tasdiqlovchi (`task.review.youth`), shuning uchun
+     * u bosh ijrochi boʻlsa, oʻz ishini oʻzi tasdiqlardi. Qolgan
+     * turlarning hammasi ijrochi boʻla oladi — ularni boshqa tashkilot
+     * tasdiqlaydi.
+     *
+     * Hujjatda viloyat boshqarmasi masʼul deb koʻrsatilgan boʻlsa, u
+     * HAMKOR ijrochi sifatida biriktiriladi (hamkor hisobot yubormaydi,
+     * demak oʻzini tasdiqlash holati yuzaga kelmaydi) va hujjatdagi asl
+     * matn `responsible_text` da saqlanadi.
+     */
+    private function guardLeadExecutor(Organization $org): void
+    {
+        abort_if(
+            $org->type === Organization::TYPE_VILOYAT_YOSHLAR,
+            422,
+            'Viloyat yoshlar boshqarmasi zanjirda yakuniy tasdiqlovchi — u bosh ijrochi '
+            .'boʻlolmaydi. Uni hamkor ijrochi sifatida qoʻshing.',
+        );
     }
 
     private function authorizeAction(Request $request, string $permission): void

@@ -79,11 +79,19 @@ class YoshlarHardeningTest extends YoshlarTestCase
             ->assertStatus(422);
     }
 
-    public function test_task_cannot_be_assigned_to_youth_vertical_org(): void
+    public function test_task_cannot_be_led_by_the_final_approver(): void
     {
-        // Topshiriqni YOSHLAR bo'limiga biriktirib bo'lmaydi — u zanjirda
-        // tasdiqlovchi, ijrochi emas.
-        $org = $this->makeOrganization(Organization::TYPE_TUMAN_YOSHLAR, [
+        // QOIDA ANIQLASHTIRILDI (2026-08-24).
+        //
+        // Ilgari butun yoshlar vertikali ijrochi boʻlishdan man etilgan
+        // edi. Ammo rasmiy hujjatda masʼul koʻpincha tuman yoshlar
+        // boʻlimi boʻladi va uni tanlab boʻlmagani uchun band tizimga
+        // toʻgʻri kiritilmasdi.
+        //
+        // Haqiqiy xavf torroq: viloyat yoshlar boshqarmasi zanjirda
+        // YAKUNIY tasdiqlovchi, shuning uchun aynan U bosh ijrochi
+        // boʻlsa, oʻz ishini oʻzi tasdiqlardi.
+        $org = $this->makeOrganization(Organization::TYPE_VILOYAT_YOSHLAR, [
             'district_id' => $this->someDistrictId(),
         ]);
 

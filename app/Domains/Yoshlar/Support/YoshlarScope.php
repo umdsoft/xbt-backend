@@ -114,7 +114,20 @@ class YoshlarScope
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('assigned_org_id', $orgIds);
+        // BOSH IJROCHI YOKI HAMKOR.
+        //
+        // Ilgari faqat `assigned_org_id` tekshirilardi va hujjatda masʼul
+        // deb koʻrsatilgan ikkinchi tashkilot topshiriqni umuman
+        // koʻrmasdi — u faqat matn ichida qolardi.
+        return $query->where(function (Builder $q) use ($orgIds) {
+            $q->whereIn('assigned_org_id', $orgIds)
+                ->orWhereExists(function ($sub) use ($orgIds) {
+                    $sub->selectRaw('1')
+                        ->from('yoshlar.task_co_executors as ce')
+                        ->whereColumn('ce.task_id', 'tasks.id')
+                        ->whereIn('ce.org_id', $orgIds);
+                });
+        });
     }
 
     /** Bitta yozuv tekshiruvi: shu tumanga tegishli amal qila oladimi. */
