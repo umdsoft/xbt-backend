@@ -6,6 +6,8 @@ namespace Tests\Feature\Hr\Seating;
 
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAllocation;
+use App\Domains\Hr\Models\EventAuditLog;
+use App\Domains\Hr\Models\EventSnapshot;
 use App\Domains\Hr\Models\Sector;
 use App\Domains\Hr\Models\Venue;
 use App\Domains\Hr\Services\Seating\AllocationWriter;
@@ -128,6 +130,24 @@ class SeatingServiceTest extends TestCase
             ['sector_id' => $sector2->id, 'seat_row_id' => null, 'event_group_id' => $g1->id],
             ['sector_id' => $sector2->id, 'seat_row_id' => $row->id, 'event_group_id' => $g2->id],
         ]);
+    }
+
+    public function test_print_snapshot_and_audit(): void
+    {
+        $event = $this->makeEvent($this->avesto());
+
+        $snap = EventSnapshot::create([
+            'event_id' => $event->id,
+            'svg_content' => '<svg xmlns="http://www.w3.org/2000/svg"/>',
+            'sheet_format' => 'A3 landscape',
+            'printed_at' => now(),
+        ]);
+        EventAuditLog::create(['event_id' => $event->id, 'action' => 'event.printed', 'payload_json' => ['format' => 'A3 landscape'], 'created_at' => now()]);
+
+        $this->assertNotNull($snap->id);
+        $this->assertSame('A3 landscape', $snap->sheet_format);
+        $this->assertSame(1, EventAuditLog::where('event_id', $event->id)->where('action', 'event.printed')->count());
+        $this->assertSame(1, EventSnapshot::where('event_id', $event->id)->count());
     }
 
     public function test_writer_replace_all_is_idempotent(): void

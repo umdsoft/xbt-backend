@@ -8,6 +8,7 @@ use App\Domains\Hr\Http\Controllers\Api\HrController;
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAuditLog;
 use App\Domains\Hr\Models\EventGroup;
+use App\Domains\Hr\Models\EventSnapshot;
 use App\Domains\Hr\Services\Seating\AllocationWriter;
 use App\Domains\Hr\Services\Seating\CapacityCalculator;
 use Illuminate\Http\JsonResponse;
@@ -217,6 +218,31 @@ class EventController extends HrController
         $this->audit($new, 'event.duplicated', ['from' => $event->id]);
 
         return response()->json(['message' => 'Нусха яратилди.', 'event' => $new], 201);
+    }
+
+    /**
+     * Pechat snapshot — vektor SVG serverда saqlanadi (event_snapshots).
+     * Server-PDF (Browsershot) keyingi bosqichда shu SVG'dan render qilinadi.
+     */
+    public function print(Request $request, Event $event): JsonResponse
+    {
+        $this->authorize('view', $event);
+
+        $data = $request->validate([
+            'svg_content' => ['nullable', 'string'],
+            'sheet_format' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $snapshot = EventSnapshot::create([
+            'event_id' => $event->id,
+            'svg_content' => $data['svg_content'] ?? null,
+            'sheet_format' => $data['sheet_format'] ?? null,
+            'printed_by' => $this->actor()->id,
+            'printed_at' => now(),
+        ]);
+        $this->audit($event, 'event.printed', ['format' => $snapshot->sheet_format]);
+
+        return response()->json(['message' => 'Снапшот сақланди.', 'snapshot' => $snapshot->only(['id', 'sheet_format', 'printed_at'])], 201);
     }
 
     private function audit(Event $event, string $action, array $payload = []): void

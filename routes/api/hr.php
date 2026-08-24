@@ -189,4 +189,8 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::put('events/{event}/groups', [EventController::class, 'syncGroups'])->name('events.groups.sync');
             Route::put('events/{event}/allocations', [EventController::class, 'syncAllocations'])->name('events.allocations.sync');
         });
+        // Pechat snapshot — seating.print
+        Route::middleware('hr.can:seating.print')->group(function () {
+            Route::post('events/{event}/print', [EventController::class, 'print'])->name('events.print');
+        });
     });
