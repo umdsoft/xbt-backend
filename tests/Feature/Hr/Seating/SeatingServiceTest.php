@@ -63,9 +63,9 @@ class SeatingServiceTest extends TestCase
     {
         $plan = app(PlanBuilder::class)->build($this->avesto());
 
-        $this->assertSame(11, $plan['totals']['sectors']);
-        $this->assertSame(109, $plan['totals']['rows']);
-        $this->assertSame(2379, $plan['totals']['seats']);
+        $this->assertSame(6, $plan['totals']['sectors']);
+        $this->assertSame(155, $plan['totals']['rows']);
+        $this->assertSame(2384, $plan['totals']['seats']);
         $this->assertNotEmpty($plan['sectors']);
         $this->assertArrayHasKey('anchor_x', $plan['sectors'][0]);
         $this->assertArrayHasKey('rows', $plan['sectors'][0]);
@@ -79,8 +79,8 @@ class SeatingServiceTest extends TestCase
         $groupA = $event->groups()->create(['name' => 'A', 'color' => '#f00']);
         $groupB = $event->groups()->create(['name' => 'B', 'color' => '#00f', 'expected_count' => 10]);
 
-        $sector8 = Sector::where('venue_id', $venue->id)->where('code', '8')->firstOrFail();
-        $sector2 = Sector::where('venue_id', $venue->id)->where('code', '2')->firstOrFail();
+        $sector8 = Sector::where('venue_id', $venue->id)->where('code', 'ONG')->firstOrFail();
+        $sector2 = Sector::where('venue_id', $venue->id)->where('code', 'CHAP')->firstOrFail();
         $row = $sector2->seatRows()->orderBy('row_index')->first();
 
         app(AllocationWriter::class)->sync($event, [
@@ -90,10 +90,10 @@ class SeatingServiceTest extends TestCase
 
         $cap = app(CapacityCalculator::class)->forEvent($event->fresh());
 
-        $sector8Total = (int) $sector8->seatRows()->sum('seat_count'); // 271
-        $this->assertSame(2379, $cap['capacity']);
+        $sector8Total = (int) $sector8->seatRows()->sum('seat_count'); // butun sektor (ONG)
+        $this->assertSame(2384, $cap['capacity']);
         $this->assertSame($sector8Total + $row->seat_count, $cap['assigned']);
-        $this->assertSame(2379 - ($sector8Total + $row->seat_count), $cap['unassigned']);
+        $this->assertSame(2384 - ($sector8Total + $row->seat_count), $cap['unassigned']);
 
         $a = collect($cap['groups'])->firstWhere('id', $groupA->id);
         $b = collect($cap['groups'])->firstWhere('id', $groupB->id);
@@ -108,7 +108,7 @@ class SeatingServiceTest extends TestCase
         $event = $this->makeEvent($venue);
         $g1 = $event->groups()->create(['name' => 'G1']);
         $g2 = $event->groups()->create(['name' => 'G2']);
-        $sector2 = Sector::where('venue_id', $venue->id)->where('code', '2')->firstOrFail();
+        $sector2 = Sector::where('venue_id', $venue->id)->where('code', 'CHAP')->firstOrFail();
         $row = $sector2->seatRows()->first();
 
         $this->expectException(ValidationException::class);
@@ -124,7 +124,7 @@ class SeatingServiceTest extends TestCase
         $event = $this->makeEvent($venue);
         $g1 = $event->groups()->create(['name' => 'G1']);
         $g2 = $event->groups()->create(['name' => 'G2']);
-        $sector2 = Sector::where('venue_id', $venue->id)->where('code', '2')->firstOrFail();
+        $sector2 = Sector::where('venue_id', $venue->id)->where('code', 'CHAP')->firstOrFail();
         $row = $sector2->seatRows()->first();
 
         $this->expectException(ValidationException::class);
@@ -155,7 +155,7 @@ class SeatingServiceTest extends TestCase
     public function test_calibrate_updates_geometry_and_busts_cache(): void
     {
         $venue = $this->avesto();
-        $s8 = Sector::where('venue_id', $venue->id)->where('code', '8')->firstOrFail();
+        $s8 = Sector::where('venue_id', $venue->id)->where('code', 'ONG')->firstOrFail();
         $origX = $s8->anchor_x;
 
         app(PlanBuilder::class)->build($venue); // keshlanadi
@@ -164,7 +164,7 @@ class SeatingServiceTest extends TestCase
         $venue->touch(); // plan keshi (updated_at kaliti) yangilanadi
 
         $after = app(PlanBuilder::class)->build($venue->fresh());
-        $s8After = collect($after['sectors'])->firstWhere('code', '8');
+        $s8After = collect($after['sectors'])->firstWhere('code', 'ONG');
 
         $this->assertSame((float) ($origX + 9999), (float) $s8After['anchor_x']);
         $this->assertSame(42.0, (float) $s8After['rotation']);
@@ -175,7 +175,7 @@ class SeatingServiceTest extends TestCase
         $venue = $this->avesto();
         $event = $this->makeEvent($venue);
         $g = $event->groups()->create(['name' => 'G']);
-        $sector1 = Sector::where('venue_id', $venue->id)->where('code', '1')->firstOrFail();
+        $sector1 = Sector::where('venue_id', $venue->id)->where('code', 'PARTER')->firstOrFail();
 
         app(AllocationWriter::class)->sync($event, [
             ['sector_id' => $sector1->id, 'seat_row_id' => null, 'event_group_id' => $g->id],
@@ -201,7 +201,7 @@ class SeatingServiceTest extends TestCase
         $venue = $this->avesto();
         $event = $this->makeEvent($venue);
         $g = $event->groups()->create(['name' => 'G']);
-        $sector8 = Sector::where('venue_id', $venue->id)->where('code', '8')->firstOrFail();
+        $sector8 = Sector::where('venue_id', $venue->id)->where('code', 'ONG')->firstOrFail();
 
         $payload = [['sector_id' => $sector8->id, 'seat_row_id' => null, 'event_group_id' => $g->id]];
         app(AllocationWriter::class)->sync($event, $payload);

@@ -38,6 +38,7 @@ final class PlanBuilder
                     'index' => $r->row_index,
                     'seat_count' => $r->seat_count,
                     'seat_start' => $r->seat_start,
+                    'points' => $r->points_json,   // [[x,y],...] obyekt-lokal mm, yoki null (formula)
                 ])->values(),
             ])->values();
 

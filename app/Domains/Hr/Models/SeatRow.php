@@ -20,7 +20,7 @@ class SeatRow extends Model
     protected $connection = 'hr';
 
     protected $fillable = [
-        'uuid', 'sector_id', 'row_index', 'seat_count', 'seat_start', 'seat_labels_json',
+        'uuid', 'sector_id', 'row_index', 'seat_count', 'seat_start', 'seat_labels_json', 'points_json',
     ];
 
     protected function casts(): array
@@ -30,6 +30,7 @@ class SeatRow extends Model
             'seat_count' => 'integer',
             'seat_start' => 'integer',
             'seat_labels_json' => 'array',
+            'points_json' => 'array',
         ];
     }
 

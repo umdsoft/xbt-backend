@@ -10,9 +10,10 @@ use App\Domains\Hr\Models\Venue;
 use Illuminate\Database\Seeder;
 
 /**
- * Avesto majmuasi katta zali — obyekt + 11 sektor + 109 qator (2379 o'rindiq).
- * Manba: database/seeders/data/avesto_venue_geometry.json (CAD chizmasidan).
- * Idempotent (updateOrCreate); alohida `seats` YO'Q — qator seat_count saqlaydi.
+ * Avesto majmuasi katta zali — obyekt + 6 jismoniy hudud (Президиум/Партер/Чап-Ўнг
+ * қанот/ложалар) + 62 qator + 2384 o'rindiq. Manba: avesto.dwg (libredwg) → aniq
+ * o'rindiq (x,y) koordinatalari database/seeders/data/avesto_venue_geometry.json'da.
+ * Idempotent; qatorlar `points_json` bilan aniq chiziladi (alohida `seats` jadvali YO'Q).
  */
 class AvestoVenueSeeder extends Seeder
 {
@@ -33,9 +34,14 @@ class AvestoVenueSeeder extends Seeder
         $data = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         $sectors = $data['sectors'] ?? [];
 
+        // Qatorlar endi obyekt: {index, seat_count, seat_start, points}. Eski format (int) ham qo'llab-quvvatlanadi.
+        $rowSeatCount = static fn ($row): int => is_array($row) ? (int) ($row['seat_count'] ?? 0) : (int) $row;
+
         $capacity = 0;
         foreach ($sectors as $s) {
-            $capacity += (int) array_sum($s['rows'] ?? []);
+            foreach (($s['rows'] ?? []) as $row) {
+                $capacity += $rowSeatCount($row);
+            }
         }
 
         $venue = Venue::updateOrCreate(
@@ -51,11 +57,15 @@ class AvestoVenueSeeder extends Seeder
             ],
         );
 
+        // Eski geometriyadan qolgan sektorlarni tozalash (kodlar to'plami o'zgargan bo'lishi mumkin).
+        $keepCodes = array_map(static fn ($s) => (string) $s['code'], $sectors);
+        $venue->sectors()->whereNotIn('code', $keepCodes)->delete();
+
         foreach ($sectors as $s) {
             $sector = Sector::updateOrCreate(
                 ['venue_id' => $venue->id, 'code' => (string) $s['code']],
                 [
-                    'label' => ($s['code'] ?? '').'-SEKTOR',
+                    'label' => $s['label'] ?? (($s['code'] ?? '').'-SEKTOR'),
                     'anchor_x' => (float) $s['anchor_x'],
                     'anchor_y' => (float) $s['anchor_y'],
                     'rotation' => (float) $s['rotation'],
@@ -66,11 +76,18 @@ class AvestoVenueSeeder extends Seeder
                 ],
             );
 
-            foreach (($s['rows'] ?? []) as $i => $seatCount) {
-                SeatRow::updateOrCreate(
-                    ['sector_id' => $sector->id, 'row_index' => $i + 1],
-                    ['seat_count' => (int) $seatCount, 'seat_start' => 1],
-                );
+            // Eski qatorlarni tozalash (agar geometriya o'zgargan bo'lsa — qator soni farq qilishi mumkin).
+            SeatRow::where('sector_id', $sector->id)->delete();
+
+            foreach (($s['rows'] ?? []) as $i => $row) {
+                $isObj = is_array($row);
+                SeatRow::create([
+                    'sector_id' => $sector->id,
+                    'row_index' => $isObj ? (int) ($row['index'] ?? $i + 1) : $i + 1,
+                    'seat_count' => $rowSeatCount($row),
+                    'seat_start' => $isObj ? (int) ($row['seat_start'] ?? 1) : 1,
+                    'points_json' => $isObj ? ($row['points'] ?? null) : null,
+                ]);
             }
         }
 
