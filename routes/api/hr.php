@@ -6,6 +6,7 @@ use App\Domains\Hr\Http\Controllers\Api\AuditController;
 use App\Domains\Hr\Http\Controllers\Api\CatalogController;
 use App\Domains\Hr\Http\Controllers\Api\Seating\AttendeeController;
 use App\Domains\Hr\Http\Controllers\Api\Seating\EventController;
+use App\Domains\Hr\Http\Controllers\Api\Seating\SeatAssignmentController;
 use App\Domains\Hr\Http\Controllers\Api\Seating\VenueController;
 use App\Domains\Hr\Http\Controllers\Api\CitizenAppealController;
 use App\Domains\Hr\Http\Controllers\Api\ControlPlanController;
@@ -182,6 +183,9 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::get('events/{event}/capacity', [EventController::class, 'capacity'])->name('events.capacity');
             Route::get('events/{event}/attendees', [AttendeeController::class, 'index'])->name('events.attendees.index');
             Route::get('events/{event}/attendance', [AttendeeController::class, 'attendance'])->name('events.attendance');
+            // Per-seat biriktirish (o'qish)
+            Route::get('events/{event}/seat-map', [SeatAssignmentController::class, 'map'])->name('events.seats.map');
+            Route::get('events/{event}/seats/{seat}', [SeatAssignmentController::class, 'show'])->name('events.seats.show');
         });
         // Yaratish/belgilash — seating.mark
         Route::middleware('hr.can:seating.mark')->group(function () {
@@ -194,6 +198,10 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::put('events/{event}/attendees', [AttendeeController::class, 'distribute'])->name('events.attendees.distribute');
             Route::post('events/{event}/seat-attendee', [AttendeeController::class, 'assignSeat'])->name('events.attendees.seat');
             Route::post('events/{event}/attendees/{attendee}/checkin', [AttendeeController::class, 'checkin'])->name('events.attendees.checkin');
+            // Per-seat biriktirish (yozish)
+            Route::post('events/{event}/seats/assign', [SeatAssignmentController::class, 'assign'])->name('events.seats.assign');
+            Route::post('events/{event}/seats/release', [SeatAssignmentController::class, 'release'])->name('events.seats.release');
+            Route::patch('events/{event}/seats/{seat}', [SeatAssignmentController::class, 'update'])->name('events.seats.update');
         });
         // Pechat snapshot — seating.print
         Route::middleware('hr.can:seating.print')->group(function () {
