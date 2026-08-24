@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domains\Hr\Http\Controllers\Api\AuditController;
 use App\Domains\Hr\Http\Controllers\Api\CatalogController;
+use App\Domains\Hr\Http\Controllers\Api\Seating\AttendeeController;
 use App\Domains\Hr\Http\Controllers\Api\Seating\EventController;
 use App\Domains\Hr\Http\Controllers\Api\Seating\VenueController;
 use App\Domains\Hr\Http\Controllers\Api\CitizenAppealController;
@@ -179,6 +180,8 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::get('events', [EventController::class, 'index'])->name('events.index');
             Route::get('events/{event}', [EventController::class, 'show'])->name('events.show');
             Route::get('events/{event}/capacity', [EventController::class, 'capacity'])->name('events.capacity');
+            Route::get('events/{event}/attendees', [AttendeeController::class, 'index'])->name('events.attendees.index');
+            Route::get('events/{event}/attendance', [AttendeeController::class, 'attendance'])->name('events.attendance');
         });
         // Yaratish/belgilash — seating.mark
         Route::middleware('hr.can:seating.mark')->group(function () {
@@ -188,6 +191,8 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
             Route::put('events/{event}/groups', [EventController::class, 'syncGroups'])->name('events.groups.sync');
             Route::put('events/{event}/allocations', [EventController::class, 'syncAllocations'])->name('events.allocations.sync');
+            Route::put('events/{event}/attendees', [AttendeeController::class, 'distribute'])->name('events.attendees.distribute');
+            Route::post('events/{event}/attendees/{attendee}/checkin', [AttendeeController::class, 'checkin'])->name('events.attendees.checkin');
         });
         // Pechat snapshot — seating.print
         Route::middleware('hr.can:seating.print')->group(function () {

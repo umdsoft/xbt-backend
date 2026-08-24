@@ -6,9 +6,11 @@ namespace Tests\Feature\Hr\Seating;
 
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAllocation;
+use App\Domains\Hr\Models\EventAttendee;
 use App\Domains\Hr\Models\EventAuditLog;
 use App\Domains\Hr\Models\EventSnapshot;
 use App\Domains\Hr\Models\Sector;
+use App\Domains\Hr\Services\Seating\AttendeeDistributor;
 use App\Domains\Hr\Models\Venue;
 use App\Domains\Hr\Services\Seating\AllocationWriter;
 use App\Domains\Hr\Services\Seating\CapacityCalculator;
@@ -166,6 +168,32 @@ class SeatingServiceTest extends TestCase
 
         $this->assertSame((float) ($origX + 9999), (float) $s8After['anchor_x']);
         $this->assertSame(42.0, (float) $s8After['rotation']);
+    }
+
+    public function test_attendee_distribution_seats_in_order(): void
+    {
+        $venue = $this->avesto();
+        $event = $this->makeEvent($venue);
+        $g = $event->groups()->create(['name' => 'G']);
+        $sector1 = Sector::where('venue_id', $venue->id)->where('code', '1')->firstOrFail();
+
+        app(AllocationWriter::class)->sync($event, [
+            ['sector_id' => $sector1->id, 'seat_row_id' => null, 'event_group_id' => $g->id],
+        ]);
+
+        $count = app(AttendeeDistributor::class)->distribute($event->fresh(), $g->fresh(), ['Aaa', 'Bbb', 'Ccc']);
+        $this->assertSame(3, $count);
+
+        $att = EventAttendee::where('event_group_id', $g->id)->orderBy('seat_number')->get();
+        $firstRow = $sector1->seatRows()->orderBy('row_index')->first();
+        $this->assertSame(3, $att->count());
+        $this->assertSame($firstRow->id, $att[0]->seat_row_id);
+        $this->assertSame(1, $att[0]->seat_number);
+        $this->assertSame('Aaa', $att[0]->full_name);
+
+        // Qayta taqsimlash — dublikat bermaydi (replace-all)
+        app(AttendeeDistributor::class)->distribute($event->fresh(), $g->fresh(), ['X', 'Y']);
+        $this->assertSame(2, EventAttendee::where('event_group_id', $g->id)->count());
     }
 
     public function test_writer_replace_all_is_idempotent(): void
