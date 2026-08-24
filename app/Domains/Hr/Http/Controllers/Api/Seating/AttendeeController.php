@@ -52,6 +52,42 @@ class AttendeeController extends HrController
         ]);
     }
 
+    /** Yakka: bitta o'rindiqqa aniq kishi biriktirish (yoki bo'sh nom → o'chirish). */
+    public function assignSeat(Request $request, Event $event): JsonResponse
+    {
+        $this->authorize('update', $event);
+
+        $data = $request->validate([
+            'seat_id' => ['required', 'uuid'],
+            'full_name' => ['nullable', 'string', 'max:255'],
+            'org' => ['nullable', 'string', 'max:255'],
+            'event_group_id' => ['nullable', 'uuid'],
+        ]);
+
+        // o'rindiq shu obyektники ekanini tekshirish (IDOR)
+        $seat = \App\Domains\Hr\Models\Seat::where('id', $data['seat_id'])
+            ->where('venue_id', $event->venue_id)->firstOrFail();
+
+        $gid = $data['event_group_id'] ?? null;
+        if ($gid !== null) {
+            $event->groups()->findOrFail($gid); // guruh shu tadbirники
+        }
+
+        $name = trim((string) ($data['full_name'] ?? ''));
+        if ($name === '') {
+            EventAttendee::where('event_id', $event->id)->where('seat_id', $seat->id)->delete();
+
+            return response()->json(['attendee' => null]);
+        }
+
+        $att = EventAttendee::updateOrCreate(
+            ['event_id' => $event->id, 'seat_id' => $seat->id],
+            ['event_group_id' => $gid, 'full_name' => $name, 'org' => $data['org'] ?? null],
+        );
+
+        return response()->json(['attendee' => $att->only(['id', 'seat_id', 'event_group_id', 'full_name', 'org', 'present'])]);
+    }
+
     /** Davomat — kelgan/kelmagan (toggle). */
     public function checkin(Event $event, string $attendee): JsonResponse
     {

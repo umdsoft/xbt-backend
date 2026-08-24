@@ -192,6 +192,7 @@ Route::middleware(['auth:sanctum', 'system.access:xbt', 'hr.context'])
             Route::put('events/{event}/groups', [EventController::class, 'syncGroups'])->name('events.groups.sync');
             Route::put('events/{event}/allocations', [EventController::class, 'syncAllocations'])->name('events.allocations.sync');
             Route::put('events/{event}/attendees', [AttendeeController::class, 'distribute'])->name('events.attendees.distribute');
+            Route::post('events/{event}/seat-attendee', [AttendeeController::class, 'assignSeat'])->name('events.attendees.seat');
             Route::post('events/{event}/attendees/{attendee}/checkin', [AttendeeController::class, 'checkin'])->name('events.attendees.checkin');
         });
         // Pechat snapshot — seating.print
