@@ -78,10 +78,14 @@ class AvestoVenueSeeder extends Seeder
 
         // --- sectors (K/O/Y) ---
         $secDef = [
+            'V' => ['label' => 'VIP / Президиум', 'color' => '#d97706', 'sort' => 0],
             'K' => ['label' => 'Кўк гуруҳ', 'color' => '#2563eb', 'sort' => 1],
             'O' => ['label' => 'Оқ гуруҳ', 'color' => '#94a3b8', 'sort' => 2],
             'Y' => ['label' => 'Яшил гуруҳ', 'color' => '#16a34a', 'sort' => 3],
         ];
+        // faqat mavjud guruhlar uchun sektor
+        $present = array_values(array_unique(array_map(static fn ($s) => $s['seat_group'], $data['seats'])));
+        $secDef = array_intersect_key($secDef, array_flip($present));
         $secMap = [];
         foreach ($secDef as $g => $def) {
             $sec = Sector::create([

@@ -58,9 +58,9 @@ class SeatingServiceTest extends TestCase
     {
         $plan = app(PlanBuilder::class)->build($this->avesto());
 
-        $this->assertSame(2400, $plan['totals']['seats']);
-        $this->assertSame(156, $plan['totals']['clusters']);
-        $this->assertSame(3, $plan['totals']['sectors']);
+        $this->assertSame(2440, $plan['totals']['seats']);
+        $this->assertSame(160, $plan['totals']['clusters']);
+        $this->assertSame(4, $plan['totals']['sectors']);
         $this->assertArrayHasKey('bbox', $plan);
         $this->assertSame('y', $plan['mirror_axis']['axis']);
         $this->assertArrayHasKey('x', $plan['seats'][0]);
@@ -86,7 +86,7 @@ class SeatingServiceTest extends TestCase
         $cap = app(CapacityCalculator::class)->forEvent($event->fresh());
         $kSeats = DB::connection('hr')->table('seats')->where('sector_id', $secK->id)->count();
 
-        $this->assertSame(2400, $cap['capacity']);
+        $this->assertSame(2440, $cap['capacity']);
         $a = collect($cap['groups'])->firstWhere('id', $gA->id);
         $b = collect($cap['groups'])->firstWhere('id', $gB->id);
         $this->assertSame($kSeats, $a['assigned']);
