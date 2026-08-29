@@ -144,6 +144,29 @@ class MakeAyollarUserCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Nom yoki ID bo'yicha qidiradi.
+     *
+     * UUID tekshiruvi MAJBURIY: PostgreSQL `uuid` ustuniga matn
+     * berilganda so'rovni RAD ETADI (`invalid input syntax for type
+     * uuid`), ya'ni `--district=Bog` yozish 500 xato bilan tugardi.
+     * MySQL'da bu jimgina ishlagan bo'lardi — shuning uchun xato
+     * faqat Postgres'da chiqdi.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function matchNameOrId($query, string $input): void
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $input) === 1) {
+            $query->where('id', $input);
+
+            return;
+        }
+
+        $query->where('name_lat', 'ilike', "%{$input}%")
+            ->orWhere('name_cyr', 'ilike', "%{$input}%");
+    }
+
     /** Nom yoki ID bo'yicha tumanni topadi. */
     private function resolveDistrict(): ?string
     {
@@ -154,9 +177,7 @@ class MakeAyollarUserCommand extends Command
         }
 
         $id = DB::connection('master')->table('districts')
-            ->where('id', $input)
-            ->orWhere('name_lat', 'ilike', "%{$input}%")
-            ->orWhere('name_cyr', 'ilike', "%{$input}%")
+            ->where(fn ($q) => $this->matchNameOrId($q, $input))
             ->value('id');
 
         if ($id === null) {
@@ -175,11 +196,7 @@ class MakeAyollarUserCommand extends Command
         }
 
         $query = DB::connection('master')->table('mahallas')
-            ->where(function ($q) use ($input): void {
-                $q->where('id', $input)
-                    ->orWhere('name_lat', 'ilike', "%{$input}%")
-                    ->orWhere('name_cyr', 'ilike', "%{$input}%");
-            });
+            ->where(fn ($q) => $this->matchNameOrId($q, $input));
 
         if ($districtId !== null) {
             $query->where('district_id', $districtId);
