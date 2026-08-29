@@ -8,6 +8,7 @@ use App\Domains\Ayollar\Http\Controllers\Api\AnketaController;
 use App\Domains\Ayollar\Http\Controllers\Api\BalanceController;
 use App\Domains\Ayollar\Http\Controllers\Api\BootstrapController;
 use App\Domains\Ayollar\Http\Controllers\Api\ContextController;
+use App\Domains\Ayollar\Http\Controllers\Api\DeviceController;
 use App\Domains\Ayollar\Http\Controllers\Api\ExportController;
 use App\Domains\Ayollar\Http\Controllers\Api\HouseholdController;
 use App\Domains\Ayollar\Http\Controllers\Api\PublicQrController;
@@ -53,6 +54,9 @@ Route::middleware(['auth:sanctum', 'ayollar'])
         Route::get('/context', ContextController::class)->name('context');
         Route::get('/bootstrap', BootstrapController::class)->name('bootstrap');
         Route::get('/rules', RulesController::class)->name('rules');
+
+        // Planshet kirgandan keyin qurilmani qayd etadi (promt §11).
+        Route::post('/device/register', [DeviceController::class, 'register'])->name('device.register');
 
         // ---------- Xonadon va ayol ----------
         Route::get('/households', [HouseholdController::class, 'index'])->name('households.index');

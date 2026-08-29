@@ -105,6 +105,15 @@ class AnalyticsController extends Controller
             ->whereIn('id', $rows->pluck('mahalla_id')->filter()->all())
             ->pluck('name_lat', 'id');
 
+        // Qurilma va oxirgi kirish — «kim yordamga muhtoj» savoliga
+        // anketa sonidan ko'ra ANIQROQ javob beradi: bir hafta
+        // kirmagan faolda son shunchaki 0 bo'lib qoladi va sabab
+        // (planshet buzuq? xodim almashgan?) noma'lum qolardi.
+        $devices = DB::connection('ayollar')->table('staff')
+            ->whereIn('user_id', $rows->pluck('created_by')->filter()->all())
+            ->get(['user_id', 'last_device_id', 'last_seen_at'])
+            ->keyBy('user_id');
+
         return response()->json([
             'activists' => $rows->map(fn ($r) => [
                 'user_id' => $r->created_by,
@@ -116,6 +125,8 @@ class AnalyticsController extends Controller
                 'drafts' => (int) $r->drafts,
                 'unsynced' => (int) $r->unsynced,
                 'last_filled' => $r->last_filled,
+                'device_id' => $devices[$r->created_by]->last_device_id ?? null,
+                'last_seen_at' => $devices[$r->created_by]->last_seen_at ?? null,
                 // Sifat = to'liq anketalar ulushi. Bitta son bilan kim
                 // yordamga muhtojligini ko'rsatadi.
                 'quality' => (int) $r->total > 0

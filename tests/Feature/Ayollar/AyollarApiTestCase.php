@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Ayollar;
 
 use App\Domains\Ayollar\Models\Anketa;
+use App\Models\User;
 
 /**
  * API testlari uchun qo'shimcha fikstura yordamchilari.
@@ -35,12 +36,16 @@ abstract class AyollarApiTestCase extends AyollarTestCase
         ?array $answers = null,
         ?string $pinfl = null,
         int $age = 30,
+        ?User $createdBy = null,
     ): Anketa {
         $household = $this->makeHousehold($mahallaId, $districtId);
         $woman = $this->makeWoman($household, $age, $pinfl);
 
-        return $this->makeAnketa($woman, $answers ?? [
-            'q11' => 'rasmiy_davlat', 'q12' => 'yoq', 'q13' => 'yoq',
-        ]);
+        return $this->makeAnketa(
+            $woman,
+            $answers ?? ['q11' => 'rasmiy_davlat', 'q12' => 'yoq', 'q13' => 'yoq'],
+            Anketa::STATUS_COMPLETED,
+            $createdBy,
+        );
     }
 }

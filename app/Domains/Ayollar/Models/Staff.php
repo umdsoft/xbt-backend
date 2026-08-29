@@ -26,10 +26,11 @@ class Staff extends Model
     protected $fillable = [
         'user_id', 'region_id', 'district_id', 'mahalla_id',
         'org_code', 'position', 'is_active',
+        'last_device_id', 'last_platform', 'last_app_version', 'last_seen_at',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'last_seen_at' => 'datetime'];
     }
 }

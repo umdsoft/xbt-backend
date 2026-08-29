@@ -184,14 +184,19 @@ abstract class AyollarTestCase extends TestCase
      *
      * @param  array<string, mixed>  $answers
      */
-    protected function makeAnketa(Woman $woman, array $answers, string $status = Anketa::STATUS_COMPLETED): Anketa
-    {
+    protected function makeAnketa(
+        Woman $woman,
+        array $answers,
+        string $status = Anketa::STATUS_COMPLETED,
+        ?User $createdBy = null,
+    ): Anketa {
         return app(AnketaService::class)->save(
             $woman,
             $answers,
             ['status' => $status],
             '08',
             (string) random_int(1000, 9999),
+            $createdBy === null ? null : (string) $createdBy->id,
         );
     }
 
