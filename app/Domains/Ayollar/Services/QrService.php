@@ -88,6 +88,79 @@ class QrService
      * shuning uchun L yetarli emas; H esa matritsani kattalashtirib,
      * 25 mm da modulni juda mayda qilardi.
      */
+    /**
+     * QR modullarining MATRITSASI — PDF uchun.
+     *
+     * NEGA RASM EMAS: `dompdf` inline SVG ni to'liq qo'llab-quvvatlamaydi,
+     * PNG uchun esa `imagick` yoki GD kerak — ikkalasi ham prod serverda
+     * bo'lishi kafolatlanmagan. Matritsa esa oddiy jadval bo'lib
+     * chiziladi va HAR QANDAY muhitda bir xil chiqadi.
+     *
+     * @return array<int, array<int, bool>>  [qator][ustun] = qora modulmi
+     */
+    public function matrix(Anketa $anketa): array
+    {
+        $code = Encoder::encode(
+            $this->url($anketa),
+            ErrorCorrectionLevel::M(),
+            Encoder::DEFAULT_BYTE_MODE_ECODING,
+        );
+
+        $bytes = $code->getMatrix();
+        $rows = [];
+
+        for ($y = 0; $y < $bytes->getHeight(); $y++) {
+            $row = [];
+
+            for ($x = 0; $x < $bytes->getWidth(); $x++) {
+                $row[] = $bytes->get($x, $y) === 1;
+            }
+
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * QR ni TO'RTBURCHAKLAR ro'yxatiga aylantiradi (run-length).
+     *
+     * NEGA MATRITSA EMAS: 37x37 = 1369 katak. dompdf har katak uchun
+     * obyekt yaratadi va bitta PDF 128 MB xotira limitini oshirib
+     * yuboradi — bu aynan sodir bo'ldi. Qatordagi ketma-ket qora
+     * modullarni bitta to'rtburchakka birlashtirish element sonini
+     * ~5 barobar kamaytiradi.
+     *
+     * O'lchamlar MODUL birligida: chaqiruvchi ularni mm ga o'giradi.
+     *
+     * @return array{size: int, runs: array<int, array{x: int, y: int, w: int}>}
+     */
+    public function runs(Anketa $anketa): array
+    {
+        $matrix = $this->matrix($anketa);
+        $runs = [];
+
+        foreach ($matrix as $y => $row) {
+            $start = null;
+
+            foreach ($row as $x => $on) {
+                if ($on && $start === null) {
+                    $start = $x;
+                } elseif (! $on && $start !== null) {
+                    $runs[] = ['x' => $start, 'y' => $y, 'w' => $x - $start];
+                    $start = null;
+                }
+            }
+
+            // Qator oxirigacha davom etgan yugurish.
+            if ($start !== null) {
+                $runs[] = ['x' => $start, 'y' => $y, 'w' => count($row) - $start];
+            }
+        }
+
+        return ['size' => count($matrix), 'runs' => $runs];
+    }
+
     public function svg(Anketa $anketa, int $size = 200): string
     {
         $writer = new Writer(new ImageRenderer(

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\Ayollar\Http\Controllers\Api\AdminController;
 use App\Domains\Ayollar\Http\Controllers\Api\AnalyticsController;
 use App\Domains\Ayollar\Http\Controllers\Api\AnketaController;
 use App\Domains\Ayollar\Http\Controllers\Api\BalanceController;
@@ -107,7 +108,18 @@ Route::middleware(['auth:sanctum', 'ayollar'])
         Route::patch('/work-plans/{workPlan}', [WorkPlanController::class, 'update'])->name('work_plans.update');
         Route::get('/red-list', [WorkPlanController::class, 'redList'])->name('red_list');
 
+        // ---------- Administrator ----------
+        // Jurnal O'QISH uchun: u nazorat vositasi va o'zgartirilmaydi.
+        Route::get('/admin/audit', [AdminController::class, 'audit'])->name('admin.audit');
+        Route::get('/admin/sensitive-access', [AdminController::class, 'sensitiveAccess'])
+            ->name('admin.sensitive_access');
+        Route::get('/admin/metrics', [AdminController::class, 'metrics'])->name('admin.metrics');
+        Route::patch('/admin/metrics/{code}', [AdminController::class, 'updateMetric'])->name('admin.metrics.update');
+        Route::get('/admin/health', [AdminController::class, 'health'])->name('admin.health');
+
         // ---------- Eksport ----------
         Route::get('/export/registry', [ExportController::class, 'registry'])->name('export.registry');
         Route::get('/export/balance/{type}/{id}', [ExportController::class, 'balance'])->name('export.balance');
+        // Rasmiy hujjat — QR bilan. V bo'lim javoblari PDF'ga tushmaydi.
+        Route::get('/export/anketa/{anketa}/pdf', [ExportController::class, 'anketaPdf'])->name('export.anketa_pdf');
     });

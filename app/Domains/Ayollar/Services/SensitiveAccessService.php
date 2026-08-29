@@ -24,7 +24,10 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class SensitiveAccessService
 {
-    public function __construct(private readonly AyollarAccess $access) {}
+    public function __construct(
+        private readonly AyollarAccess $access,
+        private readonly AuditLogger $audit,
+    ) {}
 
     /**
      * Xom PII qiymatini qaytaradi va jurnalga yozadi.
@@ -70,6 +73,17 @@ class SensitiveAccessService
         // jo'natilgandan keyin baza uzilsa, ma'lumot chiqib ketardi-yu,
         // izi qolmasdi.
         SensitiveAccessLog::query()->insert($rows);
+
+        // Amallar jurnaliga HAM tushadi — administrator maxfiy jurnalni
+        // ochmasdan ham «kimdir PII ochdi» faktini ko'radi.
+        $this->audit->log(
+            $user,
+            'pii.revealed',
+            'woman',
+            (string) $woman->id,
+            ['fields' => $allowed],
+            $request,
+        );
 
         return $out;
     }

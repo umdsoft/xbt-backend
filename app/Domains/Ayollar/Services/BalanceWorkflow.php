@@ -25,7 +25,10 @@ use RuntimeException;
  */
 class BalanceWorkflow
 {
-    public function __construct(private readonly BalanceCalculator $calculator) {}
+    public function __construct(
+        private readonly BalanceCalculator $calculator,
+        private readonly AuditLogger $audit,
+    ) {}
 
     /**
      * Balansni yopadi.
@@ -58,6 +61,13 @@ class BalanceWorkflow
             ]);
 
             $this->openSignatureSlots($balance);
+
+            $this->audit->log($user, 'balance.closed', $balance->levelCode().'_balance', (string) $balance->id, [
+                'total' => $balance->total,
+                'green' => $balance->green,
+                'yellow' => $balance->yellow,
+                'red' => $balance->red,
+            ]);
         });
 
         return [];
@@ -99,9 +109,15 @@ class BalanceWorkflow
             'comment' => $comment,
         ]);
 
+        $this->audit->log($user, 'balance.signed', $balance->levelCode().'_balance', (string) $balance->id, [
+            'org_code' => $orgCode,
+        ]);
+
         // Barcha imzolar qo'yilsa — balans TASDIQLANDI.
         if ($this->allSigned($balance)) {
             $balance->update(['status' => Balance::APPROVED]);
+
+            $this->audit->log($user, 'balance.approved', $balance->levelCode().'_balance', (string) $balance->id);
         }
 
         return $slot;
@@ -139,14 +155,13 @@ class BalanceWorkflow
                     'user_id' => null,
                 ]);
 
-            \App\Domains\Ayollar\Models\AuditLog::query()->create([
-                'user_id' => $user->id,
-                'action' => 'balance.returned',
-                'entity_type' => $balance->levelCode().'_balance',
-                'entity_id' => $balance->id,
-                'changes' => ['reason' => $reason],
-                'created_at' => now(),
-            ]);
+            $this->audit->log(
+                $user,
+                'balance.returned',
+                $balance->levelCode().'_balance',
+                (string) $balance->id,
+                ['reason' => $reason],
+            );
         });
     }
 

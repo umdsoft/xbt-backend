@@ -7,6 +7,7 @@ namespace App\Domains\Ayollar\Services;
 use App\Domains\Ayollar\Models\Anketa;
 use App\Domains\Ayollar\Models\AnketaRedFlag;
 use App\Domains\Ayollar\Models\Woman;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,6 +27,7 @@ class AnketaService
         private readonly RegNumberGenerator $regNumber,
         private readonly QrService $qr,
         private readonly BalanceRefresher $refresher,
+        private readonly AuditLogger $audit,
     ) {}
 
     /**
@@ -82,8 +84,28 @@ class AnketaService
                 'updated_by' => $userId,
             ]);
 
+            $wasNew = ! $anketa->exists;
+            $previousRow = $anketa->getOriginal('balance_row');
+
             $anketa->filled_at ??= now();
             $anketa->save();
+
+            // Jurnalga TOIFA o'zgarishi yoziladi, javoblarning o'zi emas.
+            // «Anketa tahrirlandi» qatori tekshiruv uchun foydasiz;
+            // «toifa yashildan sariqqa o'tdi» esa aniq savolga javob beradi.
+            $this->audit->log(
+                $userId === null ? null : User::on('auth')->find($userId),
+                $wasNew ? 'anketa.created' : 'anketa.updated',
+                'anketa',
+                (string) $anketa->id,
+                array_filter([
+                    'reg_number' => $anketa->reg_number,
+                    'category' => $resolution->category,
+                    'balance_row' => $resolution->balanceRow,
+                    'balance_row_dan' => $wasNew || $previousRow === $resolution->balanceRow ? null : $previousRow,
+                    'red_flags' => count($resolution->redFlags),
+                ], fn ($v) => $v !== null),
+            );
 
             $this->syncRedFlags($anketa, $resolution);
 
