@@ -2,20 +2,112 @@
 
 declare(strict_types=1);
 
+use App\Domains\Ayollar\Http\Controllers\Api\AnalyticsController;
+use App\Domains\Ayollar\Http\Controllers\Api\AnketaController;
+use App\Domains\Ayollar\Http\Controllers\Api\BalanceController;
+use App\Domains\Ayollar\Http\Controllers\Api\BootstrapController;
 use App\Domains\Ayollar\Http\Controllers\Api\ContextController;
+use App\Domains\Ayollar\Http\Controllers\Api\ExportController;
+use App\Domains\Ayollar\Http\Controllers\Api\HouseholdController;
+use App\Domains\Ayollar\Http\Controllers\Api\PublicQrController;
+use App\Domains\Ayollar\Http\Controllers\Api\RulesController;
+use App\Domains\Ayollar\Http\Controllers\Api\WomanController;
+use App\Domains\Ayollar\Http\Controllers\Api\WorkPlanController;
 use Illuminate\Support\Facades\Route;
 
 /*
- * AYOLLAR BALANSI domeni API. auth:sanctum + `ayollar` gvardiyasi.
- * Auth-siz -> 401; rolsiz -> 403.
+|--------------------------------------------------------------------------
+| AYOLLAR BALANSI
+|--------------------------------------------------------------------------
+|
+| Ikki guruh: OCHIQ (QR tekshiruvi) va HIMOYALANGAN (auth + gvardiya).
+| Ochiq guruh birinchi turadi va u ATAYLAB juda tor — bitta endpoint.
+|
+*/
+
+/*
+ * QR hujjat tekshiruvi — AUTENTIFIKATSIYASIZ.
  *
- * Domen endpoint'lari texnik talab kelganda shu guruh ichiga qo'shiladi —
- * guruhdan TASHQARIDA yozilgan route gvardiyani chetlab o'tadi.
+ * Bosilgan hujjatdagi QR'ni skanerlagan har kim ochadi. Javobda shaxsiy
+ * ma'lumot YO'Q (promt §7) — faqat hujjat faktlari va imzolar zanjiri.
+ *
+ * `throttle:30,1` — token maydonini brute-force qilishga qarshi. Imzo
+ * tekshiruvi ham bor, lekin rate-limit birinchi to'siq: u hujumni
+ * boshlanishidayoq qimmatga aylantiradi.
+ */
+Route::get('/ayollar/public/a/{token}', PublicQrController::class)
+    ->middleware('throttle:30,1')
+    ->where('token', '[A-Za-z0-9]{4,10}')
+    ->name('api.ayollar.public.verify');
+
+/*
+ * Himoyalangan API. auth:sanctum + `ayollar` gvardiyasi.
+ * Auth-siz -> 401; rolsiz -> 403.
  */
 Route::middleware(['auth:sanctum', 'ayollar'])
     ->prefix('ayollar')
     ->name('api.ayollar.')
     ->group(function () {
-        // SPA boshlanish konteksti: rol, ruxsat, spravochniklar.
+        // ---------- Kontekst va offline paket ----------
         Route::get('/context', ContextController::class)->name('context');
+        Route::get('/bootstrap', BootstrapController::class)->name('bootstrap');
+        Route::get('/rules', RulesController::class)->name('rules');
+
+        // ---------- Xonadon va ayol ----------
+        Route::get('/households', [HouseholdController::class, 'index'])->name('households.index');
+        Route::post('/households', [HouseholdController::class, 'store'])->name('households.store');
+
+        Route::get('/women', [WomanController::class, 'index'])->name('women.index');
+        Route::post('/women', [WomanController::class, 'store'])->name('women.store');
+
+        // DIQQAT: `check-duplicate` POST va `{woman}` dan OLDIN.
+        // GET bo'lsa JShShIR URL'ga, ya'ni server jurnaliga va brauzer
+        // tarixiga tushardi (promt §14).
+        Route::post('/women/check-duplicate', [WomanController::class, 'checkDuplicate'])
+            ->middleware('throttle:60,1')
+            ->name('women.check_duplicate');
+
+        // Maxfiy maydonni ochish — har chaqiruv jurnalga tushadi.
+        Route::post('/women/{woman}/reveal-pii', [WomanController::class, 'revealPii'])
+            ->middleware('throttle:30,1')
+            ->name('women.reveal_pii');
+
+        // ---------- Anketa ----------
+        // `conflicts` `{anketa}` dan OLDIN — aks holda «conflicts» so'zi
+        // parametr sifatida ushlanadi.
+        Route::get('/anketas/conflicts', [AnketaController::class, 'conflicts'])->name('anketas.conflicts');
+        Route::post('/anketas/batch', [AnketaController::class, 'batch'])->name('anketas.batch');
+        Route::get('/anketas', [AnketaController::class, 'index'])->name('anketas.index');
+        Route::post('/anketas', [AnketaController::class, 'store'])->name('anketas.store');
+        Route::get('/anketas/{anketa}', [AnketaController::class, 'show'])->name('anketas.show');
+        Route::get('/anketas/{anketa}/qr.svg', [AnketaController::class, 'qrSvg'])->name('anketas.qr');
+        Route::post('/conflicts/{conflict}/resolve', [AnketaController::class, 'resolveConflict'])
+            ->name('conflicts.resolve');
+
+        // ---------- Balans ----------
+        Route::get('/balances/region', [BalanceController::class, 'region'])->name('balances.region');
+        Route::get('/balances/district/{district}', [BalanceController::class, 'district'])->name('balances.district');
+        Route::get('/balances/district/{district}/mahallas', [BalanceController::class, 'mahallasOfDistrict'])
+            ->name('balances.district.mahallas');
+        Route::get('/balances/mahalla/{mahalla}', [BalanceController::class, 'mahalla'])->name('balances.mahalla');
+
+        Route::post('/balances/{type}/{id}/close', [BalanceController::class, 'close'])->name('balances.close');
+        Route::post('/balances/{type}/{id}/sign', [BalanceController::class, 'sign'])->name('balances.sign');
+        Route::post('/balances/{type}/{id}/return', [BalanceController::class, 'returnBack'])->name('balances.return');
+
+        // ---------- Tahlil ----------
+        Route::get('/analytics/needs', [AnalyticsController::class, 'needs'])->name('analytics.needs');
+        Route::get('/analytics/activists', [AnalyticsController::class, 'activists'])->name('analytics.activists');
+        Route::get('/analytics/pace', [AnalyticsController::class, 'pace'])->name('analytics.pace');
+        Route::get('/analytics/red', [AnalyticsController::class, 'redComposition'])->name('analytics.red');
+
+        // ---------- Ish rejasi ----------
+        Route::get('/work-plans', [WorkPlanController::class, 'index'])->name('work_plans.index');
+        Route::post('/work-plans', [WorkPlanController::class, 'store'])->name('work_plans.store');
+        Route::patch('/work-plans/{workPlan}', [WorkPlanController::class, 'update'])->name('work_plans.update');
+        Route::get('/red-list', [WorkPlanController::class, 'redList'])->name('red_list');
+
+        // ---------- Eksport ----------
+        Route::get('/export/registry', [ExportController::class, 'registry'])->name('export.registry');
+        Route::get('/export/balance/{type}/{id}', [ExportController::class, 'balance'])->name('export.balance');
     });
