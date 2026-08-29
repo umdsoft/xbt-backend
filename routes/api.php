@@ -40,3 +40,4 @@ require __DIR__.'/api/sport.php';
 require __DIR__.'/api/qurilish.php';
 
 require __DIR__.'/api/yoshlar.php';
+require __DIR__.'/api/ayollar.php';

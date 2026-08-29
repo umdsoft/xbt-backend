@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "note": "YAGONA TOIFALASH MANBAI. Backend (CategoryResolver) va frontend (jonli toifa chizigi) AYNAN shu faylni oqiydi. Frontendda mantiq TAKRORLANMAYDI.",
+
+  "fields": {
+    "_note": "Semantik kalit -> anketa savoli. Haqiqiy anketa matni kelganda FAQAT shu xarita ozgaradi; toifalash zinapoyasi tegilmaydi. paper_number = rasmiy qogoz shakldagi raqam (unda 11 ikki marta ishlatilgan).",
+    "employment_status": { "question": 11, "paper_number": 11, "section": 3 },
+    "education_status": { "question": 12, "paper_number": 11, "section": 3 },
+    "migration_status": { "question": 13, "paper_number": 12, "section": 3, "provisional": true },
+    "mtt_covered": { "question": 5, "paper_number": 5, "section": 1 },
+    "disability": { "question": 6, "paper_number": 6, "section": 1 }
+  },
+
+  "enums": {
+    "education_status": [
+      "oliy_keyingi", "oliy", "professional", "maktab", "mtt", "abituriyent", "yoq"
+    ],
+    "employment_status": [
+      "rasmiy_davlat", "rasmiy_xususiy", "rasmiy_tadbirkor", "rasmiy_yatt",
+      "ozini_ozi_band", "fermer_dehqon", "yoshga_doir_nafaqa", "harbiy_xizmat",
+      "jiem", "mehnatga_layoqatsiz", "norasmiy_band", "ishsiz", "uy_bekasi",
+      "yoq"
+    ],
+    "migration_status": ["yoq", "ichki", "tashqi", "mavsumiy"]
+  },
+
+  "category_ladder": [
+    { "step": 1,  "when": { "field": "age", "op": "between", "value": [0, 2] }, "category": "green", "balance_row": "age_0_2" },
+    { "step": 2,  "when": { "field": "age", "op": "between", "value": [3, 6] }, "category": "green", "balance_row": "age_3_6" },
+    { "step": 3,  "when": { "field": "education_status", "op": "eq", "value": "oliy_keyingi" }, "category": "green", "balance_row": "edu_postgrad" },
+    { "step": 4,  "when": { "field": "education_status", "op": "eq", "value": "oliy" }, "category": "green", "balance_row": "edu_higher" },
+    { "step": 5,  "when": { "field": "education_status", "op": "eq", "value": "professional" }, "category": "green", "balance_row": "edu_professional" },
+    { "step": 6,  "when": { "field": "education_status", "op": "eq", "value": "maktab" }, "category": "green", "balance_row": "edu_school" },
+    { "step": 7,  "when": { "field": "education_status", "op": "eq", "value": "mtt" }, "category": "green", "balance_row": "edu_preschool" },
+    { "step": 8,  "when": { "field": "employment_status", "op": "eq", "value": "rasmiy_davlat" }, "category": "green", "balance_row": "emp_gov" },
+    { "step": 9,  "when": { "field": "employment_status", "op": "eq", "value": "rasmiy_xususiy" }, "category": "green", "balance_row": "emp_private" },
+    { "step": 10, "when": { "field": "employment_status", "op": "eq", "value": "rasmiy_tadbirkor" }, "category": "green", "balance_row": "emp_entrepreneur" },
+    { "step": 11, "when": { "field": "employment_status", "op": "eq", "value": "rasmiy_yatt" }, "category": "green", "balance_row": "emp_yatt" },
+    { "step": 12, "when": { "field": "employment_status", "op": "eq", "value": "ozini_ozi_band" }, "category": "green", "balance_row": "emp_self" },
+    { "step": 13, "when": { "field": "employment_status", "op": "eq", "value": "fermer_dehqon" }, "category": "green", "balance_row": "emp_farmer" },
+    { "step": 14, "when": { "field": "employment_status", "op": "eq", "value": "yoshga_doir_nafaqa" }, "category": "green", "balance_row": "emp_pension" },
+    { "step": 15, "when": { "field": "employment_status", "op": "eq", "value": "harbiy_xizmat" }, "category": "green", "balance_row": "emp_military" },
+    { "step": 16, "when": { "field": "migration_status", "op": "neq", "value": "yoq" }, "category": "yellow", "balance_row": "yel_migration" },
+    { "step": 17, "when": { "field": "employment_status", "op": "eq", "value": "jiem" }, "category": "yellow", "balance_row": "yel_jiem" },
+    { "step": 18, "when": { "field": "employment_status", "op": "eq", "value": "mehnatga_layoqatsiz" }, "category": "yellow", "balance_row": "yel_incapable" },
+    { "step": 19, "when": { "field": "employment_status", "op": "eq", "value": "norasmiy_band" }, "category": "yellow", "balance_row": "yel_informal" },
+    { "step": 20, "when": { "field": "employment_status", "op": "eq", "value": "ishsiz" }, "category": "yellow", "balance_row": "yel_unemployed" },
+    { "step": 21, "when": { "field": "employment_status", "op": "eq", "value": "uy_bekasi" }, "category": "yellow", "balance_row": "yel_homemaker" },
+    { "step": 22, "when": { "field": "education_status", "op": "eq", "value": "abituriyent" }, "category": "yellow", "balance_row": "yel_applicant" }
+  ],
+
+  "incomplete": {
+    "step": 23,
+    "note": "Zinapoyaning hech bir qadami mos kelmadi -> anketa balansdan TASHQARIDA.",
+    "status": "incomplete"
+  },
+
+  "red_flags": [
+    { "code": "chronic_illness",   "source_question": 27, "when": { "field": "q27", "op": "truthy" } },
+    { "code": "divorced_widowed",  "source_question": 7,  "when": { "field": "q7", "op": "in", "value": ["ajrashgan", "beva"] } },
+    { "code": "conflict_family",   "source_question": 9,  "when": { "field": "q9", "op": "truthy" } },
+    { "code": "social_registry",   "source_question": 23, "when": { "field": "q23", "op": "truthy" } },
+    { "code": "alimony_problem",   "source_question": 10, "when": { "field": "q10", "op": "truthy" } },
+    { "code": "violence_victim",   "source_question": 31, "when": { "field": "q31.violence", "op": "truthy" } },
+    { "code": "protection_order",  "source_question": 31, "when": { "field": "q31.protection_order", "op": "truthy" } },
+    { "code": "minor_mother",      "source_question": 31, "when": { "field": "q31.minor_mother", "op": "truthy" } },
+    { "code": "probation",         "source_question": 30, "when": { "field": "q30.probation", "op": "truthy" } },
+    { "code": "prevention_record", "source_question": 30, "when": { "field": "q30.prevention", "op": "truthy" } },
+    { "code": "narcology_record",  "source_question": 30, "when": { "field": "q30.narcology", "op": "truthy" } },
+    { "code": "alien_ideology",    "source_question": 31, "when": { "field": "q31.alien_ideology", "op": "truthy" } },
+    { "code": "human_trafficking", "source_question": 31, "when": { "field": "q31.human_trafficking", "op": "truthy" } }
+  ],
+
+  "age_groups": [
+    { "code": "0_2",   "min": 0,  "max": 2,   "sections": [1],         "questions": [1, 2, 3, 4, 5, 6] },
+    { "code": "3_6",   "min": 3,  "max": 6,   "sections": [1],         "questions": [1, 2, 3, 4, 5, 6] },
+    { "code": "7_17",  "min": 7,  "max": 17,  "sections": [1, 4],      "questions": [1, 2, 3, 4, 5, 6, 12, 20, 21, 22, 23, 24, 31] },
+    { "code": "18_up", "min": 18, "max": 120, "sections": [1, 2, 3, 4, 5], "questions": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] }
+  ],
+
+  "sections": [
+    { "number": 1, "title_lat": "Umumiy ma'lumotlar", "title_cyr": "Умумий маълумотлар", "from": 1,  "to": 6 },
+    { "number": 2, "title_lat": "Oilaviy holati",     "title_cyr": "Оилавий ҳолати",     "from": 7,  "to": 10 },
+    { "number": 3, "title_lat": "Bandlik va ta'lim",  "title_cyr": "Бандлик ва таълим",  "from": 11, "to": 19 },
+    { "number": 4, "title_lat": "Ijtimoiy holati",    "title_cyr": "Ижтимоий ҳолати",    "from": 20, "to": 29 },
+    { "number": 5, "title_lat": "Ijtimoiy nazorat",   "title_cyr": "Ижтимоий назорат",   "from": 30, "to": 31 }
+  ],
+
+  "need_questions": [16, 17, 18, 19, 21, 26, 28],
+
+  "sensitive_questions": [30, 31],
+
+  "keyboard_questions": [1, 4, 14, 25, 29, 31]
+}
