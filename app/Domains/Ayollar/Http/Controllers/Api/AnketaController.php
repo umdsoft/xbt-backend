@@ -30,6 +30,7 @@ class AnketaController extends Controller
         private readonly AnketaValidator $validator,
         private readonly CategoryResolver $resolver,
         private readonly QrService $qr,
+        private readonly \App\Domains\Ayollar\Services\BalanceRefresher $refresher,
     ) {}
 
     /**
@@ -207,20 +208,23 @@ class AnketaController extends Controller
 
         $results = [];
 
-        foreach ($data['items'] as $item) {
-            try {
-                $results[] = $this->syncOne($request, $item, $data['device_id'] ?? null);
-            } catch (\Throwable $e) {
-                // Bitta yozuv yiqilsa, QOLGANI YUBORILAVERADI. To'liq
-                // rad etish faolning bir kunlik ishini qurilmada
-                // qamab qo'yardi.
-                $results[] = [
-                    'client_uuid' => $item['client_uuid'],
-                    'status' => 'error',
-                    'message' => $e->getMessage(),
-                ];
+        // Balans BIR marta yangilanadi — 100 yozuv uchun 100 marta emas.
+        $this->refresher->defer(function () use ($data, $request, &$results): void {
+            foreach ($data['items'] as $item) {
+                try {
+                    $results[] = $this->syncOne($request, $item, $data['device_id'] ?? null);
+                } catch (\Throwable $e) {
+                    // Bitta yozuv yiqilsa, QOLGANI YUBORILAVERADI. To'liq
+                    // rad etish faolning bir kunlik ishini qurilmada
+                    // qamab qo'yardi.
+                    $results[] = [
+                        'client_uuid' => $item['client_uuid'],
+                        'status' => 'error',
+                        'message' => $e->getMessage(),
+                    ];
+                }
             }
-        }
+        });
 
         return response()->json(['results' => $results]);
     }
@@ -382,17 +386,26 @@ class AnketaController extends Controller
         return $clientTime !== null && $anketa->updated_at->timestamp > strtotime((string) $clientTime);
     }
 
-    /** @return array{district: string, mahalla: string} */
+    /**
+     * Ro'yxat raqami uchun hudud kodlari.
+     *
+     * TUMAN KODI — `sort_order` (1–13), SOATO EMAS. Promt §7 aynan
+     * «tuman kodi (01–13)» deydi, `master.districts.code` esa SOATO'ni
+     * takrorlaydi (`1733204`) va u 2 xonaga sig'maydi. `sort_order`
+     * viloyat ichida barqaror va aynan 13 ta qiymat beradi.
+     *
+     * @return array{district: string, mahalla: string}
+     */
     private function geoCodes(Woman $woman): array
     {
-        $district = DB::connection('master')->table('districts')
-            ->where('id', $woman->district_id)->first(['code', 'soato_code']);
+        $districtNumber = DB::connection('master')->table('districts')
+            ->where('id', $woman->district_id)->value('sort_order');
 
         $mahalla = DB::connection('master')->table('mahallas')
             ->where('id', $woman->mahalla_id)->value('soato_code');
 
         return [
-            'district' => (string) ($district->code ?? $district->soato_code ?? '0'),
+            'district' => (string) ($districtNumber ?? 0),
             'mahalla' => (string) ($mahalla ?? '0'),
         ];
     }

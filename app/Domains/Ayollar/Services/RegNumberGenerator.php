@@ -62,24 +62,37 @@ class RegNumberGenerator
         return sprintf(
             '%s-%s-%s-%d-',
             $region,
-            str_pad($this->digits($districtCode), 2, '0', STR_PAD_LEFT),
-            str_pad($this->digits($mahallaCode), 4, '0', STR_PAD_LEFT),
+            $this->fixedDigits($districtCode, 2),
+            $this->fixedDigits($mahallaCode, 4),
             $year,
         );
     }
 
     /**
-     * Kodni raqamlarga keltiradi.
+     * Kodni QAT'IY uzunlikdagi raqamga keltiradi.
      *
-     * `master` dagi kodlar har xil formatda bo'lishi mumkin (SOATO,
-     * `08`, `1712345`). Raqam bo'lmagan belgilar tashlanadi va oxirgi
-     * xonalari olinadi — ro'yxat raqami formati QAT'IY uzunlikda.
+     * OXIRGI $length xonasi olinadi, keyin kerak bo'lsa nol bilan
+     * to'ldiriladi.
+     *
+     * NEGA KESISH KERAK: `master` dagi kodlar SOATO formatida —
+     * tuman `1733204` (7 xona), MFY `1733204008` (10 xona). Faqat
+     * `str_pad()` ishlatilganda ular O'ZGARISHSIZ o'tib ketardi va
+     * ro'yxat raqami `XOR-1733204-1733204008-2026-000005` bo'lardi:
+     * format buzilgan, qo'lda kiritish imkonsiz, QR ostidagi matn
+     * o'qib bo'lmaydigan uzunlikda. Aynan shunday bo'ldi.
+     *
+     * MFY uchun oxirgi 4 xona: bir tuman ichidagi SOATO kodlari
+     * birinchi 7 xonada bir xil, ya'ni oxirgi xonalar farqlaydi.
      */
-    private function digits(string $code): string
+    private function fixedDigits(string $code, int $length): string
     {
         $only = preg_replace('/\D+/', '', $code) ?? '';
 
-        return $only === '' ? '0' : $only;
+        if ($only === '') {
+            $only = '0';
+        }
+
+        return str_pad(substr($only, -$length), $length, '0', STR_PAD_LEFT);
     }
 
     /** Raqamdan MFY va tuman kodini ajratadi (QR sahifasi uchun). */

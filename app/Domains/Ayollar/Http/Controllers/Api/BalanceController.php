@@ -10,6 +10,7 @@ use App\Domains\Ayollar\Models\MahallaBalance;
 use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Models\RegionBalance;
 use App\Domains\Ayollar\Services\BalanceCalculator;
+use App\Domains\Ayollar\Services\BalanceRefresher;
 use App\Domains\Ayollar\Services\BalanceWorkflow;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
@@ -22,9 +23,15 @@ use RuntimeException;
 /**
  * Balans API — uch daraja, yopish va 8 imzoli tasdiqlash.
  *
- * Balans HAR SO'ROVDA qayta hisoblanadi (agar u ochiq bo'lsa): «real
- * vaqtda inkremental» talabi (promt §4) shu tarzda bajariladi. Yopilgan
- * balans esa qayta hisoblanmaydi — imzolangan raqam o'zgarmaydi.
+ * O'QISH ENDPOINT'LARI HISOBLAMAYDI. Ular `BalanceRefresher` orqali
+ * saqlangan qatorni oladi; yangilash anketa saqlanganda (inkremental,
+ * bitta MFY) va kechasi (to'liq, 509 MFY) bo'ladi — promt §4 dagi
+ * «kechasi qayta hisoblanadi + real vaqtda inkremental» aynan shu.
+ *
+ * BU AVVAL BOSHQACHA EDI va u xato edi: `region()` har so'rovda 509 MFY
+ * va 13 tumanni qayta hisoblardi (~2500 so'rov) va boshqaruv paneli
+ * umuman ochilmasdi. «Real vaqt» — ma'lumot o'zgarganda yangilash
+ * degani, har qaraganda qayta hisoblash emas.
  */
 class BalanceController extends Controller
 {
@@ -32,6 +39,7 @@ class BalanceController extends Controller
         private readonly AyollarAccess $access,
         private readonly AyollarScope $scope,
         private readonly BalanceCalculator $calculator,
+        private readonly BalanceRefresher $refresher,
         private readonly BalanceWorkflow $workflow,
     ) {}
 
@@ -46,7 +54,9 @@ class BalanceController extends Controller
 
         [$year, $month] = $this->period($request);
 
-        return $this->respond($this->calculator->calculateMahalla($mahallaId, $year, $month));
+        // O'QISH HISOBLAMAYDI — saqlangan qatorni oladi. Yangilash anketa
+        // saqlanganda (inkremental) va kechasi (to'liq) bo'ladi.
+        return $this->respond($this->refresher->readMahalla($mahallaId, $year, $month));
     }
 
     public function district(Request $request, string $districtId): JsonResponse
@@ -57,15 +67,8 @@ class BalanceController extends Controller
 
         [$year, $month] = $this->period($request);
 
-        $mahallaIds = $this->mahallaIdsOf($districtId);
-
-        // MFY balanslari AVVAL yangilanadi: tuman ularning yig'indisi va
-        // eskirgan bola qiymati jimgina noto'g'ri jamiga olib kelardi.
-        foreach ($mahallaIds as $id) {
-            $this->calculator->calculateMahalla($id, $year, $month);
-        }
-
-        $balance = $this->calculator->calculateDistrict($districtId, $mahallaIds, $year, $month);
+        $mahallaIds = $this->refresher->mahallaIdsOf($districtId);
+        $balance = $this->refresher->readDistrict($districtId, $year, $month);
 
         return $this->respond($balance, [
             // To'liqlik: nechta MFY balansi yopilgan. `mahalla_union`
@@ -82,18 +85,8 @@ class BalanceController extends Controller
 
         [$year, $month] = $this->period($request);
 
-        $regionId = (string) DB::connection('master')->table('regions')->value('id');
-        $districtIds = DB::connection('master')->table('districts')->pluck('id')->map(fn ($v) => (string) $v)->all();
-
-        foreach ($districtIds as $id) {
-            $mahallaIds = $this->mahallaIdsOf($id);
-            foreach ($mahallaIds as $m) {
-                $this->calculator->calculateMahalla($m, $year, $month);
-            }
-            $this->calculator->calculateDistrict($id, $mahallaIds, $year, $month);
-        }
-
-        $balance = $this->calculator->calculateRegion($regionId, $districtIds, $year, $month);
+        $districtIds = $this->refresher->districtIds();
+        $balance = $this->refresher->readRegion($year, $month);
 
         return $this->respond($balance, [
             'districts' => DistrictBalance::query()
@@ -111,11 +104,7 @@ class BalanceController extends Controller
         }
 
         [$year, $month] = $this->period($request);
-        $mahallaIds = $this->mahallaIdsOf($districtId);
-
-        foreach ($mahallaIds as $id) {
-            $this->calculator->calculateMahalla($id, $year, $month);
-        }
+        $mahallaIds = $this->refresher->mahallaIdsOf($districtId);
 
         $names = DB::connection('master')->table('mahallas')
             ->whereIn('id', $mahallaIds)->pluck('name_lat', 'id');
@@ -241,14 +230,6 @@ class BalanceController extends Controller
         }
 
         return [(int) now()->year, (int) now()->month];
-    }
-
-    /** @return array<int, string> */
-    private function mahallaIdsOf(string $districtId): array
-    {
-        return DB::connection('master')->table('mahallas')
-            ->where('district_id', $districtId)->where('is_active', true)
-            ->pluck('id')->map(fn ($v) => (string) $v)->all();
     }
 
     /** @return array{total: int, closed: int} */

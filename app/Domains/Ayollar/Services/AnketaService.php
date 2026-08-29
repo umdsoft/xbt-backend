@@ -25,6 +25,7 @@ class AnketaService
         private readonly FormSchemaResolver $schema,
         private readonly RegNumberGenerator $regNumber,
         private readonly QrService $qr,
+        private readonly BalanceRefresher $refresher,
     ) {}
 
     /**
@@ -85,6 +86,15 @@ class AnketaService
             $anketa->save();
 
             $this->syncRedFlags($anketa, $resolution);
+
+            // INKREMENTAL yangilash — faqat shu MFY va uning yig'indilari.
+            // Tranzaksiya ICHIDA: anketa saqlanib, balans yangilanmay
+            // qolsa, panel eskirgan raqam ko'rsatardi va buni hech qanday
+            // tekshiruv ushlamasdi.
+            $this->refresher->afterAnketaChange(
+                (string) $woman->mahalla_id,
+                (string) $woman->district_id,
+            );
 
             return $anketa;
         });
@@ -175,6 +185,11 @@ class AnketaService
         ]);
 
         $this->syncRedFlags($anketa, $resolution);
+
+        $this->refresher->afterAnketaChange(
+            (string) $anketa->mahalla_id,
+            (string) $anketa->district_id,
+        );
 
         return $anketa;
     }

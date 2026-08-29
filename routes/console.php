@@ -12,6 +12,9 @@ use App\Domains\Qurilish\Console\Commands\ImportQurilishCommand;
 use App\Domains\Qurilish\Console\Commands\MakeQurilishUserCommand;
 use App\Domains\Sport\Console\Commands\ImportTrainersCommand;
 use App\Domains\Yoshlar\Console\Commands\CheckDeadlinesCommand;
+use App\Domains\Ayollar\Console\Commands\MakeAyollarUserCommand;
+use App\Domains\Ayollar\Console\Commands\RecalculateBalancesCommand;
+use App\Domains\Ayollar\Console\Commands\SeedAyollarDemoCommand;
 use App\Domains\Yoshlar\Console\Commands\MakeYoshlarUserCommand;
 use App\Domains\Yoshlar\Console\Commands\RefreshRegistryCommand;
 use Illuminate\Console\Application as ConsoleApplication;
@@ -51,6 +54,10 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(MakeYoshlarUserCommand::class);
     $artisan->resolve(RefreshRegistryCommand::class);
     $artisan->resolve(CheckDeadlinesCommand::class);
+    // Ayollar Balansi domeni: hisob yaratish (auth + doira birga).
+    $artisan->resolve(MakeAyollarUserCommand::class);
+    $artisan->resolve(SeedAyollarDemoCommand::class);
+    $artisan->resolve(RecalculateBalancesCommand::class);
 });
 
 /*
@@ -75,4 +82,14 @@ Schedule::command('yoshlar:refresh-registry')
 // Muddat nazorati va eskalatsiya — ish kuni boshlanishidan oldin.
 Schedule::command('yoshlar:check-deadlines')
     ->dailyAt('07:00')
+    ->withoutOverlapping();
+
+// Ayollar Balansi: to'liq qayta hisoblash — XAVFSIZLIK TO'RI.
+//
+// Kunlik ish inkremental yangilash bilan bajariladi (anketa saqlanganda).
+// Bu esa har ehtimolga qarshi: yangilash biror sababga ko'ra o'tkazib
+// yuborilgan bo'lsa (uzilish, to'g'ridan-to'g'ri SQL), kechasi tiklanadi.
+// 03:30 — boshqa og'ir ishlardan keyin, ish kuni boshlanishidan ancha oldin.
+Schedule::command('ayollar:recalculate')
+    ->dailyAt('03:30')
     ->withoutOverlapping();

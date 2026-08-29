@@ -36,6 +36,21 @@ use Illuminate\Support\Facades\DB;
 class BalanceCalculator
 {
     /**
+     * Lug'at BIR MARTA o'qiladi.
+     *
+     * NEGA MUHIM: to'liq qayta hisoblashda `calculateMahalla()` 509 marta
+     * chaqiriladi va har chaqiruvda lug'at qayta so'ralsa, bu 509 ta bir
+     * xil so'rov degani. O'lchovda bu qayta hisoblash vaqtining yarmini
+     * tashkil qilardi.
+     *
+     * @var array<string, int>|null
+     */
+    private ?array $emptyMetricsCache = null;
+
+    /** @var \Illuminate\Support\Collection<string, string>|null */
+    private $categoryCache = null;
+
+    /**
      * MFY balansi — anketalardan BEVOSITA.
      *
      * @return MahallaBalance
@@ -347,7 +362,7 @@ class BalanceCalculator
      */
     private function emptyMetrics(): array
     {
-        return Metric::query()->pluck('code')
+        return $this->emptyMetricsCache ??= Metric::query()->pluck('code')
             ->mapWithKeys(fn (string $code) => [$code => 0])
             ->all();
     }
@@ -360,7 +375,7 @@ class BalanceCalculator
      */
     private function rowSums(array $metrics): array
     {
-        $categories = Metric::query()->pluck('category', 'code');
+        $categories = $this->categoryCache ??= Metric::query()->pluck('category', 'code');
         $sums = ['green' => 0, 'yellow' => 0];
 
         foreach ($metrics as $code => $value) {
