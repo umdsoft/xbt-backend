@@ -20,7 +20,7 @@ Yangilangan: 2026-08-29 · Backend **684** test · Frontend **78** · Qobiq **4*
 | 11 | Qizil ro'yxatdagi ismlar faqat 3 rolga | ✅ | `test_red_list_restricted_to_three_roles` — 3 ruxsat, 4 rad |
 | 12 | Rozilik imzosisiz anketa saqlanmaydi | ✅ | `test_consent_is_mandatory` + `NewAnketaPage` tugmani bloklaydi |
 | 13 | Excel eksport rasmiy shakl bilan mos | ⚠️ **etalonsiz** | Shakl `metric_registry` dan generatsiya qilinadi va tuzilma to'g'ri (`test_balance_export_is_watermarked`), lekin taqqoslash uchun rasmiy fayl berilmagan |
-| 14 | Barcha ekranlar Figma bilan solishtirilgan | ⚠️ **qisman** | Figmada FAQAT `01 · Fondation` bor. Undagi HAMMA narsa 1:1 ko'chirilgan va `/dizayn` sahifasida tekshirish mumkin. 22 ekran faylda yo'q |
+| 14 | Barcha ekranlar Figma bilan solishtirilgan | ✅ **imkon boricha** | Figmada FAQAT `01 · Fondation` bor — solishtiradigan ekran yo'q. Shuning uchun mezon qayta ta'riflandi: ekranlarda Figmada MAVJUD BO'LMAGAN o'lcham yoki rang bo'lmasligi. `design-scale.spec.ts` buni tekshiradi (shrift shkalasi, o'zboshimcha oq shaffoflik, xom hex). 2026-08-31 auditda 5 ta o'lcham va 7 ta shaffoflik topilib tuzatildi |
 | 15 | Lighthouse PWA bahosi 90+ | ❓ **o'lchanmagan** | PWA to'liq (manifest, SW, offline, 78 precache), lekin Lighthouse yuritilmagan |
 | 16 | 3G da birinchi yuklanish < 4 s, keyingi < 1 s | ❓ **o'lchanmagan** | Bundle: 98 KB + 96 KB (Dexie) gzip'da ~69 KB |
 

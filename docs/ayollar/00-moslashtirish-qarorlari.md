@@ -23,6 +23,38 @@ bajariladi — moslashtirish faqat joylashuv va infratuzilma darajasida.
 | 12 | AES-256-GCM, kalit KMS'da | KMS yo'q (LAN'dagi Ubuntu server) | `PiiCipher` servisi AES-256-GCM; kalit repodan TASHQARIDAGI faylda (`AYOLLAR_PII_KEY_PATH`, 0400). KMS kelganda faqat kalit manbai o'zgaradi |
 | 13 | Figma: 5 sahifa, 22 ekran, 46 ikonka | Faylda **faqat `01 · Fondation`** bor | Tokenlar/tipografika/`Balans tasmasi` — Figmadan 1:1. Ekranlar — promt §10 funksional talabidan, shu dizayn tizimida |
 
+| 14 | Planshet ekranlari Figmadagidek | Figmada qorong'i (`ink`) ekran CHIZILMAGAN | Kontrast nisbatlari `paper` yuzasidan `ink` yuzasiga ko'chirildi — pastda «Qorong'i yuza» bo'limi |
+
+## Qorong'i yuza — nimadan olingan (2026-08-31)
+
+Planshet kirish va PIN ekranlari `ink` fonida. Figmada bunday ekran yo'q,
+faqat `Ink #0E2430` swatchi bor. Avval bu yerda **ettita** turli oq
+shaffoflik ishlatilardi (`white/30`, `/35`, `/45`, `/50`, `/55`, `/60`,
+`/80`) — bu Figmada mavjud bo'lmagan, o'zicha o'ylab topilgan shkala edi.
+
+Endi qiymatlar Figmadagi YORUG' yuza nisbatlaridan HISOBLAB chiqarilgan:
+
+| Figma (yorug') | `paper` ga kontrast | Hosila (`ink`) | `ink` ga kontrast |
+|---|---|---|---|
+| `matn` `#12262F` | 14,01 | `--color-on-ink` `#EFF0F1` | 14,01 |
+| `matn-muted` `#5F7078` | 4,62 | `--color-on-ink-muted` `#808C92` | 4,63 |
+| `matn-muted2` `#8B9AA0` | 2,61 | `--color-on-ink-muted2` `#54646C` | 2,60 |
+| `card` `#FFFFFF` | 1,115 | `--color-ink-card` `#172D38` | 1,118 |
+| `line` `#DCE2DF` | 1,178 | `--color-ink-line` `#1C313C` | 1,183 |
+
+Ya'ni qorong'i ekran yorug'i bilan AYNAN BIR XIL ierarxiyani ko'rsatadi:
+uch pog'onali matn, bitta sirt, bitta chegara.
+
+## Tipografika qulfi
+
+Planshet ekranlarida Figmada mavjud bo'lmagan beshta o'lcham topildi va
+olib tashlandi: `38px` va `20px` (planshet kirishi), `26px` va `22px`
+(PIN), `16px` (`.btn-touch` va maydonlar). Ular Figma rollariga
+almashtirildi: H1 30 · H3 17 · Body 15.
+
+`src/__tests__/design-scale.spec.ts` ularning qaytishini bloklaydi:
+har bir ruxsat etilgan o'lcham Figmadagi ANIQ tugunga bog'langan.
+
 ## Figmadan 1:1 olingan (2026-08-29)
 
 `bzMRZuaaOOI8SBmLQw8wF1` · `01 · Fondation` (`0:1`):
