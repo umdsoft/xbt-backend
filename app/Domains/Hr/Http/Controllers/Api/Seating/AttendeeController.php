@@ -8,6 +8,7 @@ use App\Domains\Hr\Http\Controllers\Api\HrController;
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAttendee;
 use App\Domains\Hr\Models\EventAuditLog;
+use App\Domains\Hr\Models\Seat;
 use App\Domains\Hr\Services\Seating\AttendeeDistributor;
 use App\Domains\Hr\Services\Seating\CapacityCalculator;
 use Illuminate\Http\JsonResponse;
@@ -65,7 +66,7 @@ class AttendeeController extends HrController
         ]);
 
         // o'rindiq shu obyektники ekanini tekshirish (IDOR)
-        $seat = \App\Domains\Hr\Models\Seat::where('id', $data['seat_id'])
+        $seat = Seat::where('id', $data['seat_id'])
             ->where('venue_id', $event->venue_id)->firstOrFail();
 
         $gid = $data['event_group_id'] ?? null;

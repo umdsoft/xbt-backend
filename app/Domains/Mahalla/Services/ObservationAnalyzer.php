@@ -10,6 +10,7 @@ use App\Domains\Mahalla\Models\ZoneObservation;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Domains\Mahalla\Support\ZonePrompts;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,9 +23,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ObservationAnalyzer
 {
-    public function __construct(private readonly HouseProvisioner $provisioner)
-    {
-    }
+    public function __construct(private readonly HouseProvisioner $provisioner) {}
 
     public function analyze(ZoneObservation $obs): ZoneObservation
     {
@@ -254,8 +253,8 @@ class ObservationAnalyzer
      * zarur bo'lsa VLM'ni ishlatadi. Javob Claude drayveri bilan AYNAN bir shaklda,
      * ustiga `_meta.gate` — qaysi bosqichda hal bo'lgani (qaror mantig'i uchun).
      *
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $current
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
+     * @param  Collection<int, HousePhoto>  $current
+     * @param  Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
      * @return array<string, mixed>
      */
     private function callLocalNode($current, $baseline, string $zone, ?string $prevStatus): array
@@ -297,8 +296,8 @@ class ObservationAnalyzer
     /**
      * Claude Vision — barcha oldingi rakurslar + barcha bugungi rakurslar (cheklangan).
      *
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $current
-     * @param  \Illuminate\Support\Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
+     * @param  Collection<int, HousePhoto>  $current
+     * @param  Collection<int, HousePhoto>  $baseline  ASOS (birinchi kuzatuv) rakurslari
      * @return array<string, mixed>
      */
     private function callClaude($current, $baseline, string $zone, ?string $prevStatus, bool $hasBaseline): array

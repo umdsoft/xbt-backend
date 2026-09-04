@@ -35,11 +35,10 @@ class StreetEditor
      * Nom unikalligini KATTA-KICHIK farqsiz tekshirish uchun.
      */
     private const CYR_U = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯЎҚҒҲ';
+
     private const CYR_L = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяўқғҳ';
 
-    public function __construct(private readonly StreetAggregates $aggregates)
-    {
-    }
+    public function __construct(private readonly StreetAggregates $aggregates) {}
 
     /** Nomni KATTA-KICHIK farqsiz solishtirish SQL ifodasi (kiril-aware). */
     private function foldExpr(string $col): string
@@ -177,7 +176,7 @@ class StreetEditor
     /**
      * A ko'chani B ga birlashtiradi: A uylari B ga o'tadi, A o'chadi.
      *
-     * @return bool  false — biror ko'cha shu mahallada yo'q yoki source=target
+     * @return bool false — biror ko'cha shu mahallada yo'q yoki source=target
      */
     public function merge(string $mahallaId, string $sourceId, string $targetId, string $userId): bool
     {
@@ -218,7 +217,7 @@ class StreetEditor
     /**
      * Ko'chani o'chiradi — FAQAT bo'sh bo'lsa (uy/uy-yozuv/biriktirish yo'q).
      *
-     * @return string  'ok' | 'not_found' | 'not_empty'
+     * @return string 'ok' | 'not_found' | 'not_empty'
      */
     public function deleteStreet(string $mahallaId, string $streetId, string $userId): string
     {
@@ -246,7 +245,7 @@ class StreetEditor
      * Bino(lar)ni ko'chaga biriktiradi (xaritadan bosish/hudud tanlash).
      *
      * @param  array<int, string>  $buildingIds
-     * @return int|null  ko'chirilgan bino soni; null — ko'cha yoki biror bino shu mahallada emas
+     * @return int|null ko'chirilgan bino soni; null — ko'cha yoki biror bino shu mahallada emas
      */
     public function assign(string $mahallaId, array $buildingIds, string $streetId, string $userId): ?int
     {

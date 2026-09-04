@@ -7,7 +7,6 @@ namespace App\Domains\Hr\Http\Controllers\Api\Seating;
 use App\Domains\Hr\Http\Controllers\Api\HrController;
 use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\EventAuditLog;
-use App\Domains\Hr\Models\EventGroup;
 use App\Domains\Hr\Models\EventSnapshot;
 use App\Domains\Hr\Services\Seating\AllocationWriter;
 use App\Domains\Hr\Services\Seating\CapacityCalculator;

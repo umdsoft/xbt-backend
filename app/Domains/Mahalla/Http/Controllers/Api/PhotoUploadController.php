@@ -15,9 +15,7 @@ use Illuminate\Support\Carbon;
 
 class PhotoUploadController extends Controller
 {
-    public function __construct(private readonly GeofenceService $geofence)
-    {
-    }
+    public function __construct(private readonly GeofenceService $geofence) {}
 
     public function store(StorePhotoRequest $request, House $house): JsonResponse
     {

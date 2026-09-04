@@ -9,6 +9,7 @@ use App\Domains\Qurilish\Models\Organization;
 use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -293,7 +294,7 @@ class ReferenceAdminService
      * Kod — inson o'qiydigan barqaror kalit; u UNIKAL bo'lishi shart, aks
      * holda import mos kelmay qoladi. Xato SQL dan emas, shu yerdan chiqadi.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<covariant Model>  $query
+     * @param  Builder<covariant Model>  $query
      * @param  array<string, mixed>  $data
      */
     private function uniqueCode($query, array $data, ?Model $existing, string $label): string

@@ -6,6 +6,7 @@ namespace Tests\Feature\Ayollar;
 
 use App\Domains\Ayollar\Models\AuditLog;
 use App\Domains\Ayollar\Models\Metric;
+use App\Domains\Ayollar\Models\SensitiveAccessLog;
 use App\Domains\Ayollar\Services\BalanceCalculator;
 use App\Domains\Ayollar\Support\AyollarAccess;
 
@@ -104,7 +105,7 @@ class AyollarAdminTest extends AyollarApiTestCase
             'Amallar jurnalida yo‘q.',
         );
         $this->assertTrue(
-            \App\Domains\Ayollar\Models\SensitiveAccessLog::query()->where('woman_id', $woman->id)->exists(),
+            SensitiveAccessLog::query()->where('woman_id', $woman->id)->exists(),
             'Maxfiy kirish jurnalida yo‘q.',
         );
     }

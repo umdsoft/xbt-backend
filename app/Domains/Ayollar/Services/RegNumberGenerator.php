@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Services;
 
 use App\Domains\Ayollar\Models\Anketa;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**

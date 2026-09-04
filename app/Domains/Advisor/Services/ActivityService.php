@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Domains\Advisor\Services;
 
 use App\Domains\Advisor\Support\AdvisorScope;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -304,8 +306,8 @@ class ActivityService
     /**
      * Tuman kesimi hisoblagich (task_targets so'roviga status filtri qo'llangan).
      *
-     * @param  \Illuminate\Database\Query\Builder  $query
-     * @return \Illuminate\Support\Collection<string, int>
+     * @param  Builder  $query
+     * @return Collection<string, int>
      */
     private function countByDistrict($query)
     {

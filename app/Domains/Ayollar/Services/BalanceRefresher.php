@@ -42,7 +42,7 @@ class BalanceRefresher
      * hisoblanadi — bir xil natija bilan. Kechiktirilgan rejimda
      * o'zgargan MFY'lar TO'PLANADI va oxirida BIR marta yangilanadi.
      *
-     * @var array<string, string>|null  mahalla_id => district_id
+     * @var array<string, string>|null mahalla_id => district_id
      */
     private ?array $pending = null;
 

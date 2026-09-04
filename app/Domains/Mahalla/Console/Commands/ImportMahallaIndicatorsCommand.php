@@ -89,6 +89,7 @@ class ImportMahallaIndicatorsCommand extends Command
                 $resolved = $this->resolveDistrict($rowDistrict);
                 if ($resolved === null) {
                     $unknownDistricts[$rowDistrict] = true;
+
                     continue;
                 }
                 $matcher->forDistrict($resolved);
@@ -97,6 +98,7 @@ class ImportMahallaIndicatorsCommand extends Command
             $id = $matcher->match($name);
             if ($id === null) {
                 $miss[] = ($rowDistrict !== '' ? "{$rowDistrict} / " : '').$name;
+
                 continue;
             }
 

@@ -26,6 +26,8 @@ class Household extends Model
     protected $fillable = [
         'mahalla_id', 'district_id', 'address', 'residence_type', 'housing_type',
         'repair_need', 'in_social_registry', 'lat', 'lng', 'created_by', 'client_uuid',
+        // Kadastr bog'lanishi — manzil endi ro'yxatdan tanlanadi.
+        'street_id', 'building_id', 'house_number', 'cadastre', 'family_label',
     ];
 
     protected function casts(): array

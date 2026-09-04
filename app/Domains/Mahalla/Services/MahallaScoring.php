@@ -332,7 +332,8 @@ final class MahallaScoring
                 $dimData[$ind['dim']]['indicators'][] = ['label' => $ind['label'], 'unit' => '', 'value' => null, 'score' => null, 'active' => false];
             }
             $dimsOut = [];
-            $ovSum = 0.0; $ovW = 0.0;
+            $ovSum = 0.0;
+            $ovW = 0.0;
             foreach ($dimData as $dk => $d) {
                 $dScore = $d['_n'] > 0 ? (int) round($d['_sum'] / $d['_n']) : null;
                 if ($dScore !== null) {
@@ -428,7 +429,7 @@ final class MahallaScoring
         $add(['савдо', 'хизмат'], 'Savdo-xizmat mikro-tadbirkorligi', 'Oilaviy tadbirkorlik dasturi');
         $add(['ҳунар', 'хунар', 'тикув', 'косиб'], 'Hunarmandchilik mikroloyihasi', 'Uskuna granti');
         $add(['парранда'], 'Parrandachilik klasteri', 'Imtiyozli kredit');
-        $add(['нонвой', 'озиқ', 'овқат'], "Oziq-ovqat qayta ishlash", 'Mikroloyiha krediti');
+        $add(['нонвой', 'озиқ', 'овқат'], 'Oziq-ovqat qayta ishlash', 'Mikroloyiha krediti');
         // Bandligi past bo'lsa — ko'nikma orqali bandlik doim dolzarb.
         $out['raqamli'] = ['yonalish' => 'Raqamli kasb/IT-kurs → masofaviy bandlik', 'imtiyoz' => "Bandlik jamg'armasi vaucheri"];
 

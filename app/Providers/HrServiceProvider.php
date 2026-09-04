@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Domains\Hr\Models\CitizenAppeal;
 use App\Domains\Hr\Models\ControlPlan;
 use App\Domains\Hr\Models\Employee;
+use App\Domains\Hr\Models\Event;
 use App\Domains\Hr\Models\HokimYordamchisi;
 use App\Domains\Hr\Models\HrProfile;
 use App\Domains\Hr\Models\MahallaCouncil;
@@ -16,6 +17,7 @@ use App\Domains\Hr\Models\YouthMeeting;
 use App\Domains\Hr\Policies\CitizenAppealPolicy;
 use App\Domains\Hr\Policies\ControlPlanPolicy;
 use App\Domains\Hr\Policies\EmployeePolicy;
+use App\Domains\Hr\Policies\EventPolicy;
 use App\Domains\Hr\Policies\HokimYordamchisiPolicy;
 use App\Domains\Hr\Policies\MahallaCouncilPolicy;
 use App\Domains\Hr\Policies\OrganizationPolicy;
@@ -84,7 +86,7 @@ class HrServiceProvider extends ServiceProvider
             MahallaCouncil::class => MahallaCouncilPolicy::class,
             HokimYordamchisi::class => HokimYordamchisiPolicy::class,
             YoshlarYetakchisi::class => YoshlarYetakchisiPolicy::class,
-            \App\Domains\Hr\Models\Event::class => \App\Domains\Hr\Policies\EventPolicy::class,
+            Event::class => EventPolicy::class,
         ];
     }
 }

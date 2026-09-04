@@ -9,6 +9,7 @@ use App\Domains\Ayollar\Models\AnketaRedFlag;
 use App\Domains\Ayollar\Models\Woman;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Anketani saqlash — toifalash, qizil belgilar, ro'yxat raqami va QR
@@ -59,7 +60,7 @@ class AnketaService
             $anketa = $this->findExisting($woman, $meta);
 
             if ($anketa === null) {
-                $anketa = new Anketa();
+                $anketa = new Anketa;
                 $anketa->woman_id = $woman->id;
                 $anketa->reg_number = $this->regNumber->next($districtCode, $mahallaCode);
                 $anketa->qr_token = $this->qr->generateToken();
@@ -139,7 +140,7 @@ class AnketaService
 
         AnketaRedFlag::query()->insert(array_map(
             fn (array $flag): array => [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'anketa_id' => $anketa->id,
                 'flag_code' => $flag['code'],
                 'source_question' => $flag['source_question'],

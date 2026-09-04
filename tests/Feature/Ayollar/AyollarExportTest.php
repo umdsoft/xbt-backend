@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Ayollar;
 
+use App\Domains\Ayollar\Http\Controllers\Api\ExportController;
 use App\Domains\Ayollar\Services\BalanceCalculator;
 use App\Domains\Ayollar\Support\AyollarAccess;
 
@@ -91,12 +92,12 @@ class AyollarExportTest extends AyollarApiTestCase
         ]);
 
         $controller = new \ReflectionMethod(
-            \App\Domains\Ayollar\Http\Controllers\Api\ExportController::class,
+            ExportController::class,
             'pdfSections',
         );
         $controller->setAccessible(true);
 
-        $sections = $controller->invoke(app(\App\Domains\Ayollar\Http\Controllers\Api\ExportController::class), $anketa);
+        $sections = $controller->invoke(app(ExportController::class), $anketa);
 
         $questions = [];
         foreach ($sections as $section) {

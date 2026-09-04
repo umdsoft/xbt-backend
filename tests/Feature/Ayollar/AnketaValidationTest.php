@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Ayollar;
 
-use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Services\AnketaValidator;
 use App\Domains\Ayollar\Services\FormSchemaResolver;
 use App\Domains\Ayollar\Services\PiiCipher;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Saqlashdan oldingi tekshiruv, PII shifrlash va yoshga moslashuvchan
@@ -195,7 +195,7 @@ class AnketaValidationTest extends AyollarTestCase
         $district = $this->someDistrictId();
         $woman = $this->makeWoman($this->makeHousehold($this->someMahallaId($district), $district), 30, $pinfl);
 
-        $raw = \Illuminate\Support\Facades\DB::connection('ayollar')
+        $raw = DB::connection('ayollar')
             ->table('women')->where('id', $woman->id)->value('pinfl_encrypted');
 
         $this->assertNotNull($raw);

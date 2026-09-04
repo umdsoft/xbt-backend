@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
+use App\Domains\Ayollar\Models\Anketa;
 use App\Domains\Ayollar\Models\AuditLog;
 use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Models\SensitiveAccessLog;
+use App\Domains\Ayollar\Models\Woman;
+use App\Domains\Ayollar\Services\AuditLogger;
+use App\Domains\Ayollar\Services\PiiCipher;
 use App\Domains\Ayollar\Support\AyollarAccess;
+use App\Domains\Ayollar\Support\Rules;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -135,7 +140,7 @@ class AdminController extends Controller
             'owner_org_code' => ['sometimes', 'nullable', 'string', 'max:40'],
         ]));
 
-        app(\App\Domains\Ayollar\Services\AuditLogger::class)->log(
+        app(AuditLogger::class)->log(
             $request->user(),
             'metric.updated',
             'metric',
@@ -159,7 +164,7 @@ class AdminController extends Controller
     {
         $this->authorize($request, 'ayollar.admin');
 
-        $rules = \App\Domains\Ayollar\Support\Rules::all();
+        $rules = Rules::all();
         $ladderRows = array_column($rules['category_ladder'], 'balance_row');
         $registryCodes = Metric::query()->pluck('code')->all();
 
@@ -173,9 +178,9 @@ class AdminController extends Controller
             'metrics' => count($registryCodes),
             // Bo'sh bo'lishi SHART: aks holda balans qatorlari yo'qoladi.
             'missing_metrics' => $missing,
-            'pii_dedicated_key' => app(\App\Domains\Ayollar\Services\PiiCipher::class)->usesDedicatedKey(),
-            'anketas' => \App\Domains\Ayollar\Models\Anketa::query()->count(),
-            'women' => \App\Domains\Ayollar\Models\Woman::query()->count(),
+            'pii_dedicated_key' => app(PiiCipher::class)->usesDedicatedKey(),
+            'anketas' => Anketa::query()->count(),
+            'women' => Woman::query()->count(),
         ]);
     }
 

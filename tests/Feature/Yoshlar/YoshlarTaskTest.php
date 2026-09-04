@@ -7,7 +7,6 @@ namespace Tests\Feature\Yoshlar;
 use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Task;
-use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Models\User;
 use Illuminate\Support\Str;
 

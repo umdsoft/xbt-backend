@@ -18,7 +18,7 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE mahalla.users ADD COLUMN IF NOT EXISTS position varchar(40)");
+        DB::statement('ALTER TABLE mahalla.users ADD COLUMN IF NOT EXISTS position varchar(40)');
     }
 
     public function down(): void
@@ -27,6 +27,6 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE mahalla.users DROP COLUMN IF EXISTS position");
+        DB::statement('ALTER TABLE mahalla.users DROP COLUMN IF EXISTS position');
     }
 };

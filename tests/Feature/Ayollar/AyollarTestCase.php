@@ -158,7 +158,7 @@ abstract class AyollarTestCase extends TestCase
      */
     protected function makeWoman(Household $household, int $age, ?string $pinfl = null): Woman
     {
-        $woman = new Woman();
+        $woman = new Woman;
         $woman->fill([
             'household_id' => $household->id,
             'mahalla_id' => $household->mahalla_id,

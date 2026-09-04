@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\Hr\Models\Activity;
 use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Activitylog\Actions\LogActivityAction;
 
@@ -23,7 +24,7 @@ return [
     /*
      * HR domeni — UUID + tenant-aware audit modeli (`hr` ulanishi, public schema).
      */
-    'activity_model' => App\Domains\Hr\Models\Activity::class,
+    'activity_model' => Activity::class,
 
     'default_except_attributes' => [],
 

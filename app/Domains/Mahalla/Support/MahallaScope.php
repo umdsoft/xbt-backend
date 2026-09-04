@@ -26,6 +26,5 @@ final class MahallaScope
          * Ikkalasini bitta bayroq bilan ifodalash kelajakda xatoga olib keladi.
          */
         public readonly bool $canSeeAll = false,
-    ) {
-    }
+    ) {}
 }

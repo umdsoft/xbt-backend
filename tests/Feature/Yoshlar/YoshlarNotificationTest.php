@@ -10,6 +10,7 @@ use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\Youth;
 use App\Domains\Yoshlar\Models\YouthCase;
+use App\Domains\Yoshlar\Services\NotificationService;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -129,7 +130,7 @@ class YoshlarNotificationTest extends YoshlarTestCase
         $user = $this->makeUser('sektor_bolim', $this->district->id);
         $entityId = (string) Str::uuid();
 
-        $service = app(\App\Domains\Yoshlar\Services\NotificationService::class);
+        $service = app(NotificationService::class);
 
         $payload = ['title' => 'Takror', 'entity_id' => $entityId, 'entity_type' => 'task'];
 

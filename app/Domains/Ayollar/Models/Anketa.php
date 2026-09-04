@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Ayollar\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -86,7 +87,7 @@ class Anketa extends Model
         return $this->hasMany(AnketaRedFlag::class);
     }
 
-    /** @param \Illuminate\Database\Eloquent\Builder<self> $q */
+    /** @param Builder<self> $q */
     public function scopeCountable($q)
     {
         return $q->whereIn('status', self::COUNTABLE_STATUSES)

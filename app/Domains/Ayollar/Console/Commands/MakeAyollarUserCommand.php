@@ -7,6 +7,7 @@ namespace App\Domains\Ayollar\Console\Commands;
 use App\Domains\Ayollar\Models\Staff;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use Illuminate\Console\Command;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -153,7 +154,7 @@ class MakeAyollarUserCommand extends Command
      * MySQL'da bu jimgina ishlagan bo'lardi — shuning uchun xato
      * faqat Postgres'da chiqdi.
      *
-     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  Builder  $query
      */
     private function matchNameOrId($query, string $input): void
     {

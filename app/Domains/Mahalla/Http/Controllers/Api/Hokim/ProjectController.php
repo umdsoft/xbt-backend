@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Hokim;
 
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Services\ExecutiveStats;
 use App\Domains\Mahalla\Services\MicroProjectService;
 use App\Domains\Mahalla\Services\RaisCadastre;
-use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -227,5 +227,4 @@ class ProjectController extends MahallaPanelController
             'object_building_id' => ['nullable', 'uuid'],
         ]);
     }
-
 }

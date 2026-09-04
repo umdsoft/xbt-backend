@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
+use App\Domains\Ayollar\Models\BalanceSignature;
 use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
@@ -59,8 +60,8 @@ class ContextController extends Controller
                 'metrics' => Metric::query()->orderBy('sort_order')
                     ->get(['code', 'name_lat', 'name_cyr', 'category', 'owner_org_code', 'sort_order'])->all(),
                 'roles' => AyollarAccess::ROLE_NAMES,
-                'district_orgs' => \App\Domains\Ayollar\Models\BalanceSignature::DISTRICT_ORGS,
-                'mahalla_orgs' => \App\Domains\Ayollar\Models\BalanceSignature::MAHALLA_ORGS,
+                'district_orgs' => BalanceSignature::DISTRICT_ORGS,
+                'mahalla_orgs' => BalanceSignature::MAHALLA_ORGS,
             ],
         ]);
     }

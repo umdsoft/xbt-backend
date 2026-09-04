@@ -10,6 +10,7 @@ use App\Domains\Ayollar\Models\DistrictBalance;
 use App\Domains\Ayollar\Models\MahallaBalance;
 use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Models\RegionBalance;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,13 +48,11 @@ class BalanceCalculator
      */
     private ?array $emptyMetricsCache = null;
 
-    /** @var \Illuminate\Support\Collection<string, string>|null */
+    /** @var Collection<string, string>|null */
     private $categoryCache = null;
 
     /**
      * MFY balansi — anketalardan BEVOSITA.
-     *
-     * @return MahallaBalance
      */
     public function calculateMahalla(string $mahallaId, int $year, int $month): MahallaBalance
     {
@@ -229,7 +228,7 @@ class BalanceCalculator
     /**
      * Tuman/viloyat balansi bolalarning YIG'INDISIga tengmi (og'ish 0).
      *
-     * @param  \Illuminate\Support\Collection<int, Balance>  $children
+     * @param  Collection<int, Balance>  $children
      * @return array<int, array{code: string, message: string, expected: int, actual: int}>
      */
     public function verifyRollUp(Balance $parent, $children): array
@@ -297,7 +296,7 @@ class BalanceCalculator
     /**
      * Bolalarni qo'shadi.
      *
-     * @param  \Illuminate\Support\Collection<int, Balance>  $children
+     * @param  Collection<int, Balance>  $children
      *
      * @template TBalance of Balance
      */

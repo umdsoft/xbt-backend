@@ -26,7 +26,7 @@ class QurilishNormalizerTest extends QurilishTestCase
 
     public function test_translit_converts_cyrillic_and_leaves_latin(): void
     {
-        $this->assertSame("Xiva shahri", Translit::toLatin('Хива шаҳри'));
+        $this->assertSame('Xiva shahri', Translit::toLatin('Хива шаҳри'));
         $this->assertSame('MONOLIT LOYIHA QURILISH MCHJ', Translit::toLatin('MONOLIT LOYIHA QURILISH MCHJ'));
         $this->assertNull(Translit::toLatin(null));
     }

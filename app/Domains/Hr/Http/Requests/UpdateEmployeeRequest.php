@@ -6,13 +6,14 @@ namespace App\Domains\Hr\Http\Requests;
 
 use App\Domains\Hr\Models\Employee;
 use App\Domains\Hr\Services\ValidationRulesService;
+use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateEmployeeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return app(\App\Domains\Hr\Support\HrAccess::class)->can('kadrlar.update') ?? false;
+        return app(HrAccess::class)->can('kadrlar.update') ?? false;
     }
 
     /**

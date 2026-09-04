@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Yoshlar;
 
 use App\Domains\Yoshlar\Models\Organization;
-use App\Domains\Yoshlar\Models\Patronage;
 use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Staff;
 use App\Domains\Yoshlar\Models\Youth;

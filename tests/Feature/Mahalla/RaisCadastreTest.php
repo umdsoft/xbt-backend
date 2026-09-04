@@ -7,8 +7,8 @@ namespace Tests\Feature\Mahalla;
 use App\Domains\Mahalla\Services\RaisCadastre;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 

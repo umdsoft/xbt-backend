@@ -22,7 +22,7 @@ class RegNumberTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->gen = new RegNumberGenerator();
+        $this->gen = new RegNumberGenerator;
     }
 
     public function test_prefix_has_fixed_widths(): void

@@ -11,6 +11,7 @@ use App\Domains\Qurilish\Support\QurilishAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Bosqich dalillari — surat va video. */
@@ -103,7 +104,7 @@ class MediaController extends QurilishController
      * `Storage::download()` Range ni qo'llab-quvvatlamaydi, shuning uchun
      * bu yerda `file()` ishlatiladi.
      */
-    public function show(Request $request, string $objectId, string $mediaId): StreamedResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function show(Request $request, string $objectId, string $mediaId): StreamedResponse|BinaryFileResponse
     {
         $this->authorizeAction($request->user(), 'qurilish.view');
         $object = $this->objects->findOrFail($request->user(), $objectId);

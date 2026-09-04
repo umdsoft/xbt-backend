@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Connection;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
@@ -106,11 +107,11 @@ return new class extends Migration
         // yopishi kerak boʻlardi. Baza darajasida toʻsiladi, chunki
         // dastur darajasidagi tekshiruv parallel soʻrovda oʻtib ketadi.
         $db->statement(
-            "CREATE UNIQUE INDEX IF NOT EXISTS tasks_protocol_item_unique
+            'CREATE UNIQUE INDEX IF NOT EXISTS tasks_protocol_item_unique
              ON yoshlar.tasks (protocol_id, item_number)
              WHERE protocol_id IS NOT NULL
                AND item_number IS NOT NULL
-               AND deleted_at IS NULL"
+               AND deleted_at IS NULL'
         );
 
         // Hujjat koʻrinishi — bandlar doim shu tartibda oʻqiladi.
@@ -124,15 +125,15 @@ return new class extends Migration
         // «12/10 bajarildi» matematik jihatdan mumkin, ammo hisobotda
         // 120% chiqib, jami foizni buzadi. Ortiqcha ish alohida band
         // sifatida kiritilishi kerak, shu bandning sonini shishirib emas.
-        $this->addCheck($db, 'tasks_target_sane', "
+        $this->addCheck($db, 'tasks_target_sane', '
             (target_value IS NULL OR target_value > 0)
             AND target_done >= 0
             AND (target_value IS NULL OR target_done <= target_value)
-        ");
+        ');
     }
 
     /** CHECK cheklovi — mavjud boʻlsa qayta qoʻshilmaydi. */
-    private function addCheck(\Illuminate\Database\Connection $db, string $name, string $expression): void
+    private function addCheck(Connection $db, string $name, string $expression): void
     {
         $exists = $db->selectOne(
             'SELECT 1 FROM pg_constraint WHERE conname = ?',

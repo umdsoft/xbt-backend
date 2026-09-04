@@ -122,7 +122,7 @@ class YoshlarExportTest extends YoshlarTestCase
         $tmp = tempnam(sys_get_temp_dir(), 'xlsxtest');
         file_put_contents($tmp, $binary);
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($tmp);
         $xml = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
         $zip->close();

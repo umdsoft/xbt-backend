@@ -17,9 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureMahallaViewer
 {
-    public function __construct(private readonly MahallaAccess $access)
-    {
-    }
+    public function __construct(private readonly MahallaAccess $access) {}
 
     public function handle(Request $request, Closure $next): Response
     {

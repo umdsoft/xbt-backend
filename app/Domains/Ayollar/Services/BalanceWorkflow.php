@@ -38,7 +38,7 @@ class BalanceWorkflow
      * tuzatish ancha qimmat: imzolar bekor qilinishi, MFY qayta ishlashi
      * kerak bo'ladi.
      *
-     * @return array<int, array<string, mixed>>  bo'sh = yopildi
+     * @return array<int, array<string, mixed>> bo'sh = yopildi
      */
     public function close(Balance $balance, User $user): array
     {

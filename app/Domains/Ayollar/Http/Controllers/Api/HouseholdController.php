@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
 use App\Domains\Ayollar\Models\Household;
+use App\Domains\Ayollar\Services\CadastreDirectory;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Xonadonlar — oila darajasidagi ma'lumot.
@@ -23,6 +25,7 @@ class HouseholdController extends Controller
     public function __construct(
         private readonly AyollarAccess $access,
         private readonly AyollarScope $scope,
+        private readonly CadastreDirectory $cadastre,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -48,7 +51,14 @@ class HouseholdController extends Controller
         $data = $request->validate([
             'mahalla_id' => ['required', 'uuid'],
             'district_id' => ['required', 'uuid'],
+            // Manzil endi KADASTRDAN tanlanadi, lekin `address` majburiy
+            // bo'lib qoladi: kadastrda yo'q xonadon (yangi qurilgan uy,
+            // hovli ichidagi alohida kirish) uchun yagona yo'l shu.
             'address' => ['required', 'string', 'max:500'],
+            'street_id' => ['nullable', 'uuid'],
+            'building_id' => ['nullable', 'uuid'],
+            'house_number' => ['nullable', 'string', 'max:32'],
+            'family_label' => ['nullable', 'string', 'max:120'],
             'residence_type' => ['nullable', 'string', 'max:40'],
             'housing_type' => ['nullable', 'string', 'max:40'],
             'repair_need' => ['nullable', 'string', 'max:40'],
@@ -62,12 +72,32 @@ class HouseholdController extends Controller
             abort(403, 'Bu MFY sizning doirangizda emas.');
         }
 
+        // Bino BERILGAN bo'lsa, u shu MFY'niki ekani TEKSHIRILADI va
+        // koordinata bilan kadastr raqami SERVERDA to'ldiriladi.
+        //
+        // Nega mijozdan olinmaydi: planshet ularni yubormasligi ham,
+        // xato yuborishi ham mumkin. Kadastr raqami esa hujjatda
+        // chiqadi — u ishonchli manbadan kelishi shart.
+        if (! empty($data['building_id'])) {
+            $building = $this->cadastre->building($data['building_id'], $data['mahalla_id']);
+
+            if ($building === null) {
+                abort(422, 'Bino bu MFYda topilmadi.');
+            }
+
+            $data['street_id'] = $building['street_id'];
+            $data['house_number'] = $building['house_number'];
+            $data['cadastre'] = $building['cadastre'];
+            $data['lat'] = $data['lat'] ?? $building['lat'];
+            $data['lng'] = $data['lng'] ?? $building['lng'];
+        }
+
         // `client_uuid` bo'yicha idempotent: offline navbat bir xonadonni
         // bir necha marta yuborsa ham bitta yozuv hosil bo'ladi.
         $household = Household::query()->updateOrCreate(
             $data['client_uuid'] ?? null
                 ? ['client_uuid' => $data['client_uuid']]
-                : ['id' => (string) \Illuminate\Support\Str::uuid()],
+                : ['id' => (string) Str::uuid()],
             $data + ['created_by' => $request->user()->id],
         );
 

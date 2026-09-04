@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Domains\Hr\Http\Requests\Appeals;
 
 use App\Domains\Hr\Enums\AppealPriority;
+use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreAppealRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return app(\App\Domains\Hr\Support\HrAccess::class)->can('appeals.create') ?? false;
+        return app(HrAccess::class)->can('appeals.create') ?? false;
     }
 
     public function rules(): array

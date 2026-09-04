@@ -10,9 +10,12 @@ use App\Domains\Ayollar\Http\Controllers\Api\BootstrapController;
 use App\Domains\Ayollar\Http\Controllers\Api\ContextController;
 use App\Domains\Ayollar\Http\Controllers\Api\DeviceController;
 use App\Domains\Ayollar\Http\Controllers\Api\ExportController;
+use App\Domains\Ayollar\Http\Controllers\Api\GeoController;
 use App\Domains\Ayollar\Http\Controllers\Api\HouseholdController;
 use App\Domains\Ayollar\Http\Controllers\Api\PublicQrController;
 use App\Domains\Ayollar\Http\Controllers\Api\RulesController;
+use App\Domains\Ayollar\Http\Controllers\Api\StaffController;
+use App\Domains\Ayollar\Http\Controllers\Api\TabletController;
 use App\Domains\Ayollar\Http\Controllers\Api\WomanController;
 use App\Domains\Ayollar\Http\Controllers\Api\WorkPlanController;
 use Illuminate\Support\Facades\Route;
@@ -114,6 +117,38 @@ Route::middleware(['auth:sanctum', 'ayollar'])
 
         // ---------- Administrator ----------
         // Jurnal O'QISH uchun: u nazorat vositasi va o'zgartirilmaydi.
+        /*
+         * GEOGRAFIYA — tuman, MFY, ko'cha, uy.
+         *
+         * Manba `master` sxemasi (kadastr). Planshet manzil tanlashda,
+         * administrator esa hisob ochishda ishlatadi — ikkalasi ham
+         * AYNAN BIR ro'yxatdan o'qiydi.
+         */
+        Route::get('/geo/districts', [GeoController::class, 'districts'])->name('geo.districts');
+        Route::get('/geo/districts/{district}/mahallas', [GeoController::class, 'mahallas'])
+            ->name('geo.mahallas')->whereUuid('district');
+        Route::get('/geo/streets', [GeoController::class, 'streets'])->name('geo.streets.own');
+        Route::get('/geo/mahallas/{mahalla}/streets', [GeoController::class, 'streets'])
+            ->name('geo.streets')->whereUuid('mahalla');
+        Route::get('/geo/streets/{street}/houses', [GeoController::class, 'houses'])
+            ->name('geo.houses')->whereUuid('street');
+
+        /* Planshet bosh ekrani — bitta so'rovda barcha bloklar. */
+        Route::get('/tablet/home', [TabletController::class, 'home'])->name('tablet.home');
+
+        /*
+         * HISOBLAR — administrator faol uchun login/parol ochadi.
+         *
+         * Avval bu faqat serverdagi CLI buyrug'i edi; 509 MFY uchun
+         * bunday ish tartibi real emas.
+         */
+        Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::patch('/staff/{id}', [StaffController::class, 'update'])->name('staff.update')->whereUuid('id');
+        Route::post('/staff/{id}/password', [StaffController::class, 'resetPassword'])
+            ->name('staff.password')->whereUuid('id');
+        Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->name('staff.destroy')->whereUuid('id');
+
         Route::get('/admin/audit', [AdminController::class, 'audit'])->name('admin.audit');
         Route::get('/admin/sensitive-access', [AdminController::class, 'sensitiveAccess'])
             ->name('admin.sensitive_access');

@@ -123,7 +123,7 @@ class PublicQrController extends Controller
         return BalanceSignature::query()
             ->where('balance_type', 'mahalla')
             ->where('balance_id', $balanceId)
-            ->orderByRaw("array_position(?::text[], org_code)", ['{'.implode(',', BalanceSignature::MAHALLA_ORGS).'}'])
+            ->orderByRaw('array_position(?::text[], org_code)', ['{'.implode(',', BalanceSignature::MAHALLA_ORGS).'}'])
             ->get(['org_code', 'status', 'signed_at'])
             ->all();
     }

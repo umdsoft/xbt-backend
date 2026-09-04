@@ -150,7 +150,7 @@ class RepairNeedService
     {
         $rows = $this->baseQuery($user)
             ->leftJoin('qurilish.sectors as s', 's.id', '=', 'repair_needs.sector_id')
-            ->selectRaw("
+            ->selectRaw('
                 repair_needs.sector_id as key,
                 max(s.name_cyr) as name,
                 count(*) as needs,
@@ -161,7 +161,7 @@ class RepairNeedService
                 coalesce(sum(estimated_amount) filter (where target_year = 2027), 0) as amount_2027,
                 count(*) filter (where not funding_source_known) as funding_unknown,
                 coalesce(sum(estimated_amount) filter (where not funding_source_known), 0) as amount_unknown
-            ")
+            ')
             ->groupBy('repair_needs.sector_id')
             ->orderByDesc('needs')
             ->get();

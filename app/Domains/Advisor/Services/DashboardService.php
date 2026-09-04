@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Advisor\Services;
 
 use App\Domains\Advisor\Support\AdvisorScope;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -331,7 +332,7 @@ class DashboardService
     /**
      * Muddati o'tган nishonlar so'rovi (ixtiyoriy tuman kesimida).
      *
-     * @return \Illuminate\Database\Query\Builder
+     * @return Builder
      */
     private function overdueTargets(?string $districtId)
     {
@@ -496,10 +497,6 @@ class DashboardService
         return round($n, 1).'%';
     }
 
-    /**
-     * @param  float|null  $n
-     * @return string
-     */
     private function pctOrDash(?float $n): string
     {
         return $n === null ? '—' : $this->pct($n);

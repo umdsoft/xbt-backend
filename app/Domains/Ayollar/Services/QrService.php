@@ -96,7 +96,7 @@ class QrService
      * bo'lishi kafolatlanmagan. Matritsa esa oddiy jadval bo'lib
      * chiziladi va HAR QANDAY muhitda bir xil chiqadi.
      *
-     * @return array<int, array<int, bool>>  [qator][ustun] = qora modulmi
+     * @return array<int, array<int, bool>> [qator][ustun] = qora modulmi
      */
     public function matrix(Anketa $anketa): array
     {
@@ -165,7 +165,7 @@ class QrService
     {
         $writer = new Writer(new ImageRenderer(
             new RendererStyle($size, margin: 1),
-            new SvgImageBackEnd(),
+            new SvgImageBackEnd,
         ));
 
         return $writer->writeString(

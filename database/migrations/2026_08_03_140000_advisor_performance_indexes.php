@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Connection;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -86,13 +87,13 @@ return new class extends Migration
      * pg_trgm extension'ni ta'minlaydi (bor bo'lsa — tasdiqlaydi). Yaratib bo'lmasa
      * jurnalga yozadi va false qaytaradi (GIN indekslar o'tkazib yuboriladi).
      *
-     * @param  \Illuminate\Database\Connection  $conn
+     * @param  Connection  $conn
      */
     private function ensureTrgm($conn): bool
     {
         try {
             $conn->statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::warning(
                 "advisor unumdorlik: pg_trgm extension yaratib bo'lmadi (superuser kerak?) — ".
                 'trgm GIN indekslar o\'tkazib yuborildi: '.$e->getMessage()

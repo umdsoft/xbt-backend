@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Http\Controllers\Api;
 
+use App\Domains\Yoshlar\Models\Document;
 use App\Domains\Yoshlar\Models\EmploymentCase;
 use App\Domains\Yoshlar\Models\Notification;
 use App\Domains\Yoshlar\Models\Organization;
@@ -11,6 +12,7 @@ use App\Domains\Yoshlar\Models\Sector;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\TaskUpdate;
 use App\Domains\Yoshlar\Models\Youth;
+use App\Domains\Yoshlar\Models\YouthCase;
 use App\Domains\Yoshlar\Services\EmploymentService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Domains\Yoshlar\Support\YoshlarScope;
@@ -81,9 +83,9 @@ class ContextController extends Controller
                 'task_statuses' => Task::STATUSES,
                 'task_priorities' => Task::PRIORITIES,
                 'employment_statuses_chain' => EmploymentCase::STATUSES,
-                'document_categories' => \App\Domains\Yoshlar\Models\Document::CATEGORIES,
-                'case_categories' => \App\Domains\Yoshlar\Models\YouthCase::CATEGORIES,
-                'case_statuses' => \App\Domains\Yoshlar\Models\YouthCase::STATUSES,
+                'document_categories' => Document::CATEGORIES,
+                'case_categories' => YouthCase::CATEGORIES,
+                'case_statuses' => YouthCase::STATUSES,
             ],
         ]);
     }

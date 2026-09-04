@@ -15,9 +15,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class HouseController extends Controller
 {
-    public function __construct(private readonly MahallaAccess $access)
-    {
-    }
+    public function __construct(private readonly MahallaAccess $access) {}
 
     /**
      * Honadonlar ro'yxati — KADASTR binolari asosida.
@@ -102,7 +100,7 @@ class HouseController extends Controller
 
         $visible = House::query()->visibleTo($scope)->whereKey($house->getKey())->exists();
         if (! $visible) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         $house->load(['mahalla:id,name_cyr', 'street:id,name']);

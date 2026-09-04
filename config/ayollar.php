@@ -71,4 +71,20 @@ return [
     */
     'batch_limit' => 100,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Kunlik marshrut normasi
+    |--------------------------------------------------------------------------
+    |
+    | Planshet bosh ekranidagi «bugungi reja N xonadon» va marshrut
+    | uzunligi. Norma KADASTRDAN kelmaydi — u ish tashkiloti masalasi,
+    | shuning uchun sozlamada turadi.
+    |
+    | 12: bitta xonadonda o'rtacha 2-3 ayol, har biriga 10-15 daqiqa;
+    | ish kunining yarmi yurishga ketadi. Bu son ko'paytirilsa,
+    | anketa sifati tushadi — faol shoshib to'ldiradi.
+    |
+    */
+    'daily_household_norm' => (int) env('AYOLLAR_DAILY_NORM', 12),
+
 ];

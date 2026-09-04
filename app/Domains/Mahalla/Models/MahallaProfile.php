@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Models;
 
+use App\Domains\Mahalla\Models\Master\District;
+use App\Domains\Mahalla\Models\Master\Mahalla;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,12 +33,12 @@ class MahallaProfile extends Model
 
     public function district(): BelongsTo
     {
-        return $this->belongsTo(\App\Domains\Mahalla\Models\Master\District::class);
+        return $this->belongsTo(District::class);
     }
 
     public function mahalla(): BelongsTo
     {
-        return $this->belongsTo(\App\Domains\Mahalla\Models\Master\Mahalla::class);
+        return $this->belongsTo(Mahalla::class);
     }
 
     public function streetAssignments(): HasMany

@@ -103,6 +103,7 @@ class MahallaAliasSeeder extends Seeder
 
             if ($mahallaId === null) {
                 $missing[] = "{$soato} ({$name})";
+
                 continue;
             }
 

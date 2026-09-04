@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
 use App\Domains\Ayollar\Models\Anketa;
+use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Models\WorkPlan;
 use App\Domains\Ayollar\Services\SensitiveAccessService;
 use App\Domains\Ayollar\Support\AyollarAccess;
@@ -75,7 +76,7 @@ class WorkPlanController extends Controller
             'deadline' => ['nullable', 'date', 'after_or_equal:today'],
         ]);
 
-        $woman = \App\Domains\Ayollar\Models\Woman::query()->findOrFail($data['woman_id']);
+        $woman = Woman::query()->findOrFail($data['woman_id']);
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $woman->mahalla_id, (string) $woman->district_id)) {
             abort(403, 'Bu MFY sizning doirangizda emas.');

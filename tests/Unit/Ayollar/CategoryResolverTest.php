@@ -26,7 +26,7 @@ class CategoryResolverTest extends TestCase
     {
         parent::setUp();
         Rules::flush();
-        $this->resolver = new CategoryResolver();
+        $this->resolver = new CategoryResolver;
     }
 
     /**

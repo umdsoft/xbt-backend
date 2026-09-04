@@ -7,6 +7,7 @@ namespace Tests\Feature\Qurilish;
 use App\Domains\Qurilish\Models\ConstructionObject;
 use App\Domains\Qurilish\Models\ObjectAuditLog;
 use App\Domains\Qurilish\Models\ObjectStage;
+use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
 
 /**
@@ -205,7 +206,7 @@ class QurilishObjectTest extends QurilishObjectTestCase
         $object = $this->makeObject([
             'name' => $this->tag('D'), 'department_org_id' => $dept, 'lifecycle' => 'qoralama',
         ]);
-        $programId = \App\Domains\Qurilish\Models\Program::query()->where('code', 'pq393')->value('id');
+        $programId = Program::query()->where('code', 'pq393')->value('id');
 
         $this->actingAs($this->makeUser('qurilish_boshqarma', $dept), 'sanctum')
             ->patchJson('/api/qurilish/objects/'.$object->id, ['program_id' => $programId])

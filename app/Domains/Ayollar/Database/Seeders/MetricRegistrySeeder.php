@@ -26,7 +26,7 @@ class MetricRegistrySeeder extends Seeder
 {
     /**
      * @var array<int, array{0: string, 1: string, 2: string, 3: string, 4: ?string}>
-     *   [code, name_lat, name_cyr, category, owner_org_code]
+     *                                                                                [code, name_lat, name_cyr, category, owner_org_code]
      */
     private const METRICS = [
         // ---------- JAMI ----------

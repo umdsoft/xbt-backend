@@ -9,6 +9,7 @@ use App\Domains\Ayollar\Models\Household;
 use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Services\AnketaService;
 use App\Domains\Ayollar\Services\BalanceCalculator;
+use App\Domains\Ayollar\Services\BalanceRefresher;
 use App\Domains\Ayollar\Services\CategoryResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,7 @@ class SeedAyollarDemoCommand extends Command
         // balansini qayta hisoblasa, u 360 marta bir xil natija bilan
         // yangilanardi. Bu blokda o'zgargan MFY'lar to'planadi va
         // oxirida BIR marta yuviladi.
-        app(\App\Domains\Ayollar\Services\BalanceRefresher::class)->defer(function () use (
+        app(BalanceRefresher::class)->defer(function () use (
             $mahallas, $perMahalla, $anketaService, $resolver, $districtCodes, $bar
         ): void {
             foreach ($mahallas as $mahalla) {
@@ -160,7 +161,7 @@ class SeedAyollarDemoCommand extends Command
             11, 12, 13, 14, 15, 16, 17, 18, 19, 20 => random_int(7, 17),
         };
 
-        $woman = new Woman();
+        $woman = new Woman;
         $woman->fill([
             'household_id' => $household->id,
             'mahalla_id' => $mahallaId,

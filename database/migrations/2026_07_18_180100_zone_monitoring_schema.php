@@ -74,10 +74,10 @@ return new class extends Migration
 
         // 4) house_photo_analyses — zona-aware o'zgarish tahlili
         foreach ([
-            'zone' => "ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS zone varchar(20)",
-            'prev_status' => "ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS prev_status varchar(20)",
-            'suggested_status' => "ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS suggested_status varchar(20)",
-            'is_change' => "ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS is_change boolean NOT NULL DEFAULT false",
+            'zone' => 'ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS zone varchar(20)',
+            'prev_status' => 'ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS prev_status varchar(20)',
+            'suggested_status' => 'ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS suggested_status varchar(20)',
+            'is_change' => 'ALTER TABLE mahalla.house_photo_analyses ADD COLUMN IF NOT EXISTS is_change boolean NOT NULL DEFAULT false',
         ] as $sql) {
             DB::statement($sql);
         }

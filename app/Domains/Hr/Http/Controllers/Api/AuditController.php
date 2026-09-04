@@ -6,7 +6,6 @@ namespace App\Domains\Hr\Http\Controllers\Api;
 
 use App\Domains\Hr\Models\Activity;
 use App\Domains\Hr\Support\ActivityTranslator;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

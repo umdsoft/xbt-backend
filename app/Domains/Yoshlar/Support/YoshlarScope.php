@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Yoshlar\Support;
 
 use App\Domains\Yoshlar\Models\Organization;
+use App\Domains\Yoshlar\Models\Task;
+use App\Domains\Yoshlar\Models\Youth;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -63,8 +65,8 @@ class YoshlarScope
     /**
      * Reyestr so'roviga geo doirani qo'llaydi.
      *
-     * @param  Builder<\App\Domains\Yoshlar\Models\Youth>  $query
-     * @return Builder<\App\Domains\Yoshlar\Models\Youth>
+     * @param  Builder<Youth>  $query
+     * @return Builder<Youth>
      */
     public function applyYouth(Builder $query, User $user): Builder
     {
@@ -89,8 +91,8 @@ class YoshlarScope
      * lekin o'z TUMANIDAGI ijro holatini ko'radi (nazorat uchun) — unga geo
      * o'lchov qo'llanadi.
      *
-     * @param  Builder<\App\Domains\Yoshlar\Models\Task>  $query
-     * @return Builder<\App\Domains\Yoshlar\Models\Task>
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
      */
     public function applyTask(Builder $query, User $user): Builder
     {

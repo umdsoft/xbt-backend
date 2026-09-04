@@ -47,6 +47,24 @@ return [
             'report' => false,
         ],
 
+        /*
+         * AGROAI HUB media (D-023, SEC-06).
+         *
+         * `public` diskidan ALOHIDA: lot fotosuratlari tijorat ma'lumoti —
+         * ular boshqa modullarning ochiq fayllari bilan bir papkada
+         * turmasligi va indekslanmasligi kerak. Berish `visibility: private`
+         * bilan, nginx orqali emas — ruxsat kontrollerda tekshiriladi.
+         */
+        'agro' => [
+            'driver' => 'local',
+            'root' => storage_path('app/agro'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage/agro',
+            'visibility' => 'private',
+            'serve' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -31,6 +31,7 @@ class SystemsSeeder extends Seeder
         ['code' => 'qurilish', 'name' => 'Қурилиш дастурлари ижроси', 'sort_order' => 6],
         ['code' => 'yoshlar', 'name' => 'Ёшлар ишлари мониторинги', 'sort_order' => 7],
         ['code' => 'ayollar', 'name' => 'Аёллар баланси', 'sort_order' => 8],
+        ['code' => 'agro', 'name' => 'AgroAI Hub', 'sort_order' => 9],
     ];
 
     public function run(): void

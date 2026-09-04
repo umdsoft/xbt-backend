@@ -14,10 +14,11 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\SimpleXlsx;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -55,7 +56,7 @@ class UserManagementController extends Controller
      * hisob ma'lumotlarini deputatlarga tarqatishi uchun. XLSX SimpleXlsx bilan
      * (dependency-siz, kirill/UTF-8 to'g'ri).
      */
-    public function export(): \Symfony\Component\HttpFoundation\Response
+    public function export(): Response
     {
         $rows = $this->operationalUserRows();
 
@@ -241,9 +242,9 @@ class UserManagementController extends Controller
     /**
      * Operatsion (deputat-rol, mahalla tizimi) userlar — auth qatorlari.
      *
-     * @return \Illuminate\Support\Collection<int, object>
+     * @return Collection<int, object>
      */
-    private function operationalUserRows(): \Illuminate\Support\Collection
+    private function operationalUserRows(): Collection
     {
         return DB::connection('auth')->table('user_system_access as usa')
             ->join('systems as s', 's.id', '=', 'usa.system_id')

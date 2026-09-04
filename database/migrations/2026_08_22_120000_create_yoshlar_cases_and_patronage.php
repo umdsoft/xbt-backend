@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -84,7 +85,7 @@ return new class extends Migration
         );
     }
 
-    private function create(\Illuminate\Database\Schema\Builder $schema, string $table, callable $definition): void
+    private function create(Builder $schema, string $table, callable $definition): void
     {
         if ($schema->hasTable($table)) {
             return;

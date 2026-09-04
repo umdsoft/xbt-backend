@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Rais;
 
-use App\Domains\Mahalla\Services\ContractService;
 use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
+use App\Domains\Mahalla\Services\ContractService;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -129,5 +129,4 @@ class ContractController extends MahallaPanelController
 
         return Storage::disk($meta['disk'])->download($meta['path'], $meta['name']);
     }
-
 }

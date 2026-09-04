@@ -9,13 +9,16 @@ use App\Domains\Ayollar\Models\SyncConflict;
 use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Services\AnketaService;
 use App\Domains\Ayollar\Services\AnketaValidator;
+use App\Domains\Ayollar\Services\BalanceRefresher;
 use App\Domains\Ayollar\Services\CategoryResolver;
 use App\Domains\Ayollar\Services\QrService;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
+use App\Domains\Ayollar\Support\Rules;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,7 +33,7 @@ class AnketaController extends Controller
         private readonly AnketaValidator $validator,
         private readonly CategoryResolver $resolver,
         private readonly QrService $qr,
-        private readonly \App\Domains\Ayollar\Services\BalanceRefresher $refresher,
+        private readonly BalanceRefresher $refresher,
     ) {}
 
     /**
@@ -91,7 +94,7 @@ class AnketaController extends Controller
         $answers = $anketa->answers ?? [];
 
         if (! $this->access->can($user, 'ayollar.pii.reveal')) {
-            foreach (\App\Domains\Ayollar\Support\Rules::sensitiveQuestions() as $q) {
+            foreach (Rules::sensitiveQuestions() as $q) {
                 unset($answers["q{$q}"]);
             }
         }
@@ -123,7 +126,7 @@ class AnketaController extends Controller
     }
 
     /** Toifa izi bilan birga QR SVG. */
-    public function qrSvg(Request $request, string $id): \Illuminate\Http\Response
+    public function qrSvg(Request $request, string $id): Response
     {
         $anketa = $this->findScoped($request, $id);
 

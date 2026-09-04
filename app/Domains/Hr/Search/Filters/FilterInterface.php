@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Search\Filters;
 
+use App\Domains\Hr\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -13,9 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
 interface FilterInterface
 {
     /**
-     * @param  Builder<\App\Domains\Hr\Models\Employee>  $query
-     * @param  mixed  $value
-     * @return Builder<\App\Domains\Hr\Models\Employee>
+     * @param  Builder<Employee>  $query
+     * @return Builder<Employee>
      */
     public function apply(Builder $query, mixed $value): Builder;
 }

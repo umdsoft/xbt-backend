@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Qurilish;
 
+use App\Domains\Qurilish\Models\ConstructionObject;
+use App\Domains\Qurilish\Models\ObjectMonthlyPlan;
 use App\Domains\Qurilish\Models\Program;
 use App\Domains\Qurilish\Models\Sector;
 use App\Models\User;
+use Illuminate\Testing\TestResponse;
 
 /**
  * Dashboard agregatsiyalari — manbadagi 22 СВОД pivotining jonli o'rnini bosuvchi.
@@ -187,7 +190,7 @@ class QurilishDashboardTest extends QurilishObjectTestCase
     public function test_monthly_rollup_returns_twelve_months(): void
     {
         $object = $this->obj();
-        \App\Domains\Qurilish\Models\ObjectMonthlyPlan::query()->create([
+        ObjectMonthlyPlan::query()->create([
             'object_id' => $object->id, 'year' => 2026, 'month' => 3,
             'planned_amount' => 1500, 'actual_amount' => 1200,
         ]);
@@ -344,7 +347,7 @@ class QurilishDashboardTest extends QurilishObjectTestCase
     // ---------- yordamchilar ----------
 
     /** @param array<string, mixed> $attrs */
-    private function obj(array $attrs = []): \App\Domains\Qurilish\Models\ConstructionObject
+    private function obj(array $attrs = []): ConstructionObject
     {
         return $this->makeObject(array_merge([
             'name' => $this->tag('D'.random_int(1000, 9999)),
@@ -352,7 +355,7 @@ class QurilishDashboardTest extends QurilishObjectTestCase
         ], $attrs));
     }
 
-    private function api(string $url): \Illuminate\Testing\TestResponse
+    private function api(string $url): TestResponse
     {
         return $this->actingAs($this->user, 'sanctum')->getJson($url);
     }

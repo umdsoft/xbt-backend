@@ -10,13 +10,12 @@ use App\Domains\Ayollar\Models\DistrictBalance;
 use App\Domains\Ayollar\Models\MahallaBalance;
 use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Models\RegionBalance;
-use App\Domains\Ayollar\Support\AyollarAccess;
-use App\Domains\Ayollar\Support\AyollarScope;
-use App\Http\Controllers\Controller;
 use App\Domains\Ayollar\Services\AuditLogger;
 use App\Domains\Ayollar\Services\QrService;
-use App\Domains\Ayollar\Services\SensitiveAccessService;
+use App\Domains\Ayollar\Support\AyollarAccess;
+use App\Domains\Ayollar\Support\AyollarScope;
 use App\Domains\Ayollar\Support\Rules;
+use App\Http\Controllers\Controller;
 use App\Support\SimpleXlsx;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -184,7 +183,7 @@ class ExportController extends Controller
             'downloadedAt' => now()->format('d.m.Y H:i'),
         ])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
         // Default DejaVu Sans — kirill va lotin kengaytmasini qoplaydi.

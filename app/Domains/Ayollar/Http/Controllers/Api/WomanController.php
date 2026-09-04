@@ -12,6 +12,7 @@ use App\Domains\Ayollar\Services\SensitiveAccessService;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,9 +93,9 @@ class WomanController extends Controller
             }
         }
 
-        $age = $this->resolver->ageAt(\Carbon\Carbon::parse($data['birth_date']));
+        $age = $this->resolver->ageAt(Carbon::parse($data['birth_date']));
 
-        $woman = new Woman();
+        $woman = new Woman;
         $woman->fill([
             'household_id' => $household->id,
             'mahalla_id' => $household->mahalla_id,

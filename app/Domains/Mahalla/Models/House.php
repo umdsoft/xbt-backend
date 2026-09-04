@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Models;
 
+use App\Domains\Mahalla\Models\Master\Building;
 use App\Domains\Mahalla\Models\Master\District;
 use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Models\Master\Street;
@@ -67,7 +68,7 @@ class House extends Model
 
     public function building(): BelongsTo
     {
-        return $this->belongsTo(\App\Domains\Mahalla\Models\Master\Building::class);
+        return $this->belongsTo(Building::class);
     }
 
     public function baselinePhoto(): HasMany

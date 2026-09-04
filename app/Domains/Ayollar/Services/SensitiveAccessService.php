@@ -9,6 +9,7 @@ use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
@@ -57,7 +58,7 @@ class SensitiveAccessService
             $out[$field] = $woman->revealRawPii($field);
 
             $rows[] = [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'user_id' => $user->id,
                 'woman_id' => $woman->id,
                 'field' => $field,

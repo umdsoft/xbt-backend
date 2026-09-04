@@ -32,7 +32,7 @@ class AnketaValidator
      * @param  string|null  $pinfl  xom JShShIR (dublikat tekshiruvi uchun)
      * @param  string|null  $exceptWomanId  tahrirlashda o'zini hisobga olmaslik
      * @return array<int, array{code: string, message: string, question: int|null}>
-     *         bo'sh massiv = tekshiruvdan o'tdi
+     *                                                                              bo'sh massiv = tekshiruvdan o'tdi
      */
     public function validate(
         array $answers,

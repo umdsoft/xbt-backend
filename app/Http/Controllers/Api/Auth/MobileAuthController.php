@@ -13,18 +13,35 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Mobil (Sanctum API TOKEN) login — SPA sessiya login'idan ALOHIDA.
- * Faqat 'mahalla' tizimiga ruxsati bor foydalanuvchi Bearer token oladi.
  * Mavjud AuthController (SPA) o'zgarmaydi.
+ *
+ * Tizim `system` parametri bilan tanlanadi. Berilmasa `mahalla` —
+ * mahalla mobil ilovasi uni yubormaydi va o'zgarishsiz ishlashda davom etadi.
+ * Ruxsat berilgan tizimlar allowlist bilan cheklangan: ixtiyoriy `system`
+ * qabul qilinsa, hali mobil kanalga tayyor bo'lmagan modulga token berilardi.
  */
 class MobileAuthController extends Controller
 {
+    /**
+     * Mobil token bera oladigan tizimlar.
+     *
+     * @var array<string, string>
+     */
+    private const MOBILE_SYSTEMS = [
+        'mahalla' => 'Mahalla',
+        'agro' => 'AgroAI Hub',
+    ];
+
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:255'],
+            'system' => ['nullable', 'string', 'in:'.implode(',', array_keys(self::MOBILE_SYSTEMS))],
         ]);
+
+        $system = $data['system'] ?? 'mahalla';
 
         $user = User::where('login', $data['login'])->where('is_active', true)->first();
 
@@ -34,9 +51,9 @@ class MobileAuthController extends Controller
             ]);
         }
 
-        if (! $user->canAccessSystem('mahalla')) {
+        if (! $user->canAccessSystem($system)) {
             throw ValidationException::withMessages([
-                'login' => 'Mahalla тизимига рухсат йўқ.',
+                'login' => self::MOBILE_SYSTEMS[$system].' тизимига рухсат йўқ.',
             ]);
         }
 

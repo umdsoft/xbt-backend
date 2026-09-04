@@ -16,9 +16,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class ExecutiveMahallaStats
 {
-    public function __construct(private readonly ExecutiveStats $stats)
-    {
-    }
+    public function __construct(private readonly ExecutiveStats $stats) {}
 
     /**
      * Kunlar bo'yicha o'zgargan xonadonlar (oxirgi `$days` kun).

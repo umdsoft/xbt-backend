@@ -6,6 +6,7 @@ namespace Tests\Feature\Qurilish;
 
 use App\Domains\Qurilish\Models\ConstructionObject;
 use App\Domains\Qurilish\Models\ObjectMedia;
+use App\Domains\Qurilish\Models\ObjectStage;
 use App\Domains\Qurilish\Models\WeeklyReport;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -316,7 +317,7 @@ class QurilishWeeklyTest extends QurilishObjectTestCase
 
     private function setStageStarted(ConstructionObject $object, string $code, string $date): void
     {
-        \App\Domains\Qurilish\Models\ObjectStage::query()
+        ObjectStage::query()
             ->where('object_id', $object->id)->where('stage_code', $code)
             ->update(['status' => 'qoralama', 'started_at' => $date]);
     }

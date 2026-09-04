@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Requests\Appeals;
 
+use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RecordDecisionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return app(\App\Domains\Hr\Support\HrAccess::class)->can('appeals.decide') ?? false;
+        return app(HrAccess::class)->can('appeals.decide') ?? false;
     }
 
     public function rules(): array

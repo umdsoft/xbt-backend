@@ -12,6 +12,7 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -410,9 +411,9 @@ class TaskService
      * Tasdiqlash navbati: foydalanuvchi qaysi bosqichda ishlaydi, shu
      * bosqichdagi hisobotlar.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, TaskUpdate>
+     * @return Collection<int, TaskUpdate>
      */
-    public function reviewQueue(User $user): \Illuminate\Database\Eloquent\Collection
+    public function reviewQueue(User $user): Collection
     {
         $stage = match (true) {
             $this->access->can($user, 'yoshlar.task.review.sector') => 'sector_review',

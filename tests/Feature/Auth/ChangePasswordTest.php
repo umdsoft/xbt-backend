@@ -7,6 +7,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -22,7 +23,7 @@ class ChangePasswordTest extends TestCase
     private function makeUser(string $password = 'EskiParol1'): User
     {
         return User::create([
-            'login' => 'pw_'.substr((string) \Illuminate\Support\Str::uuid(), 0, 8),
+            'login' => 'pw_'.substr((string) Str::uuid(), 0, 8),
             'name' => 'Парол синови',
             'password' => $password, // 'hashed' cast xeshlайди
             'is_active' => true,

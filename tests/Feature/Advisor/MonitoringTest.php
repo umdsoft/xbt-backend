@@ -15,7 +15,7 @@ class MonitoringTest extends AdvisorTestCase
     /**
      * Viloyat 3 ustunли (20/35/45) svod yaratadi.
      *
-     * @return array{0: string, 1: array<int, string>}  [sheetId, [metricId...]]
+     * @return array{0: string, 1: array<int, string>} [sheetId, [metricId...]]
      */
     private function makeSheet(User $viloyat): array
     {

@@ -55,7 +55,7 @@ class AnalyticsController extends Controller
             // hozircha erta bo'lardi.
             $rows = DB::connection('ayollar')->table('anketas')
                 ->whereIn('id', $ids)
-                ->whereRaw("answers ->> ? is not null", ["q{$q}"])
+                ->whereRaw('answers ->> ? is not null', ["q{$q}"])
                 ->selectRaw('answers ->> ? as answer, count(*) as c', ["q{$q}"])
                 ->groupBy('answer')
                 ->orderByDesc('c')
