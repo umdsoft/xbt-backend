@@ -186,7 +186,7 @@ class YoshlarDocumentDemoSeeder extends Seeder
      *   IJRO maydonlari  — faqat yaratilganda qoʻyiladi (keyin tirik holat).
      *
      * @param  array<string, mixed>  $document  hujjatdan keladigan maydonlar
-     * @param  array<string, mixed>  $initial  boshlangʻich ijro holati
+     * @param  array<string, mixed>  $initial   boshlangʻich ijro holati
      */
     private function item(Protocol $protocol, string $number, array $document, array $initial = []): void
     {

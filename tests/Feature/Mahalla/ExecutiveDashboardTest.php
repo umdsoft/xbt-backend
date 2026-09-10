@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Mahalla;
 
 use App\Domains\Mahalla\Models\House;
-use App\Domains\Mahalla\Services\ExecutiveMahallaStats;
-use App\Domains\Mahalla\Services\ExecutiveStats;
-use App\Domains\Mahalla\Support\MahallaAccess;
-use App\Domains\Mahalla\Support\MahallaScope;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -79,7 +75,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_viloyat_role_sees_all_houses_but_is_not_admin(): void
     {
         $user = $this->makeUser('viloyat');
-        $access = app(MahallaAccess::class);
+        $access = app(\App\Domains\Mahalla\Support\MahallaAccess::class);
 
         $scope = $access->scopeFor($user);
 
@@ -91,7 +87,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_deputat_role_is_restricted_to_streets(): void
     {
         $user = $this->makeUser('deputat');
-        $scope = app(MahallaAccess::class)->scopeFor($user);
+        $scope = app(\App\Domains\Mahalla\Support\MahallaAccess::class)->scopeFor($user);
 
         $this->assertFalse($scope->canSeeAll);
         $this->assertTrue($scope->restrictToStreets);
@@ -108,7 +104,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_admin_role_sees_all_houses_and_is_admin(): void
     {
         $user = $this->makeUser('admin');
-        $scope = app(MahallaAccess::class)->scopeFor($user);
+        $scope = app(\App\Domains\Mahalla\Support\MahallaAccess::class)->scopeFor($user);
 
         $this->assertTrue($scope->isAdmin, 'admin ADMIN bo\'lishi kerak (boshqaruv huquqi)');
         $this->assertTrue($scope->canSeeAll, 'admin barcha honadonlarni ko\'rishi kerak (ko\'rish doirasi) — '.
@@ -125,7 +121,7 @@ class ExecutiveDashboardTest extends TestCase
      */
     public function test_house_visible_to_with_can_see_all_returns_all_houses(): void
     {
-        $scope = new MahallaScope(true, null, null, [], false, true);
+        $scope = new \App\Domains\Mahalla\Support\MahallaScope(true, null, null, [], false, true);
 
         // Qattiq songa bog'lanmaslik uchun kutilgan qiymatni bazadan hisoblaymiz:
         // canSeeAll=true bo'lganda visibleTo() umuman filtrlamasligi kerak,
@@ -138,7 +134,7 @@ class ExecutiveDashboardTest extends TestCase
 
     public function test_house_visible_to_with_no_assigned_streets_returns_none(): void
     {
-        $scope = new MahallaScope(false, null, null, [], true, false);
+        $scope = new \App\Domains\Mahalla\Support\MahallaScope(false, null, null, [], true, false);
 
         $count = House::visibleTo($scope)->count();
 
@@ -153,7 +149,7 @@ class ExecutiveDashboardTest extends TestCase
         $houseOnStreet1 = $this->makeHouse($mahallaId1, $streetId1);
         $houseOnStreet2 = $this->makeHouse($mahallaId2, $streetId2);
 
-        $scope = new MahallaScope(false, null, null, [$streetId1], true, false);
+        $scope = new \App\Domains\Mahalla\Support\MahallaScope(false, null, null, [$streetId1], true, false);
 
         $visibleIds = House::visibleTo($scope)->pluck('id')->all();
 
@@ -166,7 +162,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_household_denominator_comes_from_cadastre_not_houses_table(): void
     {
         $districtId = $this->districtId();
-        $stats = app(ExecutiveStats::class)->district($districtId);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
 
         // Kutilgan qiymat bazadan hisoblanadi — kadastr yangilansa test buzilmaydi.
         $expected = DB::connection('master')->table('buildings')
@@ -202,7 +198,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_cadastre_and_registry_household_counts_stay_separate(): void
     {
         $districtId = $this->districtId();
-        $stats = app(ExecutiveStats::class)->district($districtId);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
 
         $withIndicators = array_values(array_filter(
             $stats['rows'],
@@ -228,7 +224,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_indicators_are_null_when_mahalla_has_no_data(): void
     {
         $districtId = $this->districtId();
-        $stats = app(ExecutiveStats::class)->district($districtId);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
 
         // `null` — kutilgan holat: ko'rsatkich har mahallaga yuklanmagan
         // bo'lishi mumkin. Kalit HAR DOIM bo'lishi kerak, aks holda frontend
@@ -246,7 +242,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_same_house_changing_twice_counts_once(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = collect($stats->mahalla($mahallaId)['rows'])->firstWhere('zone', 'yard');
 
@@ -264,7 +260,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_unconfirmed_change_is_not_counted(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = collect($stats->mahalla($mahallaId)['rows'])->firstWhere('zone', 'facade');
 
@@ -280,13 +276,13 @@ class ExecutiveDashboardTest extends TestCase
     public function test_change_outside_current_week_is_not_counted(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = collect($stats->mahalla($mahallaId)['rows'])->firstWhere('zone', 'toilet');
 
         $house = $this->makeHouse($mahallaId, $streetId);
         // Joriy hafta boshidan 1 soat OLDIN — hisobga kirmasligi kerak
-        $weekStart = app(ExecutiveStats::class)
+        $weekStart = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)
             ->period()['week_start_utc'];
         $this->makeObservation($house, 'toilet', $weekStart->copy()->subHour(), isChange: true);
 
@@ -315,7 +311,7 @@ class ExecutiveDashboardTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-07-22 10:00:00', 'Asia/Tashkent'));
 
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
         $todayStartUtc = $stats->period()['today_start_utc'];
 
         // 1) Mahalliy yarim tundan 30 daqiqa KEYIN — "бугун" hisobiga KIRISHI kerak.
@@ -342,7 +338,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_every_mahalla_of_district_appears_in_rows(): void
     {
         $districtId = $this->districtId();
-        $stats = app(ExecutiveStats::class)->district($districtId);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class)->district($districtId);
 
         // FAOL mahallalar sanaladi: nofaol (tugatilgan/qayta tashkil etilgan)
         // mahalla jadvalda ko'rinmasligi kerak, aks holda rahbar uni "ish
@@ -673,7 +669,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_district_row_changed_counts_house_once_across_zones(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $rowBefore = collect($stats->district($this->districtId())['rows'])
             ->firstWhere('mahalla.id', $mahallaId);
@@ -709,7 +705,7 @@ class ExecutiveDashboardTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-07-22 12:00:00', 'Asia/Tashkent'));
 
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = $stats->district($this->districtId())['summary'];
 
@@ -735,7 +731,7 @@ class ExecutiveDashboardTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-07-22 12:00:00', 'Asia/Tashkent'));
 
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = $stats->district($this->districtId())['summary'];
 
@@ -775,7 +771,7 @@ class ExecutiveDashboardTest extends TestCase
     public function test_summary_pending_reviews_counts_only_unreviewed_flagged(): void
     {
         [$mahallaId, $streetId] = $this->mahallaWithStreet();
-        $stats = app(ExecutiveStats::class);
+        $stats = app(\App\Domains\Mahalla\Services\ExecutiveStats::class);
 
         $before = $stats->district($this->districtId())['summary']['pending_reviews'];
 
@@ -841,12 +837,12 @@ class ExecutiveDashboardTest extends TestCase
 
         $house = $this->makeHouse($mahallaId, $streetId);
         DB::connection('mahalla')->table('house_zone_states')->insert([
-            'id' => (string) Str::uuid(),
+            'id' => (string) \Illuminate\Support\Str::uuid(),
             'house_id' => $house, 'zone' => 'yard', 'status' => 'completed',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $rows = app(ExecutiveMahallaStats::class)
+        $rows = app(\App\Domains\Mahalla\Services\ExecutiveMahallaStats::class)
             ->zoneStatus($mahallaId, $households);
 
         $yard = collect($rows)->firstWhere('zone', 'yard');
@@ -865,7 +861,7 @@ class ExecutiveDashboardTest extends TestCase
     {
         [$mahallaId] = $this->mahallaWithStreet();
 
-        $rows = app(ExecutiveMahallaStats::class)
+        $rows = app(\App\Domains\Mahalla\Services\ExecutiveMahallaStats::class)
             ->dynamics($mahallaId, 30);
 
         // Bo'sh kunlar tushib qolsa "har kuni ish bo'lgan" degan yolg'on
@@ -884,20 +880,20 @@ class ExecutiveDashboardTest extends TestCase
 
         // Toshkent bo'yicha bugun 00:30 — UTC bo'yicha KECHA 19:30.
         // Guruhlash UTC bo'yicha bo'lsa, bu kuzatuv kechaga tushib qolardi.
-        $local = Carbon::now($tz)->startOfDay()->addMinutes(30);
-        Carbon::setTestNow($local->copy()->addHours(6));
+        $local = \Illuminate\Support\Carbon::now($tz)->startOfDay()->addMinutes(30);
+        \Illuminate\Support\Carbon::setTestNow($local->copy()->addHours(6));
 
         $house = $this->makeHouse($mahallaId, $streetId);
         $this->makeObservation($house, 'yard', $local->copy()->utc(), isChange: true);
 
-        $rows = app(ExecutiveMahallaStats::class)
+        $rows = app(\App\Domains\Mahalla\Services\ExecutiveMahallaStats::class)
             ->dynamics($mahallaId, 30);
 
         $today = collect($rows)->firstWhere('date', $local->toDateString());
         $this->assertNotNull($today, 'bugungi kun oynada bo\'lishi kerak');
         $this->assertSame(1, $today['count']);
 
-        Carbon::setTestNow();
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     /**
@@ -913,7 +909,7 @@ class ExecutiveDashboardTest extends TestCase
         $house = $this->makeHouse($mahallaId, $streetId);
         $this->makeObservation($house, 'facade', now()->subMinutes(5), isChange: true);
 
-        $rows = app(ExecutiveMahallaStats::class)
+        $rows = app(\App\Domains\Mahalla\Services\ExecutiveMahallaStats::class)
             ->recentChanges($mahallaId, 10);
 
         $this->assertNotEmpty($rows);
@@ -933,7 +929,7 @@ class ExecutiveDashboardTest extends TestCase
         $this->makeObservation($house, 'toilet', now()->subDay(), isChange: false);
         $this->makeObservation($house, 'yard', now()->subHour(), isChange: true);
 
-        $rows = app(ExecutiveMahallaStats::class)
+        $rows = app(\App\Domains\Mahalla\Services\ExecutiveMahallaStats::class)
             ->recentChanges($mahallaId, 10);
 
         $zones = array_column($rows, 'zone');
@@ -1068,9 +1064,9 @@ class ExecutiveDashboardTest extends TestCase
 
     /**
      * @param  ?string  $reviewedBy  Ixtiyoriy — TO'LDIRILSA, kuzatuv "ko'rib chiqilgan"
-     *                               hisoblanadi (`reviewed_by` NOT NULL). Standart holatda
-     *                               (chaqiruvchi bermasa) `null` — avvalgi xatti-harakat
-     *                               o'zgarmaydi, mavjud chaqiruvlar buzilmaydi.
+     *                                hisoblanadi (`reviewed_by` NOT NULL). Standart holatda
+     *                                (chaqiruvchi bermasa) `null` — avvalgi xatti-harakat
+     *                                o'zgarmaydi, mavjud chaqiruvlar buzilmaydi.
      */
     protected function makeObservation(string $houseId, string $zone, Carbon $at, bool $isChange, ?string $reviewedBy = null): void
     {

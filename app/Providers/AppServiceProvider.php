@@ -2,16 +2,12 @@
 
 namespace App\Providers;
 
-use App\Domains\Advisor\Support\AdvisorAccess;
 use App\Domains\Mahalla\Support\ExecutiveCache;
-use App\Domains\Qurilish\Support\QurilishAccess;
-use App\Models\PersonalAccessToken;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,12 +18,12 @@ class AppServiceProvider extends ServiceProvider
     {
         // AdvisorAccess — singleton: roleFor()/advisorFor() natijasi so'rov davomida
         // memo keshda baham ko'riladi (kontroller + middleware + service bir instance).
-        $this->app->singleton(AdvisorAccess::class);
+        $this->app->singleton(\App\Domains\Advisor\Support\AdvisorAccess::class);
 
         // QurilishAccess — singleton: roleFor()/profileFor() natijasi so'rov davomida
         // keshlanadi, aks holda har ruxsat tekshiruvida auth schema'ga so'rov ketardi
         // (middleware -> kontroller -> scope zanjirida 3+ marta).
-        $this->app->singleton(QurilishAccess::class);
+        $this->app->singleton(\App\Domains\Qurilish\Support\QurilishAccess::class);
     }
 
     /**
@@ -35,10 +31,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Sanctum tokeni `auth` ulanishida o'qilsin — u shu ulanish orqali
-        // yoziladi (User modeli `auth` da). Sabab: App\Models\PersonalAccessToken.
-        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
-
         // AI tahlil navbati uchun rate-limit (daqiqadagi so'rov). AnalyzeObservationJob'dagi
         // RateLimited('mahalla-ai') shu limiterни ishlatadi — limit oshsa job avtomatik
         // kechiktirilib qayta navbatga qo'yiladi.

@@ -18,14 +18,14 @@ final class SimpleXlsx
     /**
      * @param  array<int, string>  $headers
      * @param  array<int, array<int, string|int|float|null>>  $rows
-     * @return string xlsx fayl binary'si
+     * @return string  xlsx fayl binary'si
      */
     public static function build(array $headers, array $rows, string $sheetName = 'Sheet1'): string
     {
         $sheet = self::sheetXml(array_merge([$headers], $rows));
 
         $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
-        $zip = new ZipArchive;
+        $zip = new ZipArchive();
         $zip->open($tmp, ZipArchive::OVERWRITE);
         $zip->addFromString('[Content_Types].xml', self::contentTypes());
         $zip->addFromString('_rels/.rels', self::rootRels());

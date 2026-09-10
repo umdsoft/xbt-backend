@@ -67,16 +67,6 @@ class RolePermissionSeeder extends Seeder
             'seating.print',    // pechat / PDF
             'venues.manage',    // obyekt + geometriya kalibrlash (admin)
 
-            // Ayollar balansi moduli
-            //
-            // DIQQAT: modul ichidagi avtorizatsiya `AyollarAccess` kod
-            // xaritasida (yoshlar/qurilish naqshi). Bu spatie ruxsatlari
-            // FAQAT platforma darajasidagi ko'rinish uchun — masalan
-            // markaziy boshqaruv paneli «kimda ayollar moduli bor?» deb
-            // so'raganda. Ikkisi bir-birini almashtirmaydi.
-            'ayollar.view',
-            'ayollar.manage',
-
             // Murojaatlar moduli
             'appeals.view',
             'appeals.view-all',     // tenant ichida boshqa mahallani ham ko'rish
@@ -140,7 +130,6 @@ class RolePermissionSeeder extends Seeder
             'appeals.view', 'appeals.view-all', 'appeals.assign', 'appeals.export',
             'councils.view', 'councils.manage',
             'tashkilotlar.view',
-            'ayollar.view', 'ayollar.manage',
             'ai.use', 'ai.review',
             'user.view', 'user.create', 'user.update', 'user.delete',
             'audit.view',
@@ -160,7 +149,6 @@ class RolePermissionSeeder extends Seeder
             'appeals.view', 'appeals.view-all', 'appeals.create', 'appeals.update', 'appeals.assign', 'appeals.export',
             'councils.view', 'councils.manage',
             'tashkilotlar.view', 'tashkilotlar.create', 'tashkilotlar.update', 'tashkilotlar.delete',
-            'ayollar.view',
             'tashkilot.manage-users', 'topshiriqlar.assign-org',
             'ai.use', 'ai.review',
             'user.view', 'user.create', 'user.update',

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Qurilish;
 
-use App\Domains\Qurilish\Models\ConstructionObject;
 use App\Domains\Qurilish\Models\ObjectAuditLog;
 use App\Domains\Qurilish\Models\ObjectDocument;
-use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -162,7 +160,7 @@ class QurilishDocumentTest extends QurilishObjectTestCase
 
     // ---------- yordamchilar ----------
 
-    /** @return array{0: ConstructionObject, 1: User} */
+    /** @return array{0: \App\Domains\Qurilish\Models\ConstructionObject, 1: \App\Models\User} */
     private function objectWithCustomer(): array
     {
         $org = $this->makeOrganization('Буюртмачи', ['is_customer' => true]);
@@ -173,7 +171,7 @@ class QurilishDocumentTest extends QurilishObjectTestCase
         ];
     }
 
-    private function url(ConstructionObject $object): string
+    private function url(\App\Domains\Qurilish\Models\ConstructionObject $object): string
     {
         return "/api/qurilish/objects/{$object->id}/documents";
     }

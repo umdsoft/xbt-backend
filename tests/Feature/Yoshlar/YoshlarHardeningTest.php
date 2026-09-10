@@ -13,6 +13,7 @@ use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\Youth;
 use App\Domains\Yoshlar\Models\YouthCase;
 use App\Domains\Yoshlar\Services\NotificationService;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 

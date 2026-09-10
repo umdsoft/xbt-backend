@@ -7,7 +7,6 @@ namespace Database\Seeders;
 use App\Domains\Yoshlar\Models\Youth;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * FAQAT LOKAL SINOV UCHUN sun'iy reyestr ma'lumoti.
@@ -148,7 +147,7 @@ class YoshlarDemoSeeder extends Seeder
             foreach ($youth as $item) {
                 $startedAt = now()->subDays(mt_rand(30, 300));
 
-                $patronageId = (string) Str::uuid7();
+                $patronageId = (string) \Illuminate\Support\Str::uuid7();
 
                 DB::connection('yoshlar')->table('patronage')->insert([
                     'id' => $patronageId,
@@ -171,7 +170,7 @@ class YoshlarDemoSeeder extends Seeder
 
                 for ($i = 0, $n = mt_rand(1, 4); $i < $n; $i++) {
                     DB::connection('yoshlar')->table('patronage_logs')->insert([
-                        'id' => (string) Str::uuid7(),
+                        'id' => (string) \Illuminate\Support\Str::uuid7(),
                         'patronage_id' => $patronageId,
                         'log_date' => $recent
                             ? now()->subDays(mt_rand(1, 28))->toDateString()

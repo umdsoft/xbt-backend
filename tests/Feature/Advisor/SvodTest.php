@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Domains\Advisor\Services\SvodService;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Yuqori idoraга svod eksport (spec §1, §10) — tuman × [topshiriq ijro %, KPI
@@ -53,7 +52,7 @@ class SvodTest extends AdvisorTestCase
         // Barcha 13 tuman satri (kamida shuncha).
         $this->assertGreaterThanOrEqual(13, count($rows));
 
-        $districtName = (string) DB::connection('master')
+        $districtName = (string) \Illuminate\Support\Facades\DB::connection('master')
             ->table('districts')->where('id', $district)->value('name_cyr');
         $row = collect($rows)->firstWhere(0, $districtName);
 

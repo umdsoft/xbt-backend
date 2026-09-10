@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domains\Hr\Models\RowCluster;
+use App\Domains\Hr\Models\Seat;
 use App\Domains\Hr\Models\Sector;
 use App\Domains\Hr\Models\Venue;
 use Illuminate\Database\Seeder;

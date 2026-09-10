@@ -9,7 +9,6 @@ use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Task;
 use App\Domains\Yoshlar\Models\Youth;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -195,14 +194,14 @@ class YoshlarDocumentTest extends YoshlarTestCase
         $doc = Document::query()->find($documentId);
 
         if ($doc !== null) {
-            Storage::disk('local')->delete($doc->stored_path);
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->stored_path);
         }
     }
 
     private function cleanupByTask(string $taskId): void
     {
         foreach (Document::query()->where('entity_id', $taskId)->get() as $doc) {
-            Storage::disk('local')->delete($doc->stored_path);
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->stored_path);
         }
     }
 }
