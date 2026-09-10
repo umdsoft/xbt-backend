@@ -151,22 +151,48 @@ class StaffProvisioner
     /**
      * Rol va doira mosligi.
      *
-     * MFY darajasidagi rolga MFY biriktirilmasa, foydalanuvchi kiradi
-     * va BO'SH ekran ko'radi. Bu eng yomon xato turi: hech narsa
-     * buzilmaydi, shunchaki ishlamaydi va sababi ko'rinmaydi.
+     * MFY FAQAT FAOL uchun majburiy. U aniq bir mahallada, aniq
+     * ko'chalarda yuradi — MFYsiz uning marshruti ham, anketasi ham
+     * ma'nosiz.
+     *
+     * Qolgan rollarga TUMAN yetarli:
+     *   MFY raisi           MFY berilsa o'sha MFY, aks holda tuman
+     *   Hokim yordamchisi   tuman hokimi o'rinbosari butun tumanni ko'radi
+     *   Tuman bo'limi/idorasi  tuman
+     *
+     * Avval uchala MFY darajasidagi rolga ham MFY majburiy edi va
+     * tuman hokimi o'rinbosariga hisob ochib bo'lmasdi — u bitta
+     * MFYga qamalardi.
+     *
+     * ENG MUHIMI: DOIRASIZ hisob ochilmaydi. Rol berilgan, lekin na
+     * MFY na tuman biriktirilgan foydalanuvchi kiradi va BO'SH ekran
+     * ko'radi — bu eng yomon xato turi, chunki hech narsa buzilmaydi,
+     * shunchaki ishlamaydi va sababi ko'rinmaydi.
      *
      * @param  array<string, mixed>  $data
      */
     private function assertScope(array $data): void
     {
-        $level = AyollarAccess::ROLE_SCOPE[$data['role']] ?? null;
+        $role = $data['role'];
+        $level = AyollarAccess::ROLE_SCOPE[$role] ?? null;
 
-        if ($level === AyollarAccess::SCOPE_MAHALLA && empty($data['mahalla_id'])) {
-            throw new RuntimeException('Bu rol uchun MFY majburiy — aks holda foydalanuvchi hech narsa ko‘rmaydi.');
+        if ($level === AyollarAccess::SCOPE_REGION) {
+            return;
         }
 
-        if ($level === AyollarAccess::SCOPE_DISTRICT && empty($data['district_id'])) {
-            throw new RuntimeException('Bu rol uchun tuman majburiy.');
+        $hasMahalla = ! empty($data['mahalla_id']);
+        $hasDistrict = ! empty($data['district_id']);
+
+        if ($role === AyollarAccess::ROLE_ACTIVIST && ! $hasMahalla) {
+            throw new RuntimeException(
+                'Faol uchun MFY majburiy — u aniq mahallada ishlaydi va MFYsiz marshrut tuzilmaydi.',
+            );
+        }
+
+        if (! $hasMahalla && ! $hasDistrict) {
+            throw new RuntimeException(
+                'Kamida tuman tanlanishi kerak — aks holda foydalanuvchi bo‘sh ekran ko‘radi.',
+            );
         }
     }
 }

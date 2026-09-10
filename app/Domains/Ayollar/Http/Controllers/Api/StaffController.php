@@ -102,10 +102,22 @@ class StaffController extends Controller
                     'device_id' => $s->last_device_id,
                 ];
             })->values(),
+            /*
+             * `requires_mahalla` SERVERDAN keladi — ekran uni o'zi
+             * hisoblamaydi. Aks holda qoida ikki joyda yashardi va
+             * biri o'zgarganda ikkinchisi eskirib qolardi: forma MFY
+             * so'ramasdi, server esa rad etardi (yoki teskarisi).
+             *
+             * MFY faqat FAOL uchun majburiy: u aniq mahallada,
+             * aniq ko'chalarda yuradi. Qolganlariga tuman yetarli —
+             * tuman hokimi o'rinbosari butun tumanni ko'rishi kerak.
+             */
             'roles' => array_map(fn ($r) => [
                 'code' => $r,
                 'name' => AyollarAccess::ROLE_NAMES[$r],
                 'scope' => AyollarAccess::ROLE_SCOPE[$r],
+                'requires_mahalla' => $r === AyollarAccess::ROLE_ACTIVIST,
+                'requires_district' => AyollarAccess::ROLE_SCOPE[$r] !== AyollarAccess::SCOPE_REGION,
             ], self::ASSIGNABLE_ROLES),
         ]);
     }

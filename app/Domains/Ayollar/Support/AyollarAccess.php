@@ -80,7 +80,16 @@ class AyollarAccess
 
     public const SCOPE_REGION = 'region';
 
-    /** @var array<string, string> */
+    /**
+     * Rol uchun ENG TOR doira.
+     *
+     * Aniq doira `scopeLevel()` da hisoblanadi: MFY darajasidagi rolga
+     * MFY biriktirilmasa-yu tuman biriktirilsa, u butun tumanni ko'radi.
+     * Bu tuman hokimi o'rinbosari (`hokim_assistant`) uchun kerak —
+     * u bitta MFYga qamalmasligi kerak.
+     *
+     * @var array<string, string>
+     */
     public const ROLE_SCOPE = [
         self::ROLE_ACTIVIST => self::SCOPE_MAHALLA,
         self::ROLE_CHAIRMAN => self::SCOPE_MAHALLA,
@@ -227,7 +236,41 @@ class AyollarAccess
     {
         $role = $this->roleFor($user);
 
-        return $role === null ? null : (self::ROLE_SCOPE[$role] ?? null);
+        if ($role === null) {
+            return null;
+        }
+
+        $max = self::ROLE_SCOPE[$role] ?? null;
+
+        /*
+         * ROL DOIRANING ENG TORIGINI belgilaydi, aniq doirani esa
+         * BIRIKTIRILGANI aniqlaydi.
+         *
+         * Sabab amaliy: «Hokim yordamchisi» roli MFY darajasida
+         * yozilgandi va shu tufayli tuman hokimi o'rinbosariga hisob
+         * ochib bo'lmasdi — u bitta MFYga qamalardi. Aslida u butun
+         * tumanni ko'rishi kerak.
+         *
+         * Endi:
+         *   MFY biriktirilgan   -> faqat o'sha MFY
+         *   faqat tuman         -> butun tuman
+         *
+         * Bu KENGAYTIRISH emas, aniqlashtirish: rol ruxsat bergan
+         * darajadan CHIQIB KETIB bo'lmaydi. Viloyat darajasidagi rol
+         * (`region`) bu yerdan o'tmaydi va har doim viloyatni ko'radi.
+         */
+        if ($max !== self::SCOPE_MAHALLA) {
+            return $max;
+        }
+
+        $staff = $this->staffFor($user);
+
+        if ($staff?->mahalla_id !== null) {
+            return self::SCOPE_MAHALLA;
+        }
+
+        // MFY yo'q, lekin tuman bor -> tuman doirasi.
+        return $staff?->district_id !== null ? self::SCOPE_DISTRICT : self::SCOPE_MAHALLA;
     }
 
     public function seesEverything(User $user): bool

@@ -7,6 +7,7 @@ namespace Tests\Feature\Ayollar;
 use App\Domains\Ayollar\Services\CadastreDirectory;
 use App\Domains\Ayollar\Services\StaffProvisioner;
 use App\Domains\Ayollar\Support\AyollarAccess;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -183,6 +184,75 @@ class CadastreAndStaffTest extends AyollarTestCase
         $systemId = $this->ayollarSystemId();
         $this->assertSame(1, DB::connection('auth')->table('user_system_access')
             ->where('user_id', $userId)->where('system_id', $systemId)->count());
+    }
+
+    /**
+     * TUMAN HOKIMI ORINBOSARI BUTUN TUMANNI KORADI.
+     *
+     * `hokim_assistant` roli MFY darajasida yozilgan, lekin unga MFY
+     * biriktirilmasa-yu tuman biriktirilsa, doira TUMAN bolishi
+     * kerak. Avval bunday hisob umuman ochilmasdi — rol MFY talab
+     * qilardi va orinbosar bitta mahallaga qamalardi.
+     */
+    public function test_hokim_assistant_without_mahalla_gets_district_scope(): void
+    {
+        $admin = $this->makeUser(AyollarAccess::ROLE_ADMIN);
+
+        $id = $this->actingAs($admin, 'web')->postJson('/api/ayollar/staff', [
+            'login' => 'sinov_'.Str::lower(Str::random(6)),
+            'name' => 'Tuman Hokimi Orinbosari',
+            'role' => AyollarAccess::ROLE_HOKIM_ASSISTANT,
+            'district_id' => $this->someDistrictId(),
+            // MFY ATAYLAB berilmagan.
+        ])->assertCreated()->json('id');
+
+        $this->assertSame(
+            AyollarAccess::SCOPE_DISTRICT,
+            app(AyollarAccess::class)->scopeLevel(User::on('auth')->findOrFail($id)),
+            'MFYsiz hokim yordamchisi butun tumanni korishi kerak.',
+        );
+    }
+
+    /**
+     * MFY BERILSA — doira torayadi.
+     *
+     * Bir xil rol ikki xil ishlatiladi: MFY raisi oz mahallasini,
+     * tuman orinbosari butun tumanni koradi. Farqni ROL emas,
+     * BIRIKTIRILGAN doira belgilaydi.
+     */
+    public function test_same_role_with_mahalla_is_narrowed_to_that_mahalla(): void
+    {
+        $admin = $this->makeUser(AyollarAccess::ROLE_ADMIN);
+
+        $id = $this->actingAs($admin, 'web')->postJson('/api/ayollar/staff', [
+            'login' => 'sinov_'.Str::lower(Str::random(6)),
+            'name' => 'MFY Raisi',
+            'role' => AyollarAccess::ROLE_CHAIRMAN,
+            'mahalla_id' => $this->someMahallaId($this->someDistrictId()),
+        ])->assertCreated()->json('id');
+
+        $this->assertSame(
+            AyollarAccess::SCOPE_MAHALLA,
+            app(AyollarAccess::class)->scopeLevel(User::on('auth')->findOrFail($id)),
+        );
+    }
+
+    /**
+     * DOIRASIZ HISOB OCHILMAYDI.
+     *
+     * Na MFY na tuman biriktirilmagan foydalanuvchi kiradi va BOSH
+     * ekran koradi — hech narsa buzilmaydi, shunchaki ishlamaydi va
+     * sababi korinmaydi.
+     */
+    public function test_account_without_any_scope_is_rejected(): void
+    {
+        $admin = $this->makeUser(AyollarAccess::ROLE_ADMIN);
+
+        $this->actingAs($admin, 'web')->postJson('/api/ayollar/staff', [
+            'login' => 'sinov_'.Str::lower(Str::random(6)),
+            'name' => 'Doirasiz Xodim',
+            'role' => AyollarAccess::ROLE_HOKIM_ASSISTANT,
+        ])->assertStatus(422);
     }
 
     /**
