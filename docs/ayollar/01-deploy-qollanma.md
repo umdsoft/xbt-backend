@@ -1,7 +1,15 @@
 # «Ayollar Balansi» — ishlab chiqarishga joylashtirish
 
-> **DEPLOY QILINMAGAN.** Bu hujjat — qadamlar ro'yxati. Joylashtirish
-> alohida topshiriq bilan bajariladi (local-first qoidasi).
+> **BAJARILDI 2026-09-10** — TLS'dan tashqari. Quyida amalda nima
+> qilingani va nimalar qo'llanmadan farq qilgani yozilgan.
+>
+> **QOLGAN YAGONA QADAM:** `ayollar.digital-xorazm.uz` uchun DNS
+> yozuvi. Let's Encrypt NXDOMAIN qaytaradi, ya'ni sertifikat
+> olinmaydi va sayt tashqaridan ochilmaydi. DNS paydo bo'lgach:
+>
+>     sudo certbot --nginx -d ayollar.digital-xorazm.uz
+>
+> certbot 443 blokini va 80 -> 443 yo'naltirishni o'zi qo'shadi.
 
 Server: `192.168.0.252` (Ubuntu 26.04), backend `/var/www/app`,
 SSH: `ssh -i ~/.ssh/kbt_deploy xbt@192.168.0.252` (root emas).
@@ -45,19 +53,30 @@ AYOLLAR_QR_BASE_URL=https://ayollar.digital-xorazm.uz
 
 ## 2. Backend
 
+**AMALDA:** `feature/ayollar-balansi` da Ayollardan tashqari AgroAI
+(16 migratsiya) va 7 ta jonli modulning formatlash o'zgarishi ham bor
+edi. Ishlab chiqarishga faqat Ayollar chiqishi uchun `deploy/ayollar`
+branchi yig'ildi: `origin/main` + 9 ta Ayollar commiti, boshqasi yo'q.
+Natijada prodda faqat 5 ta migratsiya kutib turdi — hammasi Ayollar.
+
+**BARCHA AMALLAR `www-data` BILAN** — `/var/www/app/.git` o'sha
+foydalanuvchi egaligida.
+
 ```bash
 cd /var/www/app
-git fetch origin && git checkout feature/ayollar-balansi   # yoki main'ga birlashtirilgandan keyin
-composer install --no-dev --optimize-autoloader
+sudo -u www-data git fetch origin
+sudo -u www-data git checkout -B deploy/ayollar origin/deploy/ayollar
+sudo -u www-data composer install --no-dev --optimize-autoloader
 
-php artisan migrate --force                                 # forward-only, down() yo'q
-php artisan db:seed --class=SystemsSeeder --force            # auth.systems -> `ayollar`
+sudo -u www-data php artisan migrate:status | grep -i pending   # AVVAL nima bajarilishini ko'ring
+sudo -u www-data php artisan migrate --force                    # forward-only, down() yo'q
+sudo -u www-data php artisan db:seed --class=SystemsSeeder --force   # auth.systems -> `ayollar`
 php artisan db:seed --class="App\Domains\Ayollar\Database\Seeders\MetricRegistrySeeder" --force
 php artisan db:seed --class=RolePermissionSeeder --force
 php artisan permission:cache-reset
 
 php artisan config:cache && php artisan route:cache
-sudo systemctl reload php8.4-fpm
+sudo systemctl reload php8.5-fpm  # serverda PHP 8.5, 8.4 emas
 ```
 
 **MIGRATSIYA XAVFSIZLIGI:** `migrate:fresh` va `rollback` TAQIQ — baza
@@ -80,10 +99,17 @@ SESSION_DOMAIN=.digital-xorazm.uz
 cd /d/kadr/ayollar                 # lokalda
 bun install && bun run build       # dist/
 
-rsync -az --delete dist/ xbt@192.168.0.252:/var/www/ayollar/
+# Serverda `rsync` YO'Q — tar orqali:
+tar czf /tmp/d.tgz -C dist .
+scp /tmp/d.tgz xbt@192.168.0.252:/tmp/
+ssh xbt@192.168.0.252 'sudo rm -rf /var/www/ayollar/*   && sudo tar xzf /tmp/d.tgz -C /var/www/ayollar   && sudo chown -R www-data:www-data /var/www/ayollar'
 ```
 
 `.env.production` — `VITE_API_URL` **bo'sh** (same-origin, relative).
+
+Deploy paytida u xato ravishda `https://ayollar.digital-xorazm.uz` ga
+o'rnatilgan edi. Mutlaq URL DNS yo'q paytda sinashni ham bloklaydi va
+same-origin naqshiga zid — bo'shatildi.
 
 ---
 
@@ -113,7 +139,7 @@ server {
     location ~ \.php$ {
         root /var/www/app/public;
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
     }
 
     # Service worker KESHLANMAYDI — aks holda yangi versiya
