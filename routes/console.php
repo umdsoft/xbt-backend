@@ -2,6 +2,11 @@
 
 use App\Console\Commands\PruneInteriorPhotos;
 use App\Console\Commands\ReanalyzeStuckObservations;
+use App\Domains\Ayollar\Console\Commands\MakeAyollarUserCommand;
+use App\Domains\Ayollar\Console\Commands\PurgeAyollarDataCommand;
+use App\Domains\Ayollar\Console\Commands\RecalculateBalancesCommand;
+use App\Domains\Ayollar\Console\Commands\SeedAyollarDemoCommand;
+use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
 use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
 use App\Domains\Mahalla\Console\Commands\ImportMahallaIndicatorsCommand;
@@ -57,6 +62,7 @@ ConsoleApplication::starting(function ($artisan) {
     // Ayollar Balansi domeni: hisob yaratish (auth + doira birga).
     $artisan->resolve(MakeAyollarUserCommand::class);
     $artisan->resolve(SeedAyollarDemoCommand::class);
+    $artisan->resolve(PurgeAyollarDataCommand::class);
     $artisan->resolve(RecalculateBalancesCommand::class);
 });
 
