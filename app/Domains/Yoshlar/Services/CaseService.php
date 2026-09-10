@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Yoshlar\Services;
 
-use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Patronage;
 use App\Domains\Yoshlar\Models\PatronageLog;
 use App\Domains\Yoshlar\Models\Staff;
@@ -15,7 +14,6 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -96,7 +94,7 @@ class CaseService
         // faqat SHAKLNI tekshiradi, mavjudlikni emas — muammo yoʻq
         // tashkilotga biriktirilsa, u hech kimning navbatiga tushmaydi.
         if (! empty($data['assigned_org_id'])) {
-            $exists = Organization::query()
+            $exists = \App\Domains\Yoshlar\Models\Organization::query()
                 ->whereKey($data['assigned_org_id'])->where('is_active', true)->exists();
 
             if (! $exists) {
@@ -181,8 +179,8 @@ class CaseService
 
     // ---------------- Otaliq ----------------
 
-    /** @return Collection<int, Patronage> */
-    public function patronageList(User $user): Collection
+    /** @return \Illuminate\Database\Eloquent\Collection<int, Patronage> */
+    public function patronageList(User $user): \Illuminate\Database\Eloquent\Collection
     {
         return $this->visiblePatronage($user)
             ->with(['youth:id,last_name,first_name,middle_name,birth_date,district_id,mahalla_id', 'mentor:id,user_id,org_id,position'])

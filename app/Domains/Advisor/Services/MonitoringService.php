@@ -9,7 +9,6 @@ use App\Domains\Advisor\Models\MonitoringSheet;
 use App\Domains\Advisor\Models\MonitoringValue;
 use App\Domains\Advisor\Support\AdvisorScope;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -328,7 +327,7 @@ class MonitoringService
      *
      * @param  array<string, mixed>  $data
      * @param  array<int, array{name:string,weight?:float,unit?:string}>|null  $metrics
-     * @return bool metrics almashtirildimi
+     * @return bool  metrics almashtirildimi
      */
     public function updateSheet(MonitoringSheet $sheet, array $data, ?array $metrics = null): bool
     {
@@ -577,7 +576,7 @@ class MonitoringService
      * sheet_id -> metrics collection (id,weight).
      *
      * @param  array<int, string>  $sheetIds
-     * @return array<string, Collection>
+     * @return array<string, \Illuminate\Support\Collection>
      */
     private function metricsBySheet(array $sheetIds): array
     {

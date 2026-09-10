@@ -13,7 +13,9 @@ use App\Domains\Hr\Services\Auth\CentralIdentitySync;
  */
 class UserObserver
 {
-    public function __construct(private readonly CentralIdentitySync $sync) {}
+    public function __construct(private readonly CentralIdentitySync $sync)
+    {
+    }
 
     public function saved(HrProfile $user): void
     {

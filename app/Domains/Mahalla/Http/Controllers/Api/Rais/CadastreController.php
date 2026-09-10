@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Rais;
 
-use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Services\ExecutiveStats;
 use App\Domains\Mahalla\Services\RaisCadastre;
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPanelController;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -131,4 +131,5 @@ class CadastreController extends MahallaPanelController
 
         return response()->json(['ok' => true]);
     }
+
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Requests;
 
-use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateOrganizationRequest extends FormRequest
@@ -12,7 +11,7 @@ class UpdateOrganizationRequest extends FormRequest
     public function authorize(): bool
     {
         // Asosiy avtorizatsiya OrganizationPolicy::update orqali (authorizeResource).
-        return app(HrAccess::class)->can('tashkilotlar.update') ?? false;
+        return app(\App\Domains\Hr\Support\HrAccess::class)->can('tashkilotlar.update') ?? false;
     }
 
     /**

@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * (sektor sort_order → klaster centroid_y/x → o'rindiq y/x). Ortiqcha ismlar
  * o'rindiqsiz (seat_id=null) saqlanadi. REPLACE-ALL: guruh mehmonlari qayta yoziladi.
  *
- * @return int yaratilgan mehmonlar soni
+ * @return int  yaratilgan mehmonlar soni
  */
 final class AttendeeDistributor
 {

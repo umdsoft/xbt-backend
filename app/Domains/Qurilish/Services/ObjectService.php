@@ -11,7 +11,6 @@ use App\Domains\Qurilish\Support\Translit;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -79,9 +78,9 @@ class ObjectService
      * oshib ketsa kontroller foydalanuvchini ogohlantiradi.
      *
      * @param  array<string, mixed>  $filters
-     * @return Collection<int, ConstructionObject>
+     * @return \Illuminate\Support\Collection<int, ConstructionObject>
      */
-    public function forExport(User $user, array $filters): Collection
+    public function forExport(User $user, array $filters): \Illuminate\Support\Collection
     {
         return $this->applyFilters($this->baseQuery($user), $filters)
             ->with(['program:id,name_cyr', 'sector:id,name_cyr',

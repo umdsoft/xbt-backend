@@ -18,7 +18,9 @@ use Illuminate\Http\Request;
  */
 abstract class MahallaPanelController extends Controller
 {
-    public function __construct(protected readonly MahallaAccess $access) {}
+    public function __construct(protected readonly MahallaAccess $access)
+    {
+    }
 
     /** Joriy foydalanuvchi profilidagi mahalla id (yo'q bo'lsa null). */
     protected function mahallaId(Request $request): ?string

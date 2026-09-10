@@ -15,7 +15,9 @@ use Illuminate\Support\Collection;
 
 class OrganizationController extends HrController
 {
-    public function __construct(private TenantContext $context) {}
+    public function __construct(private TenantContext $context)
+    {
+    }
 
     public function index(Request $request): JsonResponse
     {

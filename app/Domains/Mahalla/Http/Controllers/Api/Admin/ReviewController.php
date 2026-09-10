@@ -22,7 +22,9 @@ use Illuminate\Validation\Rule;
  */
 class ReviewController extends Controller
 {
-    public function __construct(private readonly HouseProvisioner $provisioner) {}
+    public function __construct(private readonly HouseProvisioner $provisioner)
+    {
+    }
 
     public function index(Request $request): JsonResponse
     {

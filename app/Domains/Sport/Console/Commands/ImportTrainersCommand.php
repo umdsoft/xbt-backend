@@ -119,7 +119,7 @@ class ImportTrainersCommand extends Command
         }
 
         $this->info("Trenerlar: {$trainerCount}");
-        $this->info("Biriktirishlar: {$assignCount} | mos: {$matched} | mos EMAS: ".count($unmatched).' | dublikat mahalla: '.count($duplicates));
+        $this->info("Biriktirishlar: {$assignCount} | mos: {$matched} | mos EMAS: ".count($unmatched)." | dublikat mahalla: ".count($duplicates));
         if ($duplicates !== []) {
             $this->warn('Bir necha trenerга yozilган mahallalar (birinchi 10):');
             foreach (array_slice(array_unique($duplicates), 0, 10) as $d) {
@@ -159,7 +159,7 @@ class ImportTrainersCommand extends Command
      * Tuman nomi -> master.districts.id. Nom "тумани/шаҳри/т" qo'shimchalaridan
      * tozalanib, MahallaMatcher::fold (unli tebranish) bilan solishtiriladi.
      *
-     * @return array<string, string> folded => district_id
+     * @return array<string, string>  folded => district_id
      */
     private function districtIndex(): array
     {

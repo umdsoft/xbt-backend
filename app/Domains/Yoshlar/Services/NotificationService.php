@@ -8,7 +8,6 @@ use App\Domains\Yoshlar\Models\Notification;
 use App\Domains\Yoshlar\Models\Organization;
 use App\Domains\Yoshlar\Models\Staff;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -29,7 +28,7 @@ class NotificationService
      * Tashkilot xodimlariga bildirishnoma yozadi.
      *
      * @param  array<string, mixed>  $payload  title, body, link, entity_type, entity_id
-     * @return int yaratilgan yozuvlar soni
+     * @return int  yaratilgan yozuvlar soni
      */
     public function notifyOrganization(string $orgId, string $type, array $payload): int
     {
@@ -142,8 +141,8 @@ class NotificationService
         return Notification::query()->where('user_id', $user->id)->unread()->count();
     }
 
-    /** @return Collection<int, Notification> */
-    public function listFor(User $user, int $limit = 50): Collection
+    /** @return \Illuminate\Database\Eloquent\Collection<int, Notification> */
+    public function listFor(User $user, int $limit = 50): \Illuminate\Database\Eloquent\Collection
     {
         return Notification::query()
             ->where('user_id', $user->id)

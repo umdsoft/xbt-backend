@@ -18,7 +18,9 @@ use Illuminate\Http\Request;
  */
 class ExecutiveProjectsController extends Controller
 {
-    public function __construct(private readonly MicroProjectService $projects) {}
+    public function __construct(private readonly MicroProjectService $projects)
+    {
+    }
 
     public function __invoke(Request $request, string $mahalla): JsonResponse
     {

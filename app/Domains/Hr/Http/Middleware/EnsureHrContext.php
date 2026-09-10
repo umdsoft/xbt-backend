@@ -27,7 +27,8 @@ class EnsureHrContext
     public function __construct(
         private readonly HrAccess $access,
         private readonly TenantContext $context,
-    ) {}
+    ) {
+    }
 
     public function handle(Request $request, Closure $next): Response
     {

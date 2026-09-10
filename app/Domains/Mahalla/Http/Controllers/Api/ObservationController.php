@@ -30,7 +30,8 @@ class ObservationController extends Controller
         private readonly GeofenceService $geofence,
         private readonly HouseProvisioner $provisioner,
         private readonly PhotoDedupService $dedup,
-    ) {}
+    ) {
+    }
 
     public function store(StoreObservationRequest $request, Building $building): JsonResponse
     {

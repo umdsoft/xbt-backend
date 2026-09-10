@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Services;
 
 use App\Domains\Mahalla\Support\ExecutiveCache;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -23,7 +22,9 @@ use Illuminate\Support\Str;
  */
 class RaisCadastre
 {
-    public function __construct(private readonly StreetAggregates $aggregates) {}
+    public function __construct(private readonly StreetAggregates $aggregates)
+    {
+    }
 
     /**
      * Mahalladagi binolar — turi bo'yicha yoki matn bo'yicha qidirish.
@@ -104,7 +105,7 @@ class RaisCadastre
      * joyda bo'lishi kerak. Aks holda yangi endpoint qo'shilganda uni
      * takrorlash unutiladi va boshqa mahalla binosi tahrirlanadi.
      *
-     * @return bool `false` — bino bu mahallaga tegishli emas
+     * @return bool  `false` — bino bu mahallaga tegishli emas
      */
     public function classify(
         string $buildingId,
@@ -257,7 +258,7 @@ class RaisCadastre
             return [];
         }
 
-        $weekStart = Carbon::now('Asia/Tashkent')->startOfWeek()->utc();
+        $weekStart = \Illuminate\Support\Carbon::now('Asia/Tashkent')->startOfWeek()->utc();
 
         return DB::connection('mahalla')->table('zone_observations as o')
             ->join('houses as h', 'h.id', '=', 'o.house_id')
@@ -356,7 +357,7 @@ class RaisCadastre
             ])
             ->map(fn ($r) => [
                 'id' => $r->id,
-                'at' => Carbon::parse($r->created_at)->toIso8601String(),
+                'at' => \Illuminate\Support\Carbon::parse($r->created_at)->toIso8601String(),
                 'address' => $r->address,
                 'purpose' => $r->purpose,
                 'from' => $r->from_name,

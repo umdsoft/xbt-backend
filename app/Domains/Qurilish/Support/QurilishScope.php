@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Qurilish\Support;
 
-use App\Domains\Qurilish\Models\ConstructionObject;
-use App\Domains\Qurilish\Models\RepairNeed;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -26,8 +24,8 @@ class QurilishScope
     /**
      * `objects` jadvali ustidagi so'rovga scope qo'llaydi.
      *
-     * @param  Builder<ConstructionObject>  $query
-     * @return Builder<ConstructionObject>
+     * @param  Builder<\App\Domains\Qurilish\Models\ConstructionObject>  $query
+     * @return Builder<\App\Domains\Qurilish\Models\ConstructionObject>
      */
     public function apply(Builder $query, User $user): Builder
     {
@@ -53,8 +51,8 @@ class QurilishScope
      * Ta'mirtalab reyestri uchun scope — reyestrni faqat boshqarma yuritadi,
      * shuning uchun yagona ustun: `department_org_id`.
      *
-     * @param  Builder<RepairNeed>  $query
-     * @return Builder<RepairNeed>
+     * @param  Builder<\App\Domains\Qurilish\Models\RepairNeed>  $query
+     * @return Builder<\App\Domains\Qurilish\Models\RepairNeed>
      */
     public function applyRepair(Builder $query, User $user): Builder
     {

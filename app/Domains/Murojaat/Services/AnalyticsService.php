@@ -359,7 +359,6 @@ class AnalyticsService
             return [null, ''];
         }
         [$y, $mo, $day] = array_map('intval', explode('-', $d));
-
         return match ($period) {
             'kun' => [sprintf('%02d.%02d.%d', $day, $mo, $y), sprintf('%d%02d%02d', $y, $mo, $day)],
             'hafta' => [$y.' — '.(int) ceil($day / 7).'-hafta', sprintf('%d%02d%02d', $y, $mo, (int) ceil($day / 7))],

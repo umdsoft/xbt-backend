@@ -9,7 +9,6 @@ use App\Domains\Advisor\Models\KpiTarget;
 use App\Domains\Advisor\Services\KpiService;
 use App\Domains\Advisor\Support\KpiCatalog;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -65,7 +64,7 @@ class KpiDataSeeder extends Seeder
      * Bir kesim (viloyat yoki bitta tuman) ko'rsatkichlarini yozadi.
      *
      * @param  array<int, array<string, mixed>>  $indicators
-     * @param  Collection<string, string>  $kpiByCode
+     * @param  \Illuminate\Support\Collection<string, string>  $kpiByCode
      */
     private function seedScope(array $indicators, string $prefix, ?string $districtId, $kpiByCode): void
     {

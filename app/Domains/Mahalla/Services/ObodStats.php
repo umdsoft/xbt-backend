@@ -21,7 +21,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ObodStats
 {
-    public function __construct(private readonly StreetAggregates $aggregates) {}
+    public function __construct(private readonly StreetAggregates $aggregates)
+    {
+    }
 
     /**
      * @return array<string, mixed>

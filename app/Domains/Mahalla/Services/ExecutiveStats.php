@@ -6,7 +6,6 @@ namespace App\Domains\Mahalla\Services;
 
 use App\Domains\Mahalla\Support\ExecutiveCache;
 use App\Domains\Mahalla\Support\MahallaZones;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -658,7 +657,7 @@ final class ExecutiveStats
      *
      * @param  array{today_start_utc: Carbon, week_start_utc: Carbon}  $period
      */
-    private function changeQuery(array $period): Builder
+    private function changeQuery(array $period): \Illuminate\Database\Query\Builder
     {
         return DB::connection('mahalla')->table('zone_observations as o')
             ->join('houses as h', 'h.id', '=', 'o.house_id')

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Requests;
 
-use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -13,7 +12,7 @@ class StoreOrganizationUserRequest extends FormRequest
     public function authorize(): bool
     {
         // Asosiy avtorizatsiya OrganizationPolicy::manageUsers orqali (controllerda).
-        return app(HrAccess::class)->can('tashkilot.manage-users') ?? false;
+        return app(\App\Domains\Hr\Support\HrAccess::class)->can('tashkilot.manage-users') ?? false;
     }
 
     /**

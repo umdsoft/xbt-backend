@@ -11,7 +11,6 @@ use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -230,9 +229,9 @@ class EmploymentService
     /**
      * Tasdiqlash navbati — foydalanuvchi qaysi bosqichda ishlasa, oʻsha.
      *
-     * @return Collection<int, EmploymentCase>
+     * @return \Illuminate\Database\Eloquent\Collection<int, EmploymentCase>
      */
-    public function reviewQueue(User $user): Collection
+    public function reviewQueue(User $user): \Illuminate\Database\Eloquent\Collection
     {
         if ($this->access->sectorCodeFor($user) !== self::TAX_SECTOR) {
             return EmploymentCase::query()->whereRaw('1 = 0')->get();

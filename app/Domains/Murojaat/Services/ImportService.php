@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Murojaat\Services;
 
+use App\Domains\Murojaat\Models\Appeal;
 use App\Domains\Murojaat\Models\ImportSession;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

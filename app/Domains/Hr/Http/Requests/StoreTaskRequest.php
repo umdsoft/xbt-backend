@@ -7,7 +7,6 @@ namespace App\Domains\Hr\Http\Requests;
 use App\Domains\Hr\Enums\AssigneeType;
 use App\Domains\Hr\Models\Organization;
 use App\Domains\Hr\Models\User;
-use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -17,7 +16,7 @@ class StoreTaskRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $u = app(HrAccess::class)->actor();
+        $u = app(\App\Domains\Hr\Support\HrAccess::class)->actor();
 
         return (bool) ($u?->can('tadbirlar.create') || $u?->can('topshiriqlar.assign-org'));
     }
@@ -66,7 +65,7 @@ class StoreTaskRequest extends FormRequest
                 $id = (string) ($r['assignee_id'] ?? '');
 
                 if ($type === AssigneeType::ORGANIZATION->value) {
-                    if (! app(HrAccess::class)->can('topshiriqlar.assign-org')) {
+                    if (! app(\App\Domains\Hr\Support\HrAccess::class)->can('topshiriqlar.assign-org')) {
                         $v->errors()->add('responsibles', 'Топшириқни ташкилотга бириктириш ҳуқуқингиз йўқ.');
                     } elseif (! Organization::whereKey($id)->exists()) {
                         $v->errors()->add('responsibles', 'Танланган ташкилот топилмади.');

@@ -26,7 +26,8 @@ class ControlPlanController extends HrController
     public function __construct(
         private ControlPlanAccessService $access,
         private PositionDisplayService $positionDisplay,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): JsonResponse
     {

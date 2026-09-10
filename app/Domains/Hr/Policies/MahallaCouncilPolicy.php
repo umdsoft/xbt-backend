@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Policies;
 
-use App\Domains\Hr\Models\HrProfile;
 use App\Domains\Hr\Models\MahallaCouncil;
+use App\Domains\Hr\Models\HrProfile;
 use App\Domains\Hr\Policies\Concerns\ChecksTenantAccess;
 
 class MahallaCouncilPolicy

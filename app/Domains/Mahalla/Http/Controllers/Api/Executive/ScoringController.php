@@ -17,7 +17,9 @@ use Illuminate\Http\JsonResponse;
  */
 class ScoringController extends Controller
 {
-    public function __construct(private readonly MahallaScoring $scoring) {}
+    public function __construct(private readonly MahallaScoring $scoring)
+    {
+    }
 
     public function __invoke(?string $district = null): JsonResponse
     {

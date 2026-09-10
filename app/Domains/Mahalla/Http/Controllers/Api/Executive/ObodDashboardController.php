@@ -17,7 +17,9 @@ use Illuminate\Http\JsonResponse;
  */
 class ObodDashboardController extends Controller
 {
-    public function __construct(private readonly ObodStats $stats) {}
+    public function __construct(private readonly ObodStats $stats)
+    {
+    }
 
     public function __invoke(string $mahalla): JsonResponse
     {

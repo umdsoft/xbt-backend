@@ -19,7 +19,9 @@ use Illuminate\Http\JsonResponse;
  */
 class DistrictDashboardController extends Controller
 {
-    public function __construct(private readonly ExecutiveStats $stats) {}
+    public function __construct(private readonly ExecutiveStats $stats)
+    {
+    }
 
     public function __invoke(?string $district = null): JsonResponse
     {

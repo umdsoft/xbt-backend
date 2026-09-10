@@ -21,7 +21,9 @@ class HrAccess
 
     private bool $resolved = false;
 
-    public function __construct(private readonly TenantContext $context) {}
+    public function __construct(private readonly TenantContext $context)
+    {
+    }
 
     /** Markaziy foydalanuvchidan HR profilini aniqlab, kontekstga yozadi. */
     public function resolveFor(User $user): ?HrProfile

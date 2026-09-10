@@ -13,7 +13,6 @@ use App\Domains\Yoshlar\Services\TaskService;
 use App\Domains\Yoshlar\Support\YoshlarAccess;
 use App\Domains\Yoshlar\Support\YoshlarScope;
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,7 +85,7 @@ class ExecutiveController extends Controller
      * @param  array<int, string>|null  $districtIds
      * @return array<int, array<string, mixed>>
      */
-    private function byDistrict(User $user, ?array $districtIds): array
+    private function byDistrict(\App\Models\User $user, ?array $districtIds): array
     {
         $districts = DB::connection('master')->table('districts')
             ->when($districtIds !== null, fn ($q) => $q->whereIn('id', $districtIds ?? []))

@@ -26,7 +26,8 @@ class EmployeeController extends HrController
 {
     public function __construct(
         private EmployeeRepositoryInterface $repository,
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): JsonResponse
     {

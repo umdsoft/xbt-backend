@@ -15,7 +15,6 @@ use App\Domains\Hr\Models\HrProfile;
 use App\Domains\Hr\Models\Organization;
 use App\Domains\Hr\Support\ActivityTranslator;
 use App\Domains\Hr\Support\Tenant\TenantContext;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -139,7 +138,7 @@ class DashboardController extends HrController
     /**
      * Taqvim uchun: deadline'i bor topshiriqlar (sana bo'yicha).
      *
-     * @param  Builder<ControlPlanItem>  $base
+     * @param  \Illuminate\Database\Eloquent\Builder<ControlPlanItem>  $base
      * @return array<int, array<string, mixed>>
      */
     private function calendarTasks($base): array

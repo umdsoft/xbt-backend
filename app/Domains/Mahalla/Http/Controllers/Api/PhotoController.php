@@ -16,7 +16,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PhotoController extends Controller
 {
-    public function __construct(private readonly MahallaAccess $access) {}
+    public function __construct(private readonly MahallaAccess $access)
+    {
+    }
 
     /**
      * Rasmni maxfiy diskdan vakolat bilan uzatish (URL orqali ochib bo'lmaydi).
@@ -31,12 +33,12 @@ class PhotoController extends Controller
             ->exists();
 
         if (! $visible || ! $this->access->can($user, 'photos.view')) {
-            throw new NotFoundHttpException;
+            throw new NotFoundHttpException();
         }
 
         $disk = (string) config('mahalla.photos_disk', 'local');
         if (! Storage::disk($disk)->exists($photo->image_path)) {
-            throw new NotFoundHttpException;
+            throw new NotFoundHttpException();
         }
 
         // MAXFIYLIK auditi: vakolatli ko'rishni jurnalga yozamiz (shaxsiy tasvirlar).

@@ -20,7 +20,8 @@ class MahallaDashboardController extends Controller
         private readonly ExecutiveStats $stats,
         private readonly ExecutiveMahallaStats $mahallaStats,
         private readonly MicroProjectService $microProjects,
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $mahalla): JsonResponse
     {

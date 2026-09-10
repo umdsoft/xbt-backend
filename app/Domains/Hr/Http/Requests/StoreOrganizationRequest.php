@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Hr\Http\Requests;
 
-use App\Domains\Hr\Support\HrAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreOrganizationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return app(HrAccess::class)->can('tashkilotlar.create') ?? false;
+        return app(\App\Domains\Hr\Support\HrAccess::class)->can('tashkilotlar.create') ?? false;
     }
 
     /**

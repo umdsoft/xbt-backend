@@ -18,7 +18,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class HrPermission
 {
-    public function __construct(private readonly HrAccess $access) {}
+    public function __construct(private readonly HrAccess $access)
+    {
+    }
 
     public function handle(Request $request, Closure $next, string $permission): Response
     {

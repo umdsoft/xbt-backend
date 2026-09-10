@@ -239,7 +239,7 @@ class ActionPlanService
         ], fn ($v) => $v !== null));
     }
 
-    public function storeDocument(ActionPlan $plan, UploadedFile $file): void
+    public function storeDocument(ActionPlan $plan, \Illuminate\Http\UploadedFile $file): void
     {
         $disk = (string) config('advisor.files_disk', 'local');
         $path = $file->store("advisor/action-plans/{$plan->id}", $disk);

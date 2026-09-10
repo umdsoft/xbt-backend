@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Services;
 
+use App\Domains\Mahalla\Models\House;
 use App\Domains\Mahalla\Models\HousePhoto;
 use App\Domains\Mahalla\Models\HousePhotoAnalysis;
 use App\Domains\Mahalla\Models\HouseZoneState;
@@ -24,7 +25,9 @@ use Illuminate\Support\Facades\Storage;
  */
 class PhotoAnalyzer
 {
-    public function __construct(private readonly HouseProvisioner $provisioner) {}
+    public function __construct(private readonly HouseProvisioner $provisioner)
+    {
+    }
 
     public function analyze(HousePhoto $photo): HousePhotoAnalysis
     {
