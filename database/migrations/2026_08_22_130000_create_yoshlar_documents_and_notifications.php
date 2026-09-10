@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -66,13 +65,13 @@ return new class extends Migration
         // muddat tekshiruvi har ishga tushganda yangi yozuv qoʻshsa,
         // foydalanuvchi bir xil xabarni oʻnlab marta koʻrardi.
         DB::connection('yoshlar')->statement(
-            'CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_event
+            "CREATE UNIQUE INDEX IF NOT EXISTS notifications_unique_event
              ON yoshlar.notifications (user_id, type, entity_id)
-             WHERE read_at IS NULL AND entity_id IS NOT NULL'
+             WHERE read_at IS NULL AND entity_id IS NOT NULL"
         );
     }
 
-    private function create(Builder $schema, string $table, callable $definition): void
+    private function create(\Illuminate\Database\Schema\Builder $schema, string $table, callable $definition): void
     {
         if ($schema->hasTable($table)) {
             return;

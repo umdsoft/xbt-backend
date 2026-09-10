@@ -74,7 +74,7 @@ return new class extends Migration
                         ->update(['created_at' => $task->submitted_at ?? now()]);
                 }
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             // Backfill allaqachon qo'llanilgan yoki modellar mavjud emas — xavfsiz no-op.
         }
     }

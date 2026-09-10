@@ -21,19 +21,19 @@ return new class extends Migration
         }
 
         // --- districts: SOATO/kadastr kod + chegara ---
-        DB::statement('ALTER TABLE master.districts
+        DB::statement("ALTER TABLE master.districts
             ADD COLUMN IF NOT EXISTS soato_code varchar(20),
             ADD COLUMN IF NOT EXISTS cad_code   varchar(20),
-            ADD COLUMN IF NOT EXISTS boundary   geometry(MultiPolygon, 4326)');
-        DB::statement('CREATE INDEX IF NOT EXISTS districts_soato_idx ON master.districts (soato_code)');
-        DB::statement('CREATE INDEX IF NOT EXISTS districts_boundary_gix ON master.districts USING GIST (boundary)');
+            ADD COLUMN IF NOT EXISTS boundary   geometry(MultiPolygon, 4326)");
+        DB::statement("CREATE INDEX IF NOT EXISTS districts_soato_idx ON master.districts (soato_code)");
+        DB::statement("CREATE INDEX IF NOT EXISTS districts_boundary_gix ON master.districts USING GIST (boundary)");
 
         // --- mahallas: SOATO + chegara ---
-        DB::statement('ALTER TABLE master.mahallas
+        DB::statement("ALTER TABLE master.mahallas
             ADD COLUMN IF NOT EXISTS soato_code varchar(20),
-            ADD COLUMN IF NOT EXISTS boundary   geometry(MultiPolygon, 4326)');
-        DB::statement('CREATE INDEX IF NOT EXISTS mahallas_soato_idx ON master.mahallas (soato_code)');
-        DB::statement('CREATE INDEX IF NOT EXISTS mahallas_boundary_gix ON master.mahallas USING GIST (boundary)');
+            ADD COLUMN IF NOT EXISTS boundary   geometry(MultiPolygon, 4326)");
+        DB::statement("CREATE INDEX IF NOT EXISTS mahallas_soato_idx ON master.mahallas (soato_code)");
+        DB::statement("CREATE INDEX IF NOT EXISTS mahallas_boundary_gix ON master.mahallas USING GIST (boundary)");
 
         // --- master.buildings (butun viloyat kadastri) ---
         DB::statement("CREATE TABLE IF NOT EXISTS master.buildings (
@@ -58,11 +58,11 @@ return new class extends Migration
             created_at    timestamptz,
             updated_at    timestamptz
         )");
-        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS buildings_kadastr_uidx ON master.buildings (kadastr)');
-        DB::statement('CREATE INDEX IF NOT EXISTS buildings_geom_gix   ON master.buildings USING GIST (geom)');
-        DB::statement('CREATE INDEX IF NOT EXISTS buildings_mahalla_idx ON master.buildings (mahalla_id)');
-        DB::statement('CREATE INDEX IF NOT EXISTS buildings_district_idx ON master.buildings (district_id)');
-        DB::statement('CREATE INDEX IF NOT EXISTS buildings_type_idx    ON master.buildings (type)');
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS buildings_kadastr_uidx ON master.buildings (kadastr)");
+        DB::statement("CREATE INDEX IF NOT EXISTS buildings_geom_gix   ON master.buildings USING GIST (geom)");
+        DB::statement("CREATE INDEX IF NOT EXISTS buildings_mahalla_idx ON master.buildings (mahalla_id)");
+        DB::statement("CREATE INDEX IF NOT EXISTS buildings_district_idx ON master.buildings (district_id)");
+        DB::statement("CREATE INDEX IF NOT EXISTS buildings_type_idx    ON master.buildings (type)");
     }
 
     public function down(): void
@@ -71,8 +71,8 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('DROP TABLE IF EXISTS master.buildings');
-        DB::statement('ALTER TABLE master.mahallas DROP COLUMN IF EXISTS soato_code, DROP COLUMN IF EXISTS boundary');
-        DB::statement('ALTER TABLE master.districts DROP COLUMN IF EXISTS soato_code, DROP COLUMN IF EXISTS cad_code, DROP COLUMN IF EXISTS boundary');
+        DB::statement("DROP TABLE IF EXISTS master.buildings");
+        DB::statement("ALTER TABLE master.mahallas DROP COLUMN IF EXISTS soato_code, DROP COLUMN IF EXISTS boundary");
+        DB::statement("ALTER TABLE master.districts DROP COLUMN IF EXISTS soato_code, DROP COLUMN IF EXISTS cad_code, DROP COLUMN IF EXISTS boundary");
     }
 };

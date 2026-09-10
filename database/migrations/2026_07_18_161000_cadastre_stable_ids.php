@@ -39,14 +39,14 @@ return new class extends Migration
         DB::statement("COMMENT ON FUNCTION master.stable_uuid(text) IS 'Barqaror, deterministik UUIDv3 (barcha tizimlar umumiy yadro ID uchun). Masalan: stable_uuid(''soato:mahalla:1733217039'')'");
 
         // 2) SOATO tabiiy kalitini kafolatlash: NOT NULL + UNIQUE (deterministik ID shundan olinadi)
-        DB::statement('ALTER TABLE master.districts ALTER COLUMN soato_code SET NOT NULL');
-        DB::statement('ALTER TABLE master.mahallas  ALTER COLUMN soato_code SET NOT NULL');
+        DB::statement("ALTER TABLE master.districts ALTER COLUMN soato_code SET NOT NULL");
+        DB::statement("ALTER TABLE master.mahallas  ALTER COLUMN soato_code SET NOT NULL");
 
         // Eski oddiy indekslar o'rniga UNIQUE (bir SOATO -> bir tuman/mahalla)
-        DB::statement('DROP INDEX IF EXISTS master.districts_soato_idx');
-        DB::statement('DROP INDEX IF EXISTS master.mahallas_soato_idx');
-        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS districts_soato_uidx ON master.districts (soato_code)');
-        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS mahallas_soato_uidx  ON master.mahallas  (soato_code)');
+        DB::statement("DROP INDEX IF EXISTS master.districts_soato_idx");
+        DB::statement("DROP INDEX IF EXISTS master.mahallas_soato_idx");
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS districts_soato_uidx ON master.districts (soato_code)");
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS mahallas_soato_uidx  ON master.mahallas  (soato_code)");
 
         // 3) Hujjatlashtirish (yadro ekanligini belgilash)
         DB::statement("COMMENT ON COLUMN master.districts.id IS 'Barqaror UUIDv3 = stable_uuid(''soato:district:''||soato_code). Barcha tizimlar shu ID ga bog''lanadi.'");
@@ -60,10 +60,10 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('DROP INDEX IF EXISTS master.districts_soato_uidx');
-        DB::statement('DROP INDEX IF EXISTS master.mahallas_soato_uidx');
-        DB::statement('CREATE INDEX IF NOT EXISTS districts_soato_idx ON master.districts (soato_code)');
-        DB::statement('CREATE INDEX IF NOT EXISTS mahallas_soato_idx  ON master.mahallas  (soato_code)');
-        DB::statement('DROP FUNCTION IF EXISTS master.stable_uuid(text)');
+        DB::statement("DROP INDEX IF EXISTS master.districts_soato_uidx");
+        DB::statement("DROP INDEX IF EXISTS master.mahallas_soato_uidx");
+        DB::statement("CREATE INDEX IF NOT EXISTS districts_soato_idx ON master.districts (soato_code)");
+        DB::statement("CREATE INDEX IF NOT EXISTS mahallas_soato_idx  ON master.mahallas  (soato_code)");
+        DB::statement("DROP FUNCTION IF EXISTS master.stable_uuid(text)");
     }
 };

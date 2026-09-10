@@ -30,7 +30,7 @@ return new class extends Migration
             Schema::connection('hr')->table('activity_log', function (Blueprint $table) {
                 $table->index('created_at');
             });
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             // Индекслар аллақачон мавжуд — хавфсиз no-op.
         }
     }

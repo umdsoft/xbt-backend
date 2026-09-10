@@ -6,7 +6,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 /**
  * Bino TOIFALARI ma'lumotnomasi + binolarni tasniflash.
@@ -107,7 +106,7 @@ return new class extends Migration
 
         foreach ($rows as [$code, $cyr, $lat, $keywords, $isSocial, $isBuilding, $sort]) {
             DB::connection('master')->table('object_types')->insert([
-                'id' => (string) Str::uuid(),
+                'id' => (string) Illuminate\Support\Str::uuid(),
                 'code' => $code,
                 'name_cyr' => $cyr,
                 'name_lat' => $lat,
