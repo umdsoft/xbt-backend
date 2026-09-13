@@ -49,6 +49,10 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
             ->middleware('throttle:60,1')
             ->name('nearby');
 
+        Route::get('/mahallas/{mahalla}/boundary', [NearbyController::class, 'boundary'])
+            ->whereUuid('mahalla')
+            ->name('mahallas.boundary');
+
         // Eski (houses-asosli) endpointlar — moslik uchun saqlanadi
         Route::get('/houses', [HouseController::class, 'index'])->name('houses.index');
         Route::get('/houses/{house}', [HouseController::class, 'show'])->name('houses.show');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Services;
 
+use App\Domains\Mahalla\Support\ExecutiveCache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -149,5 +150,36 @@ class NearbyFinder
         );
 
         return $row === null ? null : ['id' => (string) $row->id, 'name' => (string) $row->name_cyr];
+    }
+
+    /**
+     * Mahalla chegarasi — GeoJSON Feature. Geometriya kam o'zgaradi, shuning
+     * uchun keshlanadi va ST_SimplifyPreserveTopology bilan yengillashtiriladi
+     * (tolerance ~0.0003° ≈ 33 m — DistrictGeoJsonController bilan bir xil).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function boundaryGeoJson(string $mahallaId): ?array
+    {
+        return ExecutiveCache::remember("nearby:boundary:{$mahallaId}", function () use ($mahallaId) {
+            $row = DB::connection('master')->selectOne(
+                'SELECT id, name_cyr,
+                        ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, 0.0003)) AS geojson
+                 FROM master.mahallas
+                 WHERE id = :id AND boundary IS NOT NULL
+                 LIMIT 1',
+                ['id' => $mahallaId],
+            );
+
+            if ($row === null) {
+                return null;
+            }
+
+            return [
+                'type' => 'Feature',
+                'properties' => ['id' => (string) $row->id, 'name' => (string) $row->name_cyr],
+                'geometry' => json_decode((string) $row->geojson, true),
+            ];
+        });
     }
 }

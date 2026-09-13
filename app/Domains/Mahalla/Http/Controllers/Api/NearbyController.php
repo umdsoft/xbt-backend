@@ -83,6 +83,16 @@ class NearbyController extends Controller
         ]);
     }
 
+    /** Joriy mahalla chegarasi (xaritada «siz shu yerdasiz» konturi). */
+    public function boundary(string $mahalla): JsonResponse
+    {
+        $feature = $this->finder->boundaryGeoJson($mahalla);
+
+        abort_if($feature === null, 404, 'Маҳалла чегараси топилмади.');
+
+        return response()->json($feature);
+    }
+
     /**
      * `layers` csv → kind ro'yxati. Noma'lum qiymatlar tashlab yuboriladi;
      * berilmasa default: monitoring + org (uy-joylar zichlik sababli OFF).

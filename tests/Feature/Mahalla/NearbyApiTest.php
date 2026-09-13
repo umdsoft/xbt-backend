@@ -295,6 +295,39 @@ class NearbyApiTest extends TestCase
         );
     }
 
+    public function test_boundary_endpoint_returns_geojson_feature(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        $mahallaId = DB::connection('master')->table('mahallas')
+            ->where('district_id', $districtId)
+            ->whereRaw('boundary IS NOT NULL')
+            ->value('id');
+
+        if ($mahallaId === null) {
+            $this->markTestSkipped('Pilot tumanda chegarali mahalla yo\'q.');
+        }
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/mahallas/{$mahallaId}/boundary")
+            ->assertOk()
+            ->assertJsonStructure(['type', 'properties' => ['id', 'name'], 'geometry'])
+            ->json();
+
+        $this->assertSame('Feature', $body['type']);
+        $this->assertSame((string) $mahallaId, $body['properties']['id']);
+        $this->assertNotEmpty($body['geometry']);
+    }
+
+    public function test_boundary_returns_404_for_unknown_mahalla(): void
+    {
+        [$user] = $this->makeDeputatInPilotDistrict();
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/mahallas/00000000-0000-0000-0000-000000000000/boundary')
+            ->assertNotFound();
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */
