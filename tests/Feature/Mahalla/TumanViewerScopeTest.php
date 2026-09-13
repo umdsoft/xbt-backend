@@ -373,6 +373,98 @@ class TumanViewerScopeTest extends TestCase
             ->assertJsonPath('district.id', $other);
     }
 
+    /**
+     * Har bir "mahalla shaklidagi" endpoint uchun bir xil ikki holat:
+     * o'z tumanidagi mahalla 200, begona tumandagi mahalla 404.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function mahallaEndpointProvider(): array
+    {
+        return [
+            'dashboard' => ['/api/mahalla/executive/mahallas/%s'],
+            'obod' => ['/api/mahalla/executive/mahallas/%s/obod'],
+            'projects' => ['/api/mahalla/executive/mahallas/%s/projects'],
+        ];
+    }
+
+    #[DataProvider('mahallaEndpointProvider')]
+    public function test_tuman_can_open_mahalla_in_own_district(string $template): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+        $mine = (string) DB::connection('master')->table('mahallas')
+            ->where('district_id', $own)->value('id');
+
+        $this->actingAs($user, 'sanctum')->getJson(sprintf($template, $mine))->assertOk();
+    }
+
+    #[DataProvider('mahallaEndpointProvider')]
+    public function test_tuman_cannot_open_mahalla_in_another_district(string $template): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeTumanUser($own);
+        $foreign = (string) DB::connection('master')->table('mahallas')
+            ->where('district_id', $other)->value('id');
+
+        $this->actingAs($user, 'sanctum')->getJson(sprintf($template, $foreign))->assertNotFound();
+    }
+
+    /**
+     * REGRESSIYA: viloyat istalgan mahallani ocha oladi.
+     */
+    public function test_viloyat_can_open_mahalla_in_any_district(): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeUserWithRole('viloyat');
+        $foreign = (string) DB::connection('master')->table('mahallas')
+            ->where('district_id', $other)->value('id');
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/mahallas/'.$foreign)
+            ->assertOk();
+    }
+
+    /**
+     * `nearby` endpointi `tuman` uchun ALLAQACHON to'g'ri ishlashi kerak:
+     * u `canSeeAll` bo'lmagan userni `scope->districtId` bilan cheklaydi.
+     * Bu testni qo'shish shu bog'lanishni qulflaydi — kelajakda kimdir
+     * `scopeFor()` ni o'zgartirsa, shu test tutadi.
+     */
+    public function test_nearby_scopes_tuman_to_its_own_district(): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+
+        $center = DB::connection('master')->table('mahallas')
+            ->where('district_id', $own)->whereNotNull('center_lat')
+            ->first(['center_lat', 'center_lng']);
+        $this->assertNotNull($center, 'Tumanda markaz koordinatasi bo\'lgan mahalla kerak');
+
+        $res = $this->actingAs($user, 'sanctum')->getJson(sprintf(
+            '/api/mahalla/nearby?lat=%s&lng=%s&radius_m=3000&limit=50',
+            $center->center_lat, $center->center_lng
+        ))->assertOk();
+
+        $this->assertNotEmpty($res->json('points'), 'tuman rahbari o\'z tumanida nuqtalarni ko\'rishi kerak');
+    }
+
+    /**
+     * Tumansiz `tuman` user `nearby` da ham hech narsa ko'rmaydi.
+     */
+    public function test_nearby_returns_nothing_for_tuman_without_district(): void
+    {
+        $user = $this->makeTumanUser(null);
+
+        $res = $this->actingAs($user, 'sanctum')->getJson(
+            '/api/mahalla/nearby?lat=41.62&lng=60.38&radius_m=3000&limit=50'
+        )->assertOk();
+
+        $this->assertSame([], $res->json('points'));
+    }
+
     // ---------- fikstura yordamchilari ----------
 
     protected function districtId(): string

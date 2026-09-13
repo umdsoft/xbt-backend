@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Services\ObodStats;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Rahbariyat: mahalla ichidagi OBODONLASHTIRISH kesimi (masъul × ko'cha × iш turi).
@@ -17,13 +18,14 @@ use Illuminate\Http\JsonResponse;
  */
 class ObodDashboardController extends Controller
 {
-    public function __construct(private readonly ObodStats $stats)
-    {
-    }
+    public function __construct(
+        private readonly ObodStats $stats,
+        private readonly ExecutiveScope $scope,
+    ) {}
 
-    public function __invoke(string $mahalla): JsonResponse
+    public function __invoke(Request $request, string $mahalla): JsonResponse
     {
-        $model = Mahalla::on('master')->with('district')->findOrFail($mahalla);
+        $model = $this->scope->mahalla($request->user(), $mahalla);
 
         return response()->json([
             'mahalla' => [
