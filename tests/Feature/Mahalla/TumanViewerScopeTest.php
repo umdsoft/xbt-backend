@@ -34,15 +34,22 @@ class TumanViewerScopeTest extends TestCase
         $user = $this->makeTumanUser($this->districtId());
         $perms = app(MahallaAccess::class)->permissionsFor($user);
 
-        $this->assertContains('dashboard.view', $perms);
-        $this->assertContains('analyses.view', $perms);
-        $this->assertNotContains('photos.upload', $perms, 'rahbar surat yuklamaydi');
-        $this->assertNotContains('*', $perms, 'rahbar super-admin emas');
+        // Aniq ro'yxat — `streets.edit`, `contracts.manage`, `buildings.classify`,
+        // `projects.manage` kabi yozuv huquqlari YO'Q ekanini ham qulflaydi.
+        // ESLATMA: bu `viloyat` bilan ATAYLAB bir xil (MahallaAccess::PERMISSIONS
+        // izohiga qarang) — lekin ikkalasi mustaqil o'zgarishi mumkin, shuning
+        // uchun bu yerda `viloyat`ga taqqoslanmaydi, faqat o'z qiymati bilan.
+        $this->assertSame(
+            ['dashboard.view', 'reports.view', 'houses.view', 'analyses.view'],
+            $perms,
+        );
     }
 
     public function test_tuman_scope_is_limited_to_its_own_district(): void
     {
-        $districtId = $this->districtId();
+        // ATAYLAB standart (Shovot) tumandan boshqasi — aks holda default-fallback
+        // xatosi ham xuddi shu qiymatni qaytarib, testni ko'rlantirgan bo'lardi.
+        $districtId = $this->anotherDistrictId($this->districtId());
         $user = $this->makeTumanUser($districtId);
 
         $scope = app(MahallaAccess::class)->scopeFor($user);
@@ -52,6 +59,41 @@ class TumanViewerScopeTest extends TestCase
         $this->assertFalse($scope->restrictToStreets, 'tuman ko\'chalar bilan cheklanmaydi');
         $this->assertSame($districtId, $scope->districtId);
         $this->assertNull($scope->mahallaId, 'tuman bitta mahalla bilan cheklanmaydi');
+        $this->assertSame([], $scope->streetIds, 'tuman ko\'cha ro\'yxati bilan ham cheklanmaydi (fail-closed)');
+    }
+
+    /**
+     * REGRESSIYA. `deputat`dan `tuman`ga ko'tarilgan (lekin eski ko'cha
+     * biriktiruvi va mahalla_id profilda o'chirilmagan) hisob — real
+     * `mahalla.street_assignments` qatori va profilda mahalla_id BOR bo'lsa
+     * ham, `scopeFor()` ikkalasini ham ATAYLAB tashlab yuborishini isbotlaydi.
+     * Aks holda `House::scopeVisibleTo()` bu userga eski ko'chalarning
+     * honadonlarini ko'rsatib qo'yardi — fail-closed buzilgan bo'lardi.
+     */
+    public function test_tuman_scope_discards_existing_street_assignment_and_mahalla_id(): void
+    {
+        $districtId = $this->anotherDistrictId($this->districtId());
+        [$mahallaId, $streetId] = $this->realMahallaWithStreet($districtId);
+
+        $user = $this->makeTumanUser($districtId, $mahallaId);
+
+        DB::connection('mahalla')->table('street_assignments')->insert([
+            'id' => (string) Str::uuid(),
+            'street_id' => $streetId,
+            'user_id' => $user->id,
+            'assigned_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $scope = app(MahallaAccess::class)->scopeFor($user);
+
+        $this->assertFalse($scope->canSeeAll);
+        $this->assertFalse($scope->isAdmin);
+        $this->assertFalse($scope->restrictToStreets);
+        $this->assertSame($districtId, $scope->districtId);
+        $this->assertNull($scope->mahallaId, 'profilda mahalla_id bo\'lsa ham ataylab tashlanadi');
+        $this->assertSame([], $scope->streetIds, 'ko\'cha biriktiruvi bo\'lsa ham ataylab tashlanadi (fail-closed)');
     }
 
     public function test_tuman_without_district_on_profile_gets_null_district(): void
@@ -62,6 +104,23 @@ class TumanViewerScopeTest extends TestCase
 
         $this->assertNull($scope->districtId, 'profilsiz tuman useriga tuman berilmaydi');
         $this->assertFalse($scope->canSeeAll, 'va u HAMMASINI ham ko\'rmaydi — fail-closed');
+        $this->assertSame([], $scope->streetIds);
+    }
+
+    /**
+     * `mahalla.users`da UMUMAN qator yo'q (qo'lda ochilgan hisob uchun odatiy
+     * holat) — `MahallaProfile::find()` null qaytaradi. Xulq profil bor-u
+     * district_id null bo'lgan holat bilan bir xil bo'lishi kerak.
+     */
+    public function test_tuman_without_any_mahalla_profile_row_gets_null_district(): void
+    {
+        $user = $this->makeUserWithRole('tuman');
+
+        $scope = app(MahallaAccess::class)->scopeFor($user);
+
+        $this->assertNull($scope->districtId, 'mahalla.users qatori yo\'q tuman useriga tuman berilmaydi');
+        $this->assertFalse($scope->canSeeAll, 'va u HAMMASINI ham ko\'rmaydi — fail-closed');
+        $this->assertSame([], $scope->streetIds);
     }
 
     /**
@@ -111,6 +170,25 @@ class TumanViewerScopeTest extends TestCase
         return (string) $id;
     }
 
+    /**
+     * Berilgan tumandagi HAQIQIY (kamida bitta ko'chasi bor) mahalla va shu
+     * mahalladagi ko'chani topadi. Geo qatorlar yaratilmaydi — faqat
+     * mavjudlaridan tanlanadi (qarang: `NearbyApiTest::monitorRealBuilding`).
+     *
+     * @return array{0: string, 1: string} [mahallaId, streetId]
+     */
+    protected function realMahallaWithStreet(string $districtId): array
+    {
+        $row = DB::connection('master')->table('streets as st')
+            ->join('mahallas as m', 'm.id', '=', 'st.mahalla_id')
+            ->where('m.district_id', $districtId)
+            ->first(['m.id as mahalla_id', 'st.id as street_id']);
+
+        $this->assertNotNull($row, 'Tumanda ko\'chasi bor mahalla topilishi kerak');
+
+        return [(string) $row->mahalla_id, (string) $row->street_id];
+    }
+
     protected function makeUserWithRole(string $role): User
     {
         $userId = (string) Str::uuid();
@@ -144,7 +222,7 @@ class TumanViewerScopeTest extends TestCase
      * id, name (NOT NULL), login (NOT NULL, UNIQUE), password (NOT NULL), email?,
      * district_id?, mahalla_id?, is_active, timestamps, deleted_at.
      */
-    protected function makeTumanUser(?string $districtId): User
+    protected function makeTumanUser(?string $districtId, ?string $mahallaId = null): User
     {
         $user = $this->makeUserWithRole('tuman');
 
@@ -154,7 +232,7 @@ class TumanViewerScopeTest extends TestCase
             'login' => 'test_'.substr((string) $user->id, 0, 8),
             'password' => bcrypt('secret'),
             'district_id' => $districtId,
-            'mahalla_id' => null,
+            'mahalla_id' => $mahallaId,
             'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
