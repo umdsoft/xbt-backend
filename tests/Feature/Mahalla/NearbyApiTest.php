@@ -146,6 +146,45 @@ class NearbyApiTest extends TestCase
         $this->assertSame(3000, $body['radius_m']);
     }
 
+    public function test_orgs_layer_returns_only_non_residential_with_category(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=3000&layers=orgs&limit=100")
+            ->assertOk()
+            ->assertJsonStructure([
+                'points' => [['id', 'kind', 'type', 'is_social', 'category', 'category_label', 'address', 'kadastr', 'mahalla']],
+            ])
+            ->json();
+
+        $this->assertNotEmpty($body['points'], '3km da tashkilot topilishi kerak (Shovot: 244 ta).');
+
+        foreach ($body['points'] as $p) {
+            $this->assertSame('non_residential', $p['type']);
+            $this->assertSame('org', $p['kind']);
+            $this->assertIsBool($p['is_social']);
+        }
+    }
+
+    public function test_homes_layer_returns_only_unmonitored_residential(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=homes&limit=100")
+            ->assertOk()
+            ->json();
+
+        $this->assertNotEmpty($body['points']);
+        foreach ($body['points'] as $p) {
+            $this->assertSame('residential', $p['type']);
+            $this->assertSame('home', $p['kind']);
+        }
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */

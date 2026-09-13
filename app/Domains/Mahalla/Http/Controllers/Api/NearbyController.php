@@ -105,6 +105,14 @@ class NearbyController extends Controller
             'distance_m' => (int) $r['distance_m'],
             'kind' => $this->kindOf($r),
             'type' => (string) $r['type'],
+            'is_social' => (bool) $r['is_social'],
+            'category' => $r['category'] !== null ? (string) $r['category'] : null,
+            'category_label' => $r['category_label'] !== null ? (string) $r['category_label'] : null,
+            'address' => (string) ($r['address'] ?? ''),
+            'kadastr' => $r['kadastr'] !== null ? (string) $r['kadastr'] : null,
+            'house_number' => $r['house_number'] !== null ? (string) $r['house_number'] : null,
+            'street' => $r['street'] !== null ? (string) $r['street'] : null,
+            'mahalla' => $r['mahalla_name'] !== null ? (string) $r['mahalla_name'] : null,
         ];
     }
 
