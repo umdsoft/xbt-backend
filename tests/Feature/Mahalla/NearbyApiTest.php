@@ -102,7 +102,11 @@ class NearbyApiTest extends TestCase
             ->json();
 
         $this->assertSame([], $body['points'], 'Qamrovi aniqlanmagan user hech qanday bino ko\'rmasligi kerak.');
-        $this->assertNull($body['current_mahalla'], 'Qamrovsiz user uchun joriy mahalla ham berilmasligi kerak.');
+        // `current_mahalla === null` invariantining o'zi bu yerda ISBOTLANMAYDI:
+        // `$building` koordinatasi biror mahalla poligoni ICHIDA ekani
+        // kafolatlanmagan, shuning uchun bu assert guard bo'lmasa ham
+        // o'tishi mumkin edi. To'g'ri (real mahalla ichidagi) tekshiruv —
+        // test_current_mahalla_is_null_when_user_has_no_district_scope_even_inside_a_real_mahalla().
     }
 
     public function test_nearby_requires_authentication(): void
@@ -295,6 +299,53 @@ class NearbyApiTest extends TestCase
         );
     }
 
+    /**
+     * FIX 1 (truncated aniqlashtirilishi): zich markazda kichik limit bilan
+     * chegaradan tashqarida albatta yana mos qatorlar qoladi — `truncated`
+     * `true` bo'lishi kerak.
+     */
+    public function test_truncated_is_true_when_limit_is_smaller_than_available_points(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=5")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(5, $body['points']);
+        $this->assertTrue(
+            $body['counts']['truncated'],
+            'Zich markazda limit=5 dan ko\'p mos bino bor — kesilgan bo\'lishi kerak.',
+        );
+    }
+
+    /**
+     * FIX 1 (truncated aniqlashtirilishi): kichik radiusda faqat bitta
+     * monitoring bino bor (o'zimiz shu testda yaratganimiz) va limit undan
+     * ancha katta — hech narsa kesilmagan, `truncated` `false` bo'lishi kerak.
+     * Bu eski `count($points) >= $limit` xatosining aksincha holati emas,
+     * balki "kam natija — kesilmagan" haqiqiy holatni tekshiradi.
+     */
+    public function test_truncated_is_false_when_limit_exceeds_available_points_in_small_radius(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        [, $lat, $lng] = $this->monitorRealBuilding($districtId, 'in_progress');
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=200&layers=monitoring&limit=50")
+            ->assertOk()
+            ->json();
+
+        $this->assertLessThan(50, count($body['points']));
+        $this->assertFalse(
+            $body['counts']['truncated'],
+            'Kichik radiusda limit natijalar sonidan katta — kesilmagan bo\'lishi kerak.',
+        );
+    }
+
     public function test_boundary_endpoint_returns_geojson_feature(): void
     {
         [$user, $districtId] = $this->makeDeputatInPilotDistrict();
@@ -323,9 +374,68 @@ class NearbyApiTest extends TestCase
     {
         [$user] = $this->makeDeputatInPilotDistrict();
 
+        // Faqat assertNotFound() o'zi "controller abort_if urdi" va "route
+        // regex/whereUuid so'rovni rad etdi" holatlarini farqlay olmaydi
+        // (ikkalasi ham 404 beradi). Xabarni tekshirish testni controllerga
+        // yetib borganini mustaqil isbotlaydi.
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/mahalla/mahallas/00000000-0000-0000-0000-000000000000/boundary')
-            ->assertNotFound();
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Маҳалла чегараси топилмади.');
+    }
+
+    /**
+     * FIX 2 (tuman bo'yicha cheklash) — DISKRIMINATIV TEST: pilot tumanga
+     * scoped deputat BOSHQA tumandagi mahalla chegarasini so'raganda 404
+     * olishi kerak. `NearbyFinder::boundaryGeoJson()`dagi
+     * `AND district_id = :district_id` shartisiz bu test MUVAFFAQIYATSIZ
+     * bo'lishi shart (mutatsiya bilan tekshirilgan — task-7-fixes-report.md).
+     */
+    public function test_boundary_for_mahalla_in_another_district_is_404_for_scoped_deputat(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        $otherMahallaId = DB::connection('master')->table('mahallas')
+            ->where('district_id', '!=', $districtId)
+            ->whereNotNull('district_id')
+            ->whereRaw('boundary IS NOT NULL')
+            ->value('id');
+
+        if ($otherMahallaId === null) {
+            $this->markTestSkipped('Boshqa tumanda chegarali mahalla topilmadi.');
+        }
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/mahallas/{$otherMahallaId}/boundary")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Маҳалла чегараси топилмади.');
+    }
+
+    /**
+     * FIX 2: qamrovi aniqlanmagan (canSeeAll=false, districtId=null) deputat
+     * — `points()`/`mahallaForPoint()` bilan bir xil deny-by-default —
+     * HATTO O'Z (haqiqiy, chegarali) tumanidagi mahalla uchun ham 404 olishi
+     * kerak; bazaga so'rov umuman yubormaymiz.
+     */
+    public function test_boundary_is_404_for_scope_less_deputat_even_for_valid_in_district_mahalla(): void
+    {
+        [, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        $mahallaId = DB::connection('master')->table('mahallas')
+            ->where('district_id', $districtId)
+            ->whereRaw('boundary IS NOT NULL')
+            ->value('id');
+
+        if ($mahallaId === null) {
+            $this->markTestSkipped('Pilot tumanda chegarali mahalla yo\'q.');
+        }
+
+        $user = $this->makeDeputatWithoutDistrict();
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/mahallas/{$mahallaId}/boundary")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Маҳалла чегараси топилмади.');
     }
 
     // ── Yordamchilar ────────────────────────────────────────────────────────

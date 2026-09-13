@@ -50,6 +50,7 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
             ->name('nearby');
 
         Route::get('/mahallas/{mahalla}/boundary', [NearbyController::class, 'boundary'])
+            ->middleware('throttle:60,1')
             ->whereUuid('mahalla')
             ->name('mahallas.boundary');
 

@@ -26,6 +26,11 @@ class NearbyFinder
     /**
      * Radius ichidagi binolar, masofa bo'yicha saralangan.
      *
+     * Orqaga moslik uchun saqlanadi: `pointsWithOverflow()`ga delegatsiya
+     * qiladi va faqat nuqtalar ro'yxatini qaytaradi. "Aslida kesilganmi"
+     * degan haqiqiy ma'lumot kerak bo'lsa (masalan controllerda `truncated`
+     * hisoblash uchun) — `pointsWithOverflow()`ni to'g'ridan-to'g'ri ishlating.
+     *
      * @param  array<int, string>  $kinds  monitoring|home|org (bo'sh bo'lsa — bo'sh natija)
      * @return array<int, array<string, mixed>>
      */
@@ -37,8 +42,33 @@ class NearbyFinder
         int $limit,
         ?string $districtId,
     ): array {
+        return $this->pointsWithOverflow($lat, $lng, $radiusM, $kinds, $limit, $districtId)['points'];
+    }
+
+    /**
+     * Radius ichidagi binolar (masofa bo'yicha saralangan) + "yana bormi"
+     * haqiqiy belgisi.
+     *
+     * TEXNIKA: SQL'dan `$limit + 1` qator so'raladi. Agar aynan shuncha
+     * (yoki ko'proq) qaytsa, demak `$limit`dan tashqarida yana kamida bitta
+     * mos qator bor edi — natija chinakam KESILGAN. Bu `count($points) >=
+     * $limit` kabi taxminga qaraganda to'g'ri: aynan `$limit`ta mos qator
+     * mavjud bo'lib, HECH NARSA kesilmagan holatda ham taxmin `true` deb
+     * yolg'on xabar berardi.
+     *
+     * @param  array<int, string>  $kinds  monitoring|home|org (bo'sh bo'lsa — bo'sh natija)
+     * @return array{points: array<int, array<string, mixed>>, has_more: bool}
+     */
+    public function pointsWithOverflow(
+        float $lat,
+        float $lng,
+        int $radiusM,
+        array $kinds,
+        int $limit,
+        ?string $districtId,
+    ): array {
         if ($districtId === null || $kinds === []) {
-            return [];
+            return ['points' => [], 'has_more' => false];
         }
 
         $conds = [];
@@ -52,7 +82,7 @@ class NearbyFinder
             $conds[] = "(b.type = 'residential' AND h.id IS NULL)";
         }
         if ($conds === []) {
-            return [];
+            return ['points' => [], 'has_more' => false];
         }
         $kindSql = '('.implode(' OR ', $conds).')';
 
@@ -100,10 +130,16 @@ class NearbyFinder
             'district_id' => $districtId,
             'deg' => $deg,
             'radius' => $radiusM,
-            'limit' => $limit,
+            'limit' => $limit + 1,
         ]);
 
-        return array_map(static fn ($r) => (array) $r, $rows);
+        $all = array_map(static fn ($r) => (array) $r, $rows);
+        $hasMore = count($all) > $limit;
+
+        return [
+            'points' => array_slice($all, 0, $limit),
+            'has_more' => $hasMore,
+        ];
     }
 
     /** Nuqta qaysi tumanda (chegara poligoni bo'yicha). */
@@ -157,19 +193,38 @@ class NearbyFinder
      * uchun keshlanadi va ST_SimplifyPreserveTopology bilan yengillashtiriladi
      * (tolerance ~0.0003° ≈ 33 m — DistrictGeoJsonController bilan bir xil).
      *
+     * `$districtId`: `points()`/`mahallaForPoint()` bilan bir xil deny-by-default
+     * invariant — `null` bo'lsa cheklovsiz emas, balki "chaqiruvchi allaqachon
+     * canSeeAll" degani (controller shunday chaqiradi). Har qanday scoped
+     * (canSeeAll=false) user uchun chaqiruvchi haqiqiy `districtId` beradi va
+     * bu yerda `AND district_id = :district_id` qo'shiladi — aks holda
+     * istalgan foydalanuvchi istalgan (~509) mahalla chegarasini so'rab olardi.
+     *
+     * KESH KALITI tuman qamrovini o'z ichiga oladi — aks holda bitta
+     * (masalan canSeeAll uchun keshlangan) natija boshqa tumanga scoped
+     * userga ham noto'g'ri berilib qolishi mumkin edi.
+     *
      * @return array<string, mixed>|null
      */
-    public function boundaryGeoJson(string $mahallaId): ?array
+    public function boundaryGeoJson(string $mahallaId, ?string $districtId): ?array
     {
-        return ExecutiveCache::remember("nearby:boundary:{$mahallaId}", function () use ($mahallaId) {
-            $row = DB::connection('master')->selectOne(
-                'SELECT id, name_cyr,
+        $cacheKey = "nearby:boundary:{$mahallaId}:".($districtId ?? 'all');
+
+        return ExecutiveCache::remember($cacheKey, function () use ($mahallaId, $districtId) {
+            $sql = 'SELECT id, name_cyr,
                         ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, 0.0003)) AS geojson
                  FROM master.mahallas
-                 WHERE id = :id AND boundary IS NOT NULL
-                 LIMIT 1',
-                ['id' => $mahallaId],
-            );
+                 WHERE id = :id AND boundary IS NOT NULL';
+            $params = ['id' => $mahallaId];
+
+            if ($districtId !== null) {
+                $sql .= ' AND district_id = :district_id';
+                $params['district_id'] = $districtId;
+            }
+
+            $sql .= ' LIMIT 1';
+
+            $row = DB::connection('master')->selectOne($sql, $params);
 
             if ($row === null) {
                 return null;

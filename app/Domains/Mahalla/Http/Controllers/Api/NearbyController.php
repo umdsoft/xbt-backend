@@ -55,10 +55,10 @@ class NearbyController extends Controller
             ? $this->finder->districtIdForPoint($lat, $lng)
             : $scope->districtId; // null => points() bo'sh ro'yxat qaytaradi
 
-        $rows = $this->finder->points($lat, $lng, $radiusM, $kinds, $limit, $districtId);
+        $result = $this->finder->pointsWithOverflow($lat, $lng, $radiusM, $kinds, $limit, $districtId);
         $myStreets = array_flip($scope->streetIds);
 
-        $points = array_map(fn (array $r) => $this->presentPoint($r, $myStreets), $rows);
+        $points = array_map(fn (array $r) => $this->presentPoint($r, $myStreets), $result['points']);
 
         $counts = [
             NearbyFinder::KIND_MONITORING => 0,
@@ -66,10 +66,17 @@ class NearbyController extends Controller
             NearbyFinder::KIND_ORG => 0,
         ];
         foreach ($points as $p) {
-            $counts[$p['kind']]++;
+            // Himoya: kelajakda yangi `kind` qo'shilsa ham ogohlantirishsiz
+            // ishlashi uchun — pre-seeded uchta kalitga tayanmaydi.
+            $counts[$p['kind']] = ($counts[$p['kind']] ?? 0) + 1;
         }
         $counts['returned'] = count($points);
-        $counts['truncated'] = count($points) >= $limit;
+        // Haqiqiy "kesilganmi" belgisi — `pointsWithOverflow()` SQL'dan
+        // $limit+1 qator so'rab, chegaradan tashqarida yana bormi-yo'qmi
+        // isbotlaydi. `count($points) >= $limit` (eskisi) aynan $limit-ta
+        // mos qator bo'lib hech narsa kesilmagan holatda ham `true` deb
+        // yolg'on xabar berardi.
+        $counts['truncated'] = $result['has_more'];
 
         return response()->json([
             'center' => ['lat' => $lat, 'lng' => $lng],
@@ -83,10 +90,28 @@ class NearbyController extends Controller
         ]);
     }
 
-    /** Joriy mahalla chegarasi (xaritada «siz shu yerdasiz» konturi). */
-    public function boundary(string $mahalla): JsonResponse
+    /**
+     * Joriy mahalla chegarasi (xaritada «siz shu yerdasiz» konturi).
+     *
+     * TUMAN BO'YICHA CHEKLANADI — `index()`dagi bilan bir xil deny-by-default
+     * invariant: `canSeeAll` (admin/viloyat) istalgan mahallani ko'ra oladi,
+     * boshqa hamma faqat o'z tumani doirasida. Qamrovi aniqlanmagan
+     * (`districtId === null`, `canSeeAll === false`) userga esa so'rov
+     * BAZAGA UMUMAN yuborilmaydi — `points()`/`mahallaForPoint()` bilan bir
+     * xil ko'rinishdagi 404 qaytadi, mavjud bo'lmagan id bilan farqlanmaydigan
+     * qilib.
+     */
+    public function boundary(Request $request, string $mahalla): JsonResponse
     {
-        $feature = $this->finder->boundaryGeoJson($mahalla);
+        $scope = $this->access->scopeFor($request->user());
+
+        if (! $scope->canSeeAll && $scope->districtId === null) {
+            abort(404, 'Маҳалла чегараси топилмади.');
+        }
+
+        $districtId = $scope->canSeeAll ? null : $scope->districtId;
+
+        $feature = $this->finder->boundaryGeoJson($mahalla, $districtId);
 
         abort_if($feature === null, 404, 'Маҳалла чегараси топилмади.');
 
