@@ -201,8 +201,6 @@ class NearbyApiTest extends TestCase
             ])
             ->json();
 
-        $this->assertNotEmpty($body['points']);
-
         $point = collect($body['points'])->firstWhere('id', $buildingId);
         $this->assertNotNull($point, 'Monitoring qilingan bino natijalar orasida topilmadi.');
         $this->assertSame('monitoring', $point['kind']);
@@ -337,6 +335,7 @@ class NearbyApiTest extends TestCase
     {
         $building = DB::connection('master')->table('buildings')
             ->where('district_id', $districtId)
+            ->where('type', 'residential')
             ->whereNotNull('street_id')
             ->whereNotNull('lat')
             ->whereNotNull('lng')
