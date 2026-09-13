@@ -118,41 +118,9 @@ class NearbyApiTest extends TestCase
             ->where('district_id', $districtId)->value('id');
         $this->assertNotNull($mahallaId, 'Pilot tumanda mahalla topilmadi.');
 
-        $userId = (string) Str::uuid();
-        $now = now();
+        $user = $this->insertDeputat($districtId, $mahallaId, 'Синов депутат');
 
-        DB::connection('auth')->table('users')->insert([
-            'id' => $userId,
-            'name' => 'Синов депутат',
-            'login' => 'nb_'.substr($userId, 0, 8),
-            'password' => bcrypt('secret'),
-            'is_active' => true,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        DB::connection('auth')->table('user_system_access')->insert([
-            'id' => (string) Str::uuid(),
-            'user_id' => $userId,
-            'system_id' => DB::connection('auth')->table('systems')->where('code', 'mahalla')->value('id'),
-            'role' => 'deputat',
-            'is_active' => true,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        DB::connection('mahalla')->table('users')->insert([
-            'id' => $userId,
-            'name' => 'Синов депутат',
-            'login' => 'nb_'.substr($userId, 0, 8),
-            'password' => bcrypt('secret'),
-            'district_id' => $districtId,
-            'mahalla_id' => $mahallaId,
-            'position' => 'deputat',
-            'is_active' => true,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        return [User::on('auth')->findOrFail($userId), (string) $districtId];
+        return [$user, (string) $districtId];
     }
 
     /**
@@ -164,12 +132,18 @@ class NearbyApiTest extends TestCase
      */
     private function makeDeputatWithoutDistrict(): User
     {
+        return $this->insertDeputat(null, null, 'Қамровсиз депутат');
+    }
+
+    /** Uch schemaga (auth.users, auth.user_system_access, mahalla.users) deputat yozadi. */
+    private function insertDeputat(?string $districtId, ?string $mahallaId, string $name): User
+    {
         $userId = (string) Str::uuid();
         $now = now();
 
         DB::connection('auth')->table('users')->insert([
             'id' => $userId,
-            'name' => 'Синов депутат (қамровсиз)',
+            'name' => $name,
             'login' => 'nb_'.substr($userId, 0, 8),
             'password' => bcrypt('secret'),
             'is_active' => true,
@@ -187,11 +161,11 @@ class NearbyApiTest extends TestCase
         ]);
         DB::connection('mahalla')->table('users')->insert([
             'id' => $userId,
-            'name' => 'Синов депутат (қамровсиз)',
+            'name' => $name,
             'login' => 'nb_'.substr($userId, 0, 8),
             'password' => bcrypt('secret'),
-            'district_id' => null,
-            'mahalla_id' => null,
+            'district_id' => $districtId,
+            'mahalla_id' => $mahallaId,
             'position' => 'deputat',
             'is_active' => true,
             'created_at' => $now,
