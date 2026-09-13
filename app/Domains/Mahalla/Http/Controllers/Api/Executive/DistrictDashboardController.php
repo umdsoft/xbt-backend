@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\District;
 use App\Domains\Mahalla\Services\ExecutiveStats;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Domains\Mahalla\Support\MahallaZones;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Rahbariyat: tuman kesimi (mahallalar jadvali).
@@ -19,17 +20,14 @@ use Illuminate\Http\JsonResponse;
  */
 class DistrictDashboardController extends Controller
 {
-    public function __construct(private readonly ExecutiveStats $stats)
-    {
-    }
+    public function __construct(
+        private readonly ExecutiveStats $stats,
+        private readonly ExecutiveScope $scope,
+    ) {}
 
-    public function __invoke(?string $district = null): JsonResponse
+    public function __invoke(Request $request, ?string $district = null): JsonResponse
     {
-        $model = $district !== null
-            ? District::on('master')->findOrFail($district)
-            : District::on('master')
-                ->where('soato_code', (string) config('mahalla.executive.default_district_soato'))
-                ->firstOrFail();
+        $model = $this->scope->district($request->user(), $district);
 
         $data = $this->stats->district((string) $model->id);
         $period = $this->stats->period();

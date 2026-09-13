@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Tests\TestCase;
 
@@ -266,6 +267,110 @@ class TumanViewerScopeTest extends TestCase
 
         $this->assertSame([], $scope->visibleDistrictIds($this->makeTumanUser(null)),
             'tumansiz user hech qanday tuman ko\'rmaydi');
+    }
+
+    /**
+     * Har bir "tuman shaklidagi" endpoint uchun bir xil uch holat:
+     * o'z tumani 200, begona tuman 403, tumansiz profil 403.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function districtEndpointProvider(): array
+    {
+        return [
+            'dashboard' => ['/api/mahalla/executive/districts/%s'],
+            'social-objects' => ['/api/mahalla/executive/districts/%s/social-objects'],
+            'geojson' => ['/api/mahalla/executive/districts/%s/geojson'],
+            'scoring' => ['/api/mahalla/executive/scoring/%s'],
+        ];
+    }
+
+    #[DataProvider('districtEndpointProvider')]
+    public function test_tuman_can_open_its_own_district(string $template): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson(sprintf($template, $own))
+            ->assertOk();
+    }
+
+    #[DataProvider('districtEndpointProvider')]
+    public function test_tuman_cannot_open_another_district(string $template): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeTumanUser($own);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson(sprintf($template, $other))
+            ->assertForbidden();
+    }
+
+    #[DataProvider('districtEndpointProvider')]
+    public function test_tuman_without_district_is_forbidden(string $template): void
+    {
+        $user = $this->makeTumanUser(null);
+        $someDistrict = $this->districtId();
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson(sprintf($template, $someDistrict))
+            ->assertForbidden();
+    }
+
+    public function test_tuman_dashboard_without_id_falls_back_to_own_district(): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts')
+            ->assertOk()
+            ->assertJsonPath('district.id', $own);
+    }
+
+    public function test_district_list_shows_only_own_district_to_tuman(): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+
+        $res = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/district-list')
+            ->assertOk();
+
+        $ids = array_column($res->json('districts'), 'id');
+        $this->assertSame([$own], $ids);
+    }
+
+    /**
+     * REGRESSIYA: viloyat hamon barcha tumanlarni ko'radi.
+     */
+    public function test_district_list_shows_all_districts_to_viloyat(): void
+    {
+        $user = $this->makeUserWithRole('viloyat');
+
+        $res = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/district-list')
+            ->assertOk();
+
+        $this->assertGreaterThan(1, count($res->json('districts')),
+            'viloyat bir nechta tuman ko\'rishi kerak');
+    }
+
+    /**
+     * REGRESSIYA: viloyat begona tumanni ham ocha oladi.
+     */
+    public function test_viloyat_can_open_any_district(): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeUserWithRole('viloyat');
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts/'.$other)
+            ->assertOk()
+            ->assertJsonPath('district.id', $other);
     }
 
     // ---------- fikstura yordamchilari ----------
