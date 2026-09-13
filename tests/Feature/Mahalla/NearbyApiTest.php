@@ -83,6 +83,27 @@ class NearbyApiTest extends TestCase
         $this->assertCount(5, $body['points']);
     }
 
+    public function test_user_without_district_scope_sees_nothing_even_with_valid_coordinates(): void
+    {
+        // Profili to'liq bo'lmagan operatsion user: districtId = null,
+        // canSeeAll = false. ILGARI `?? districtIdForPoint()` unga ISTALGAN
+        // tumanni ochardi — endi bo'sh ro'yxat qaytishi SHART.
+        $user = $this->makeDeputatWithoutDistrict();
+
+        $building = DB::connection('master')->table('buildings')
+            ->whereNotNull('lat')->whereNotNull('lng')
+            ->first(['lat', 'lng']);
+
+        $this->assertNotNull($building, 'Koordinatali bino topilmadi.');
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$building->lat}&lng={$building->lng}&radius_m=3000&layers=monitoring,homes,orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame([], $body['points'], 'Qamrovi aniqlanmagan user hech qanday bino ko\'rmasligi kerak.');
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */
@@ -132,6 +153,52 @@ class NearbyApiTest extends TestCase
         ]);
 
         return [User::on('auth')->findOrFail($userId), (string) $districtId];
+    }
+
+    /**
+     * Profili to'liq bo'lmagan deputat: mahalla.users.district_id/mahalla_id
+     * ATAYLAB null. `MahallaAccess::scopeFor()` bunday user uchun
+     * `districtId = null`, `canSeeAll = false` qaytaradi — bu ILGARIGI
+     * zaiflikning aniq shароiti (594d9b6 gача `?? districtIdForPoint()`
+     * shu holatda ISTALGAN tumanni ochib qo'yardi).
+     */
+    private function makeDeputatWithoutDistrict(): User
+    {
+        $userId = (string) Str::uuid();
+        $now = now();
+
+        DB::connection('auth')->table('users')->insert([
+            'id' => $userId,
+            'name' => 'Синов депутат (қамровсиз)',
+            'login' => 'nb_'.substr($userId, 0, 8),
+            'password' => bcrypt('secret'),
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::connection('auth')->table('user_system_access')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $userId,
+            'system_id' => DB::connection('auth')->table('systems')->where('code', 'mahalla')->value('id'),
+            'role' => 'deputat',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::connection('mahalla')->table('users')->insert([
+            'id' => $userId,
+            'name' => 'Синов депутат (қамровсиз)',
+            'login' => 'nb_'.substr($userId, 0, 8),
+            'password' => bcrypt('secret'),
+            'district_id' => null,
+            'mahalla_id' => null,
+            'position' => 'deputat',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return User::on('auth')->findOrFail($userId);
     }
 
     /** Tumanning eng zich mahallasi markazi (real ma'lumotdan). @return array{0:float,1:float} */
