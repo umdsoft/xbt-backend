@@ -185,6 +185,42 @@ class NearbyApiTest extends TestCase
         }
     }
 
+    public function test_monitoring_layer_exposes_status_and_mine_flag(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        // Pilot tumanda monitoring ostidagi (houses yozuvi bor) binoni topamiz.
+        $row = DB::connection('mahalla')->selectOne(
+            'SELECT b.lat, b.lng
+             FROM mahalla.houses h
+             JOIN master.buildings b ON b.id = h.building_id
+             WHERE h.deleted_at IS NULL AND b.district_id = :d
+               AND b.lat IS NOT NULL AND b.lng IS NOT NULL
+             LIMIT 1',
+            ['d' => $districtId],
+        );
+
+        if ($row === null) {
+            $this->markTestSkipped('Pilot tumanda monitoring ostidagi bino yo\'q.');
+        }
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$row->lat}&lng={$row->lng}&radius_m=500&layers=monitoring&limit=50")
+            ->assertOk()
+            ->assertJsonStructure([
+                'points' => [['id', 'kind', 'monitored', 'overall_status', 'mine']],
+            ])
+            ->json();
+
+        $this->assertNotEmpty($body['points']);
+        foreach ($body['points'] as $p) {
+            $this->assertSame('monitoring', $p['kind']);
+            $this->assertTrue($p['monitored']);
+            $this->assertContains($p['overall_status'], ['not_started', 'in_progress', 'completed']);
+            $this->assertIsBool($p['mine']);
+        }
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */

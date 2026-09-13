@@ -56,11 +56,12 @@ class NearbyController extends Controller
             : $scope->districtId; // null => points() bo'sh ro'yxat qaytaradi
 
         $rows = $this->finder->points($lat, $lng, $radiusM, $kinds, $limit, $districtId);
+        $myStreets = array_flip($scope->streetIds);
 
         return response()->json([
             'center' => ['lat' => $lat, 'lng' => $lng],
             'radius_m' => $radiusM,
-            'points' => array_map(fn (array $r) => $this->presentPoint($r), $rows),
+            'points' => array_map(fn (array $r) => $this->presentPoint($r, $myStreets), $rows),
         ]);
     }
 
@@ -95,9 +96,14 @@ class NearbyController extends Controller
         return array_values(array_unique($kinds));
     }
 
-    /** @param array<string, mixed> $r */
-    private function presentPoint(array $r): array
+    /**
+     * @param  array<string, mixed>  $r
+     * @param  array<string, int>  $myStreets  deputat ko'chalari (street_id => idx)
+     */
+    private function presentPoint(array $r, array $myStreets): array
     {
+        $streetId = $r['street_id'] !== null ? (string) $r['street_id'] : null;
+
         return [
             'id' => (string) $r['id'],
             'lat' => (float) $r['lat'],
@@ -113,6 +119,9 @@ class NearbyController extends Controller
             'house_number' => $r['house_number'] !== null ? (string) $r['house_number'] : null,
             'street' => $r['street'] !== null ? (string) $r['street'] : null,
             'mahalla' => $r['mahalla_name'] !== null ? (string) $r['mahalla_name'] : null,
+            'monitored' => $r['house_id'] !== null,
+            'overall_status' => $r['overall_status'] !== null ? (string) $r['overall_status'] : null,
+            'mine' => $streetId !== null && isset($myStreets[$streetId]),
         ];
     }
 
