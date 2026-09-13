@@ -118,4 +118,28 @@ class NearbyFinder
 
         return $row?->id;
     }
+
+    /**
+     * Nuqta qaysi mahallada (chegara poligoni bo'yicha).
+     *
+     * @return array{id: string, name: string}|null
+     */
+    public function mahallaForPoint(float $lat, float $lng, ?string $districtId): ?array
+    {
+        $sql = 'SELECT id, name_cyr
+                FROM master.mahallas
+                WHERE boundary IS NOT NULL
+                  AND ST_Contains(boundary, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))';
+        $bind = ['lng' => $lng, 'lat' => $lat];
+
+        if ($districtId !== null) {
+            $sql .= ' AND district_id = :district_id';
+            $bind['district_id'] = $districtId;
+        }
+        $sql .= ' LIMIT 1';
+
+        $row = DB::connection('master')->selectOne($sql, $bind);
+
+        return $row === null ? null : ['id' => (string) $row->id, 'name' => (string) $row->name_cyr];
+    }
 }

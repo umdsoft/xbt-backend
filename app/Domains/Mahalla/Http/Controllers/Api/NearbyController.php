@@ -58,10 +58,25 @@ class NearbyController extends Controller
         $rows = $this->finder->points($lat, $lng, $radiusM, $kinds, $limit, $districtId);
         $myStreets = array_flip($scope->streetIds);
 
+        $points = array_map(fn (array $r) => $this->presentPoint($r, $myStreets), $rows);
+
+        $counts = [
+            NearbyFinder::KIND_MONITORING => 0,
+            NearbyFinder::KIND_HOME => 0,
+            NearbyFinder::KIND_ORG => 0,
+        ];
+        foreach ($points as $p) {
+            $counts[$p['kind']]++;
+        }
+        $counts['returned'] = count($points);
+        $counts['truncated'] = count($points) >= $limit;
+
         return response()->json([
             'center' => ['lat' => $lat, 'lng' => $lng],
             'radius_m' => $radiusM,
-            'points' => array_map(fn (array $r) => $this->presentPoint($r, $myStreets), $rows),
+            'current_mahalla' => $this->finder->mahallaForPoint($lat, $lng, $districtId),
+            'counts' => $counts,
+            'points' => $points,
         ]);
     }
 

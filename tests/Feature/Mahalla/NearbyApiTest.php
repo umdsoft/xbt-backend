@@ -238,6 +238,34 @@ class NearbyApiTest extends TestCase
         $this->assertTrue($point['mine'], 'Ko\'chasi biriktirilgan deputat uchun mine=true bo\'lishi kerak.');
     }
 
+    public function test_response_includes_current_mahalla_and_counts(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=25")
+            ->assertOk()
+            ->assertJsonStructure([
+                'current_mahalla',
+                'counts' => ['monitoring', 'home', 'org', 'returned', 'truncated'],
+            ])
+            ->json();
+
+        $this->assertSame(count($body['points']), $body['counts']['returned']);
+        $this->assertSame(
+            $body['counts']['monitoring'] + $body['counts']['home'] + $body['counts']['org'],
+            $body['counts']['returned'],
+        );
+        $this->assertTrue($body['counts']['truncated'], 'limit=25 zich nuqtada kesilgan bo\'lishi kerak.');
+
+        // Zich mahalla markazi polygon ichida — mahalla topilishi kerak.
+        $this->assertNotNull($body['current_mahalla']);
+        $this->assertArrayHasKey('id', $body['current_mahalla']);
+        $this->assertArrayHasKey('name', $body['current_mahalla']);
+        $this->assertNotSame('', $body['current_mahalla']['name']);
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */
