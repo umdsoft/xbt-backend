@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Tests\TestCase;
 
 /**
@@ -178,10 +178,12 @@ class TumanViewerScopeTest extends TestCase
         $other = $this->anotherDistrictId($own);
         $user = $this->makeTumanUser($own);
 
-        $this->expectException(HttpException::class);
-        $this->expectExceptionCode(403);
-
-        app(ExecutiveScope::class)->district($user, $other);
+        try {
+            app(ExecutiveScope::class)->district($user, $other);
+            $this->fail('403 kutilgan edi, istisno otilmadi');
+        } catch (HttpExceptionInterface $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
     }
 
     /**
@@ -193,10 +195,12 @@ class TumanViewerScopeTest extends TestCase
     {
         $user = $this->makeTumanUser(null);
 
-        $this->expectException(HttpException::class);
-        $this->expectExceptionCode(403);
-
-        app(ExecutiveScope::class)->district($user, null);
+        try {
+            app(ExecutiveScope::class)->district($user, null);
+            $this->fail('403 kutilgan edi, istisno otilmadi');
+        } catch (HttpExceptionInterface $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
     }
 
     public function test_scope_lets_viloyat_open_any_district(): void

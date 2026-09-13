@@ -8,7 +8,6 @@ use App\Domains\Mahalla\Models\Master\District;
 use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Rahbariyat (executive) endpointlari uchun QAMROV hal qiluvchisi.
@@ -45,14 +44,11 @@ final class ExecutiveScope
         $own = $scope->districtId;
 
         if ($own === null) {
-            // `abort(403, ...)` ataylab ishlatilmaydi: Symfony HttpException
-            // getCode()'ni har doim 0'ga o'rnatadi (statusni emas), shuning
-            // uchun kod HTTP status bilan mos kelishi uchun ochiq beriladi.
-            throw new HttpException(403, 'Профилингизда туман кўрсатилмаган.', null, [], 403);
+            abort(403, 'Профилингизда туман кўрсатилмаган.');
         }
 
         if ($requestedId !== null && $requestedId !== $own) {
-            throw new HttpException(403, 'Бу туман сизнинг қамровингизда эмас.', null, [], 403);
+            abort(403, 'Бу туман сизнинг қамровингизда эмас.');
         }
 
         return District::on('master')->findOrFail($own);
