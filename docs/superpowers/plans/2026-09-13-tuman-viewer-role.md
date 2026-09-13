@@ -365,8 +365,10 @@ git commit -m "feat(mahalla): tuman — tuman bilan cheklangan ko'rish roli"
         $other = $this->anotherDistrictId($own);
         $user = $this->makeTumanUser($own);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->expectExceptionCode(403);
+        // DIQQAT: expectExceptionCode(403) ISHLAMAYDI — abort(403) Symfony
+        // HttpException ida getStatusCode()=403, lekin getCode()=0 qoladi.
+        // Status kodni try/catch bilan tekshir:
+        //   catch (HttpExceptionInterface $e) { $this->assertSame(403, $e->getStatusCode()); }
 
         app(\App\Domains\Mahalla\Support\ExecutiveScope::class)->district($user, $other);
     }
@@ -380,8 +382,10 @@ git commit -m "feat(mahalla): tuman — tuman bilan cheklangan ko'rish roli"
     {
         $user = $this->makeTumanUser(null);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->expectExceptionCode(403);
+        // DIQQAT: expectExceptionCode(403) ISHLAMAYDI — abort(403) Symfony
+        // HttpException ida getStatusCode()=403, lekin getCode()=0 qoladi.
+        // Status kodni try/catch bilan tekshir:
+        //   catch (HttpExceptionInterface $e) { $this->assertSame(403, $e->getStatusCode()); }
 
         app(\App\Domains\Mahalla\Support\ExecutiveScope::class)->district($user, null);
     }
