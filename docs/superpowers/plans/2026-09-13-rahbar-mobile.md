@@ -291,6 +291,23 @@ nullable, тест билан қулфлансин.
 
 **`limit` ЮБОРИЛМАЙДИ** — сервер дефолти 600, клиент буни белгиламайди.
 
+**`GET /mahallas/{id}/boundary` контракти** (`NearbyFinder::boundaryGeoJson` дан
+олинган) — GeoJSON **Feature**, `FeatureCollection` ЭМАС:
+
+```json
+{
+  "type": "Feature",
+  "properties": {"id": "uuid", "name": "ТУПРОҚҚАЛЪА МФЙ"},
+  "geometry": {"type": "MultiPolygon", "coordinates": [[[[60.38, 41.62], ...]]]}
+}
+```
+
+- Координаталар **[lng, lat]** тартибида (GeoJSON стандарти) — `latlong2`
+  `LatLng(lat, lng)` кутади, яъни **алмаштириш керак**. Бу классик хато манбаи.
+- Чегара `ST_SimplifyPreserveTopology(..., 0.0003)` билан соддалаштирилган (~33 м).
+- Маҳалла топилмаса ёки қамровдан ташқарида бўлса — **404** (жавоб танаси эмас).
+- `geometry` `MultiPolygon` ҳам, `Polygon` ҳам бўлиши мумкин — иккаласини ҳам қўллаб-қувватла.
+
 Репозиторий намунаси `worklist_repository.dart` билан бир хил:
 `ref.read(dioProvider).get(...)` → `Map<String,dynamic>.from(res.data as Map)` →
 `fromJson` → кешга ёзиш → `on DioException catch` ичида тармоқ хатосида
