@@ -465,6 +465,67 @@ class TumanViewerScopeTest extends TestCase
         $this->assertSame([], $res->json('points'));
     }
 
+    /**
+     * MEDIUM-1 (xavfsizlik ko'rigi, 2026-09). `EnsureMahallaViewer` — 8 ta
+     * rahbariyat (executive) endpointining YAGONA gvardiyasi — `MahallaAccess
+     * ::VIEWER_ROLES` ro'yxatiga TUSHMAGAN har bir operatsion rolni rad etishi
+     * SHART.
+     *
+     * Bu ayniqsa `rais` uchun muhim: `MahallaAccess::scopeFor()` unga
+     * NULL BO'LMAGAN `districtId` beradi (o'z profilidan). Agar `rais`
+     * qandaydir sababga ko'ra `VIEWER_ROLES`ga qo'shilib qolsa (masalan
+     * "u ham ko'rish huquqiga ega-ku" degan xato mulohaza bilan),
+     * `ExecutiveScope::district()` unga BUTUN TUMANNI ochib beradi va
+     * `ExecutiveScope::mahalla()` shu tumandagi ISTALGAN mahallani —
+     * ya'ni bitta mahalla raisi butun tumanning rahbariyat ko'rinishini
+     * (aholi, ijtimoiy obyektlar, skoring...) ko'ra oladigan bo'lib qoladi.
+     * `hokim-yordamchisi` ham xuddi shunday qamrovga ega, xuddi shu xavf.
+     *
+     * `deputat` allaqachon `ExecutiveDashboardTest`da (districts/geojson/
+     * scoring) qoplangan — bu yerda faqat SIMMETRIYA uchun: provider
+     * ro'yxatiga kelajakda yangi operatsion rol (masalan hozircha yo'q
+     * biror lavozim) qo'shilsa, bitta qator qo'shish yetarli bo'lishi kerak.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function nonViewerOperationalRoleProvider(): array
+    {
+        return [
+            'rais' => ['rais'],
+            'hokim-yordamchisi' => ['hokim-yordamchisi'],
+            'deputat' => ['deputat'],
+        ];
+    }
+
+    #[DataProvider('nonViewerOperationalRoleProvider')]
+    public function test_operational_role_is_forbidden_on_district_shaped_executive_endpoint(string $role): void
+    {
+        $own = $this->districtId();
+        // Haqiqiy scopeFor() xulqini takrorlash uchun `mahalla.users`da
+        // profil ham beriladi — aks holda guard 403ni faqat rol ro'yxati
+        // orqali berayotgani, profil holatidan qat'i nazar, aniq bo'lmaydi.
+        $user = $this->makeMahallaProfileUser($role, $own);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/districts/'.$own)
+            ->assertForbidden();
+    }
+
+    #[DataProvider('nonViewerOperationalRoleProvider')]
+    public function test_operational_role_is_forbidden_on_mahalla_shaped_executive_endpoint(string $role): void
+    {
+        $own = $this->districtId();
+        $mahallaId = (string) DB::connection('master')->table('mahallas')
+            ->where('district_id', $own)->value('id');
+        $this->assertNotSame('', $mahallaId, 'Standart tumanda mahalla bo\'lishi kerak');
+
+        $user = $this->makeMahallaProfileUser($role, $own, $mahallaId);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/mahallas/'.$mahallaId)
+            ->assertForbidden();
+    }
+
     // ---------- fikstura yordamchilari ----------
 
     protected function districtId(): string
@@ -542,11 +603,21 @@ class TumanViewerScopeTest extends TestCase
      */
     protected function makeTumanUser(?string $districtId, ?string $mahallaId = null): User
     {
-        $user = $this->makeUserWithRole('tuman');
+        return $this->makeMahallaProfileUser('tuman', $districtId, $mahallaId);
+    }
+
+    /**
+     * Berilgan rol bilan `mahalla.users` profiliga ega user yaratadi
+     * (`makeTumanUser()`ning umumlashtirilgani — boshqa geo-qamrovli
+     * rollar, masalan `rais`/`hokim-yordamchisi`, uchun ham ishlatiladi).
+     */
+    protected function makeMahallaProfileUser(string $role, ?string $districtId, ?string $mahallaId = null): User
+    {
+        $user = $this->makeUserWithRole($role);
 
         DB::connection('mahalla')->table('users')->insert([
             'id' => $user->id,
-            'name' => 'ТЕСТ туман раҳбари',
+            'name' => 'ТЕСТ '.$role,
             'login' => 'test_'.substr((string) $user->id, 0, 8),
             'password' => bcrypt('secret'),
             'district_id' => $districtId,
