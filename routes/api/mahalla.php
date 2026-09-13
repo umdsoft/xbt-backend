@@ -10,21 +10,22 @@ use App\Domains\Mahalla\Http\Controllers\Api\Admin\UserManagementController;
 use App\Domains\Mahalla\Http\Controllers\Api\ContextController;
 use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
-use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
-use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
-use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
-use App\Domains\Mahalla\Http\Controllers\Api\Rais\StreetController;
-use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
-use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictListController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ExecutiveProjectsController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObodDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ScoringController;
-use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictListController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
+use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
+use App\Domains\Mahalla\Http\Controllers\Api\NearbyController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoUploadController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\CadastreController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\ContractController;
+use App\Domains\Mahalla\Http\Controllers\Api\Rais\StreetController;
 use App\Domains\Mahalla\Http\Controllers\Api\WorklistController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,16 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
         Route::get('/worklist', [WorklistController::class, 'index'])->name('worklist.index');
         Route::get('/buildings/{building}', [WorklistController::class, 'show'])->name('buildings.show');
         Route::post('/buildings/{building}/observations', [ObservationController::class, 'store'])->name('buildings.observations.store');
+
+        // АТРОФ (xarita) — jonli GPS radiusidagi binolar/tashkilotlar
+        Route::get('/nearby', [NearbyController::class, 'index'])
+            ->middleware('throttle:60,1')
+            ->name('nearby');
+
+        Route::get('/mahallas/{mahalla}/boundary', [NearbyController::class, 'boundary'])
+            ->middleware('throttle:60,1')
+            ->whereUuid('mahalla')
+            ->name('mahallas.boundary');
 
         // Eski (houses-asosli) endpointlar — moslik uchun saqlanadi
         Route::get('/houses', [HouseController::class, 'index'])->name('houses.index');
