@@ -25,7 +25,7 @@ Deputat mahallada/ko'chada yurganda **real vaqtda** o'zi turgan joydan **N-km ra
 
 ### 3.1 Yangi endpoint'lar
 
-Yangi controller: `App\Domains\Mahalla\Http\Controllers\Api\Deputat\NearbyController` + yangi servis `App\Domains\Mahalla\Services\NearbyFinder`. Marshrutlar `routes/api/mahalla.php` ichida, `auth:sanctum` + `system.access:mahalla` guardida.
+Yangi controller: `App\Domains\Mahalla\Http\Controllers\Api\NearbyController` (implementatsiyada dizaynda ko'zda tutilgan `Api\Deputat\NearbyController` emas, soddaroq `Api\NearbyController` nomi ishlatildi) + yangi servis `App\Domains\Mahalla\Services\NearbyFinder`. Marshrutlar `routes/api/mahalla.php` ichida, `auth:sanctum` + `system.access:mahalla` guardida.
 
 **(1) `GET /api/mahalla/nearby`** — radiusdagi nuqtalar (tez-tez chaqiriladi).
 Query params (validatsiya majburiy):
@@ -40,10 +40,9 @@ Javob (plain JSON, GeoJSON emas — mavjud `rais/map` konvensiyasi):
   "center": {"lat": 41.55, "lng": 60.63},
   "radius_m": 3000,
   "current_mahalla": {
-    "id": "<uuid>", "name": "Тупроққалъа МФЙ",
-    "stats": {"buildings": 82, "monitored": 12, "completed": 3}
+    "id": "<uuid>", "name": "Тупроққалъа МФЙ"
   },
-  "counts": {"monitoring": 40, "homes": 380, "orgs": 22, "returned": 442, "truncated": false},
+  "counts": {"monitoring": 40, "home": 380, "org": 22, "returned": 442, "truncated": false},
   "points": [
     {
       "id": "<uuid>", "lat": 41.55, "lng": 60.63, "distance_m": 120,
@@ -54,16 +53,26 @@ Javob (plain JSON, GeoJSON emas — mavjud `rais/map` konvensiyasi):
       "category_label": null,            // "Мактаб" (Kiril)
       "address": "ул. Ишонч, пр. 2, 1",
       "kadastr": "22:06:05:01:07:1509",
+      "house_number": "1",
+      "street": "Ишонч",
       "mahalla": "Тупроққалъа МФЙ",
-      "mine": true,                      // deputatga biriktirilgan (street_id scope)
       "monitored": true,
-      "overall_status": "in_progress"    // monitored bo'lsa
+      "overall_status": "in_progress",   // monitored bo'lsa
+      "mine": true                       // deputatga biriktirilgan (street_id scope)
     }
   ]
 }
 ```
 
+**Muhim tuzatishlar (Task 7, haqiqiy kod bilan tekshirilgan — `NearbyController::presentPoint()`, `NearbyFinder`, `tests/Feature/Mahalla/NearbyApiTest.php`):**
+- `counts` kalitlari BIRLIKDA: `monitoring` / `home` / `org` (ko'plik `homes`/`orgs` EMAS) + `returned` + `truncated`.
+- `current_mahalla`da `stats` YO'Q — servis faqat `{id, name}` qaytaradi (`NearbyFinder::mahallaForPoint()`). Qamrovi aniqlanmagan (`canSeeAll=false`, `districtId=null`) foydalanuvchi uchun `current_mahalla` HAM `null` bo'ladi — `points` bilan bir xil deny-by-default qoida, hatto koordinata real mahalla ichida bo'lsa ham.
+- `truncated` haqiqiy "yana bormi" tekshiruvidan hisoblanadi: `NearbyFinder::pointsWithOverflow()` SQL'dan `limit+1` qator so'raydi va shundan chiqaradi — ESKI `count($points) >= $limit` taxminidan EMAS (u aynan `$limit`ta mos qator bo'lib hech narsa kesilmagan holatda ham `true` deb yolg'on xabar berardi).
+- `points[]` maydonlarining to'liq ro'yxati yuqoridagi namunada (`house_number` va `street` ham bor — avvalgi qoralamada tushib qolgan edi).
+
 **(2) `GET /api/mahalla/mahallas/{mahalla}/boundary`** — joriy mahalla chegarasi (GeoJSON), FAQAT mahalla `id` o'zgarganda olinadi. `ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, 0.0003))` (~33m tolerance) + `ExecutiveCache::remember` bilan keshlanadi (mavjud `DistrictGeoJsonController` patterni). Bu og'ir geometriya har GPS tickda qayta yuborilmasin uchun alohida.
+
+**TUMAN BO'YICHA CHEKLANADI (review paytidagi tasdiqlangan qaror — dizaynda YO'Q edi, endpoint ochiq deb tasvirlangan edi):** `canSeeAll` (admin/viloyat) istalgan mahallaning chegarasini so'rashi mumkin; qolgan hamma faqat o'z tumani ichidagi mahallalarni; qamrovi aniqlanmagan (scope-less) foydalanuvchiga 404 qaytadi (`NearbyController::boundary()`). Kesh kaliti tuman qamrovini o'z ichiga oladi — `nearby:boundary:{mahallaId}:{districtId|all}` (`NearbyFinder::boundaryGeoJson()`) — aks holda bitta (masalan canSeeAll uchun keshlangan) natija boshqa tumanga scoped userga ham noto'g'ri berilib qolar edi.
 
 ### 3.2 Asosiy so'rov (NearbyFinder)
 
@@ -89,7 +98,7 @@ LIMIT :limit;
 - `kind` hisoblash (PHP): `monitored → 'monitoring'`; `type='non_residential' → 'org'`; else `'home'`.
 - `mine` = `street_id ∈ deputat scope` (mavjud `MahallaAccess` scope).
 - Joriy mahalla: `SELECT id, name_cyr FROM master.mahallas WHERE district_id = :d AND ST_Contains(boundary, :gp) LIMIT 1` (GIST-indeks; `:d` = deputat district yoki pilotda Shovot).
-- `stats`: mavjud aggregatsiya (worklist/executive) shu mahalla uchun.
+- `stats`: DIZAYNDA reja qilingan edi, lekin SHIPPED emas — `mahallaForPoint()` faqat `{id, name}` qaytaradi; mobil klient `current_mahalla.stats`ga tayanmasin.
 
 ### 3.2.1 O'LCHANGAN REALLIK (local `kbt` DB, PostGIS 3.6.2, 2026-09-13)
 
@@ -130,7 +139,7 @@ UI yorliqlari uchun **`name_cyr`** ishlatiladi (hardcode QILINMAYDI — serverda
 - `district_id` bo'yicha old-filtr (indeksli) — planner uchun.
 - Qattiq `LIMIT` (default 600, max 1500), `ORDER BY distance` — eng yaqinlar. `truncated` bayrog'i.
 - Chegara GeoJSON alohida + keshlangan (`ST_SimplifyPreserveTopology`).
-- `throttle` (masalan `throttle:60,1`) — tez-tez chaqiriladigan endpoint.
+- `throttle:60,1` — HAR IKKALA endpoint'da (`nearby` va `mahallas/{mahalla}/boundary`, `routes/api/mahalla.php`), faqat tez-tez chaqiriladigan `nearby`da emas.
 
 ### 3.4 Xavfsizlik / maxfiylik
 - `auth:sanctum` + `system.access:mahalla`. `lat/lng/radius` validatsiya + radius MAX-cap.
