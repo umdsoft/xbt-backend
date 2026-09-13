@@ -104,6 +104,48 @@ class NearbyApiTest extends TestCase
         $this->assertSame([], $body['points'], 'Qamrovi aniqlanmagan user hech qanday bino ko\'rmasligi kerak.');
     }
 
+    public function test_nearby_requires_authentication(): void
+    {
+        $this->getJson('/api/mahalla/nearby?lat=41.67&lng=60.24')
+            ->assertUnauthorized();
+    }
+
+    public function test_nearby_rejects_missing_and_out_of_range_params(): void
+    {
+        [$user] = $this->makeDeputatInPilotDistrict();
+
+        // lat/lng majburiy
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/nearby')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lat', 'lng']);
+
+        // radius MAX 5000
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/nearby?lat=41.67&lng=60.24&radius_m=50000')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['radius_m']);
+
+        // koordinata chegarasi
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/nearby?lat=999&lng=60.24')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lat']);
+    }
+
+    public function test_nearby_defaults_radius_to_3000(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&limit=5")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(3000, $body['radius_m']);
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */
