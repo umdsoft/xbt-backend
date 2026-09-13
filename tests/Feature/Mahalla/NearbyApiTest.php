@@ -48,6 +48,41 @@ class NearbyApiTest extends TestCase
         $this->assertSame($sorted, $distances, 'Nuqtalar masofa bo\'yicha saralangan bo\'lishi kerak.');
     }
 
+    public function test_deputat_cannot_read_another_district_by_moving_the_point(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        $other = DB::connection('master')->table('buildings')
+            ->whereNotNull('lat')->whereNotNull('lng')
+            ->where('district_id', '!=', $districtId)
+            ->whereNotNull('district_id')
+            ->first(['lat', 'lng']);
+
+        if ($other === null) {
+            $this->markTestSkipped('Boshqa tumanda koordinatali bino yo\'q.');
+        }
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$other->lat}&lng={$other->lng}&radius_m=3000&layers=monitoring,homes,orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame([], $body['points'], 'Deputat o\'z tumanidan tashqaridagi binolarni ko\'rmasligi kerak.');
+    }
+
+    public function test_limit_caps_the_number_of_returned_points(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=5")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(5, $body['points']);
+    }
+
     // ── Yordamchilar ────────────────────────────────────────────────────────
 
     /** Pilot (Shovot) tumanida deputat yaratadi. @return array{0:User,1:string} */

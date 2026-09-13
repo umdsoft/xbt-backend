@@ -65,8 +65,8 @@ class NearbyFinder
                    ST_SetSRID(ST_MakePoint(:lng2, :lat2), 4326)::geography AS g
         )
         SELECT b.id,
-               b.lat,
-               b.lng,
+               ST_Y(b.geom) AS lat,
+               ST_X(b.geom) AS lng,
                b.type,
                b.address,
                b.kadastr,
@@ -88,7 +88,7 @@ class NearbyFinder
           AND ST_DWithin(b.geom::geography, pt.g, :radius)
           AND {$kindSql}
         ORDER BY distance_m
-        LIMIT {$limit}
+        LIMIT :limit
         SQL;
 
         $rows = DB::connection('mahalla')->select($sql, [
@@ -99,6 +99,7 @@ class NearbyFinder
             'district_id' => $districtId,
             'deg' => $deg,
             'radius' => $radiusM,
+            'limit' => $limit,
         ]);
 
         return array_map(static fn ($r) => (array) $r, $rows);

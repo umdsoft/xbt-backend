@@ -13,10 +13,14 @@ use Illuminate\Http\Request;
 /**
  * «Атроф» — deputat turgan nuqta atrofidagi binolar/tashkilotlar.
  *
- * Rolga bog'lanmagan (WorklistController kabi): qamrov MahallaAccess scope
- * orqali TUMAN darajasida cheklanadi. Radiusdagi BARCHA bino ko'rinadi
- * (biriktirilgan/biriktirilmagan) — monitoring HARAKATI esa alohida
- * endpointlarda (worklist/observations) baribir scope bilan himoyalangan.
+ * QAMROV ATAYLAB KENG: WorklistController ko'cha-scope (`restrictToStreets`)
+ * bilan cheklanadi, bu endpoint esa ATAYLAB butun TUMAN bo'yicha o'qish
+ * beradi — dala xodimi atrofidagi HAR QANDAY binoni (biriktirilgan yoki yo'q)
+ * ko'rishi mahsulot talabi. Ma'lumot kadastr darajasida (manzil/kadastr/tur),
+ * rezident PII yo'q. Monitoring HARAKATLARI (surat yuklash) baribir o'z
+ * endpointlarida ko'cha-scope bilan himoyalangan.
+ *
+ * Tumandan tashqariga chiqish faqat `canSeeAll` (admin/viloyat) uchun.
  */
 class NearbyController extends Controller
 {
@@ -42,7 +46,14 @@ class NearbyController extends Controller
         $kinds = $this->parseLayers($data['layers'] ?? null);
 
         $scope = $this->access->scopeFor($request->user());
-        $districtId = $scope->districtId ?? $this->finder->districtIdForPoint($lat, $lng);
+        // Qamrovni KENGAYTIRISH faqat RUXSAT bo'yicha bo'lishi kerak, `null`
+        // bo'yicha EMAS: MahallaAccess `districtId = null` ni ikki xil holatda
+        // qaytaradi — (a) admin/viloyat (canSeeAll=true) va (b) profili to'liq
+        // bo'lmagan operatsion user. `??` ularni ajratmaydi va (b) ga istalgan
+        // koordinata orqali BOSHQA tumanni ochib qo'yardi.
+        $districtId = $scope->canSeeAll
+            ? $this->finder->districtIdForPoint($lat, $lng)
+            : $scope->districtId; // null => points() bo'sh ro'yxat qaytaradi
 
         $rows = $this->finder->points($lat, $lng, $radiusM, $kinds, $limit, $districtId);
 
@@ -61,17 +72,27 @@ class NearbyController extends Controller
      */
     private function parseLayers(?string $raw): array
     {
-        $allowed = [NearbyFinder::KIND_MONITORING, NearbyFinder::KIND_HOME, NearbyFinder::KIND_ORG];
         if ($raw === null || trim($raw) === '') {
             return [NearbyFinder::KIND_MONITORING, NearbyFinder::KIND_ORG];
         }
 
-        $req = array_map(
-            static fn (string $s) => rtrim(trim($s), 's'), // 'homes' → 'home', 'orgs' → 'org'
-            explode(',', $raw),
-        );
+        $map = [
+            'monitoring' => NearbyFinder::KIND_MONITORING,
+            'home' => NearbyFinder::KIND_HOME,
+            'homes' => NearbyFinder::KIND_HOME,
+            'org' => NearbyFinder::KIND_ORG,
+            'orgs' => NearbyFinder::KIND_ORG,
+        ];
 
-        return array_values(array_intersect($allowed, $req));
+        $kinds = [];
+        foreach (explode(',', $raw) as $s) {
+            $kind = $map[trim($s)] ?? null;
+            if ($kind !== null) {
+                $kinds[] = $kind;
+            }
+        }
+
+        return array_values(array_unique($kinds));
     }
 
     /** @param array<string, mixed> $r */
