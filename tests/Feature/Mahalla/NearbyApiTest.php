@@ -189,23 +189,12 @@ class NearbyApiTest extends TestCase
     {
         [$user, $districtId] = $this->makeDeputatInPilotDistrict();
 
-        // Pilot tumanda monitoring ostidagi (houses yozuvi bor) binoni topamiz.
-        $row = DB::connection('mahalla')->selectOne(
-            'SELECT b.lat, b.lng
-             FROM mahalla.houses h
-             JOIN master.buildings b ON b.id = h.building_id
-             WHERE h.deleted_at IS NULL AND b.district_id = :d
-               AND b.lat IS NOT NULL AND b.lng IS NOT NULL
-             LIMIT 1',
-            ['d' => $districtId],
-        );
-
-        if ($row === null) {
-            $this->markTestSkipped('Pilot tumanda monitoring ostidagi bino yo\'q.');
-        }
+        // Real pilot-tuman binosini monitoring ostiga olamiz (dev bazadagi
+        // yagona houses qatoriga tayanmaymiz — u boshqa tumanda bo'lishi mumkin).
+        [$buildingId, $lat, $lng] = $this->monitorRealBuilding($districtId, 'in_progress');
 
         $body = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/mahalla/nearby?lat={$row->lat}&lng={$row->lng}&radius_m=500&layers=monitoring&limit=50")
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=500&layers=monitoring&limit=50")
             ->assertOk()
             ->assertJsonStructure([
                 'points' => [['id', 'kind', 'monitored', 'overall_status', 'mine']],
@@ -213,12 +202,42 @@ class NearbyApiTest extends TestCase
             ->json();
 
         $this->assertNotEmpty($body['points']);
-        foreach ($body['points'] as $p) {
-            $this->assertSame('monitoring', $p['kind']);
-            $this->assertTrue($p['monitored']);
-            $this->assertContains($p['overall_status'], ['not_started', 'in_progress', 'completed']);
-            $this->assertIsBool($p['mine']);
-        }
+
+        $point = collect($body['points'])->firstWhere('id', $buildingId);
+        $this->assertNotNull($point, 'Monitoring qilingan bino natijalar orasida topilmadi.');
+        $this->assertSame('monitoring', $point['kind']);
+        $this->assertTrue($point['monitored']);
+        $this->assertSame('in_progress', $point['overall_status']);
+        $this->assertFalse($point['mine'], 'Ko\'cha biriktirilmagan deputat uchun mine=false bo\'lishi kerak.');
+    }
+
+    public function test_monitoring_layer_mine_flag_is_true_when_deputat_has_street_assignment(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+
+        [$buildingId, $lat, $lng, $streetId] = $this->monitorRealBuilding($districtId, 'completed');
+
+        // Deputatni monitoring qilinayotgan binoning ko'chasiga biriktiramiz —
+        // shundan keyingina `mine` true bo'lishi kerak.
+        DB::connection('mahalla')->table('street_assignments')->insert([
+            'id' => (string) Str::uuid(),
+            'street_id' => $streetId,
+            'user_id' => $user->id,
+            'assigned_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=500&layers=monitoring&limit=50")
+            ->assertOk()
+            ->json();
+
+        $point = collect($body['points'])->firstWhere('id', $buildingId);
+        $this->assertNotNull($point, 'Monitoring qilingan bino natijalar orasida topilmadi.');
+        $this->assertSame('monitoring', $point['kind']);
+        $this->assertSame('completed', $point['overall_status']);
+        $this->assertTrue($point['mine'], 'Ko\'chasi biriktirilgan deputat uchun mine=true bo\'lishi kerak.');
     }
 
     // ── Yordamchilar ────────────────────────────────────────────────────────
@@ -306,5 +325,48 @@ class NearbyApiTest extends TestCase
         $this->assertNotNull($row, 'Pilot tumanda koordinatali bino topilmadi.');
 
         return [(float) $row->lat, (float) $row->lng];
+    }
+
+    /**
+     * Pilot tumandagi REAL binoni monitoring ostiga oladi (mahalla.houses ga
+     * qator qo'shadi). DatabaseTransactions qaytaradi — dev bazada iz qolmaydi.
+     *
+     * @return array{0:string,1:float,2:float,3:string} [buildingId, lat, lng, streetId]
+     */
+    private function monitorRealBuilding(string $districtId, string $status = 'in_progress'): array
+    {
+        $building = DB::connection('master')->table('buildings')
+            ->where('district_id', $districtId)
+            ->whereNotNull('street_id')
+            ->whereNotNull('lat')
+            ->whereNotNull('lng')
+            ->whereNotNull('mahalla_id')
+            ->first(['id', 'lat', 'lng', 'street_id', 'mahalla_id']);
+
+        $this->assertNotNull(
+            $building,
+            'Pilot tumanda street_id/lat/lng/mahalla_id to\'liq bino topilmadi.',
+        );
+
+        $now = now();
+        DB::connection('mahalla')->table('houses')->insert([
+            'id' => (string) Str::uuid(),
+            'district_id' => $districtId,
+            'mahalla_id' => $building->mahalla_id,
+            'street_id' => $building->street_id,
+            'building_id' => $building->id,
+            'lat' => $building->lat,
+            'lng' => $building->lng,
+            'status' => $status,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return [
+            (string) $building->id,
+            (float) $building->lat,
+            (float) $building->lng,
+            (string) $building->street_id,
+        ];
     }
 }
