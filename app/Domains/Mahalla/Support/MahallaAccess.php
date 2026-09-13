@@ -28,6 +28,15 @@ class MahallaAccess
         'admin' => ['*'],
         // Raҳbariyat: FAQAT ko'rish. photos.upload va `*` ataylab yo'q.
         'viloyat' => ['dashboard.view', 'reports.view', 'houses.view', 'analyses.view'],
+        /*
+         * Туман раҳбарияти — `viloyat` билан АЙНАН БИР ХИЛ кўриш ҳуқуқи.
+         * Фарқ ruxsatlar рўйхатида эмас, `scopeFor()` даги ҚАМРОВДА:
+         * `viloyat` бутун вилоятни, `tuman` эса фақат ўз туманини кўради.
+         * Шунинг учун бу икки қатор атайлаб бир хил — уларни «DRY» деб
+         * бирлаштириш нотўғри бўларди, чунки улар бошқа-бошқа сабабга кўра
+         * ўзгаради.
+         */
+        'tuman' => ['dashboard.view', 'reports.view', 'houses.view', 'analyses.view'],
         'deputat' => ['houses.view', 'photos.view', 'photos.upload', 'analyses.view', 'dashboard.view'],
         /*
          * Маҳалла раиси — ўз маҳалласининг ҲАММАСИНИ кўради.
@@ -65,7 +74,7 @@ class MahallaAccess
      *
      * @var array<int, string>
      */
-    public const VIEWER_ROLES = ['admin', 'viloyat'];
+    public const VIEWER_ROLES = ['admin', 'viloyat', 'tuman'];
 
     /**
      * Mahalla-5ligi lavozimlari (tavsifiy yorliq — huquqqa ta'sir qilmaydi).
@@ -162,6 +171,27 @@ class MahallaAccess
         $streetIds = $profile !== null
             ? $profile->streetAssignments()->pluck('street_id')->all()
             : [];
+
+        /*
+         * Туман кўрувчиси — бутун туманини кўради, лекин ундан ташқарига чиқа олмайди.
+         *
+         * `mahallaId = null` ва `streetIds = []` атайлаб: у бирор маҳалла ёки
+         * кўча билан чекланмаган. Натижада `House::scopeVisibleTo()` унга
+         * `whereIn('street_id', [])` беради, яъни ХОНАДОН рўйхатида ҲЕЧ НАРСА
+         * кўрмайди. Бу ХАТО ЭМАС — fail-closed: раҳбар жамланма кўрсаткичларни
+         * `executive/*` эндпойнтлари орқали кўради, хом хонадон рўйхатини эмас.
+         * Уни «тузатиб» очиб юбориш — қамровни бузиш.
+         */
+        if ($role === 'tuman') {
+            return new MahallaScope(
+                false,
+                $profile?->district_id,
+                null,
+                [],
+                false,
+                false,
+            );
+        }
 
         /*
          * Rais ko'chalar bilan CHEKLANMAYDI — butun mahallasini ko'radi.

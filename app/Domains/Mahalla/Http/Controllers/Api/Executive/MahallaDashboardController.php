@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Services\ExecutiveMahallaStats;
 use App\Domains\Mahalla\Services\ExecutiveStats;
 use App\Domains\Mahalla\Services\MicroProjectService;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Rahbariyat: mahalla kesimi (zonalar jadvali — qo'lyozma shakli).
@@ -20,12 +21,12 @@ class MahallaDashboardController extends Controller
         private readonly ExecutiveStats $stats,
         private readonly ExecutiveMahallaStats $mahallaStats,
         private readonly MicroProjectService $microProjects,
-    ) {
-    }
+        private readonly ExecutiveScope $scope,
+    ) {}
 
-    public function __invoke(string $mahalla): JsonResponse
+    public function __invoke(Request $request, string $mahalla): JsonResponse
     {
-        $model = Mahalla::on('master')->with('district')->findOrFail($mahalla);
+        $model = $this->scope->mahalla($request->user(), $mahalla);
 
         $data = $this->stats->mahalla((string) $model->id);
         $period = $this->stats->period();

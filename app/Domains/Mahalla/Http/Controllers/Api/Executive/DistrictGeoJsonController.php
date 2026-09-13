@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\District;
 use App\Domains\Mahalla\Support\ExecutiveCache;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,9 +30,11 @@ class DistrictGeoJsonController extends Controller
      */
     private const SIMPLIFY_TOLERANCE = 0.0003;
 
-    public function __invoke(string $district): JsonResponse
+    public function __construct(private readonly ExecutiveScope $scope) {}
+
+    public function __invoke(Request $request, string $district): JsonResponse
     {
-        $model = District::on('master')->findOrFail($district);
+        $model = $this->scope->district($request->user(), $district);
 
         // Chegaralar deyarli o'zgarmaydi, lekin har so'rovda PostGIS
         // soddalashtirish qayta ishlaydi va 46 KB JSON qayta yig'iladi.

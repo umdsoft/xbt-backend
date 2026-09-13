@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\Mahalla;
 use App\Domains\Mahalla\Services\MicroProjectService;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,13 +18,14 @@ use Illuminate\Http\Request;
  */
 class ExecutiveProjectsController extends Controller
 {
-    public function __construct(private readonly MicroProjectService $projects)
-    {
-    }
+    public function __construct(
+        private readonly MicroProjectService $projects,
+        private readonly ExecutiveScope $scope,
+    ) {}
 
     public function __invoke(Request $request, string $mahalla): JsonResponse
     {
-        $model = Mahalla::on('master')->findOrFail($mahalla);
+        $model = $this->scope->mahalla($request->user(), $mahalla);
 
         $v = $request->validate([
             'status' => ['nullable', 'string', 'in:planned,in_progress,done,cancelled'],
