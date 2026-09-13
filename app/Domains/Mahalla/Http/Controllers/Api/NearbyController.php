@@ -74,6 +74,9 @@ class NearbyController extends Controller
         return response()->json([
             'center' => ['lat' => $lat, 'lng' => $lng],
             'radius_m' => $radiusM,
+            // districtId = null holatini mahallaForPoint() o'zi RAD qiladi
+            // (points() bilan bir xil invariant) — bu yerda takror tekshiruv
+            // shart emas.
             'current_mahalla' => $this->finder->mahallaForPoint($lat, $lng, $districtId),
             'counts' => $counts,
             'points' => $points,

@@ -102,6 +102,7 @@ class NearbyApiTest extends TestCase
             ->json();
 
         $this->assertSame([], $body['points'], 'Qamrovi aniqlanmagan user hech qanday bino ko\'rmasligi kerak.');
+        $this->assertNull($body['current_mahalla'], 'Qamrovsiz user uchun joriy mahalla ham berilmasligi kerak.');
     }
 
     public function test_nearby_requires_authentication(): void
@@ -264,6 +265,34 @@ class NearbyApiTest extends TestCase
         $this->assertArrayHasKey('id', $body['current_mahalla']);
         $this->assertArrayHasKey('name', $body['current_mahalla']);
         $this->assertNotSame('', $body['current_mahalla']['name']);
+    }
+
+    /**
+     * Qamrovi aniqlanmagan (canSeeAll=false, districtId=null) operatsion user
+     * uchun `current_mahalla` HAM null bo'lishi kerak — hatto koordinata real
+     * mahalla poligoni ICHIDA bo'lsa ham. `NearbyFinder::points()`dagi
+     * invariant bilan bir xil: `districtId === null` "qamrov aniqlanmagan"
+     * degani, "cheklovsiz qidir" degani EMAS. Aks holda `points` bo'sh
+     * qaytgan taqdirda ham `current_mahalla` to'ldirilib, Task 1'da yopilgan
+     * qamrov-kengayish xatosi kichikroq shaklda qaytib keladi.
+     */
+    public function test_current_mahalla_is_null_when_user_has_no_district_scope_even_inside_a_real_mahalla(): void
+    {
+        [, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $user = $this->makeDeputatWithoutDistrict();
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=25")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame([], $body['points']);
+        $this->assertNull(
+            $body['current_mahalla'],
+            'Qamrovi aniqlanmagan user uchun current_mahalla null bo\'lishi kerak — hatto real mahalla ichida bo\'lsa ham.',
+        );
     }
 
     // ── Yordamchilar ────────────────────────────────────────────────────────
