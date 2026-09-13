@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,7 +18,9 @@ use Illuminate\Support\Facades\DB;
  */
 class DistrictListController extends Controller
 {
-    public function __invoke(): JsonResponse
+    public function __construct(private readonly ExecutiveScope $scope) {}
+
+    public function __invoke(Request $request): JsonResponse
     {
         // Bandlik ma'lumoti bo'lgan tuman id'lari (mahalla orqali).
         $withEmployment = DB::connection('master')->table('mahalla_indicators as i')
@@ -25,9 +29,17 @@ class DistrictListController extends Controller
             ->distinct()->pluck('m.district_id')->all();
         $withEmployment = array_flip($withEmployment);
 
-        $rows = DB::connection('master')->table('districts')
-            ->orderBy('sort_order')->orderBy('name_cyr')
-            ->get(['id', 'name_cyr', 'soato_code'])
+        $visible = $this->scope->visibleDistrictIds($request->user());
+
+        $query = DB::connection('master')->table('districts')
+            ->orderBy('sort_order')->orderBy('name_cyr');
+
+        // null — cheklov yo'q; massiv — faqat shular (bo'sh massiv = hech narsa)
+        if ($visible !== null) {
+            $query->whereIn('id', $visible);
+        }
+
+        $rows = $query->get(['id', 'name_cyr', 'soato_code'])
             ->map(fn ($d) => [
                 'id' => $d->id,
                 'name' => $d->name_cyr,

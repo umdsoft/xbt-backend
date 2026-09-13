@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Http\Controllers\Api\Executive;
 
-use App\Domains\Mahalla\Models\Master\District;
 use App\Domains\Mahalla\Services\MahallaScoring;
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Rahbariyat: «Raqamli mahalla» skoring — mahallalar reytingi + kvadrant.
@@ -17,17 +18,14 @@ use Illuminate\Http\JsonResponse;
  */
 class ScoringController extends Controller
 {
-    public function __construct(private readonly MahallaScoring $scoring)
-    {
-    }
+    public function __construct(
+        private readonly MahallaScoring $scoring,
+        private readonly ExecutiveScope $scope,
+    ) {}
 
-    public function __invoke(?string $district = null): JsonResponse
+    public function __invoke(Request $request, ?string $district = null): JsonResponse
     {
-        $model = $district !== null
-            ? District::on('master')->findOrFail($district)
-            : District::on('master')
-                ->where('soato_code', (string) config('mahalla.executive.default_district_soato'))
-                ->firstOrFail();
+        $model = $this->scope->district($request->user(), $district);
 
         $data = $this->scoring->district((string) $model->id);
 
