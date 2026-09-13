@@ -20,6 +20,15 @@ use Illuminate\Http\Request;
  * rezident PII yo'q. Monitoring HARAKATLARI (surat yuklash) baribir o'z
  * endpointlarida ko'cha-scope bilan himoyalangan.
  *
+ * ROLLAR BO'YICHA QAMROV (FOYDALANUVCHI QARORI, review paytida tasdiqlangan):
+ * `deputat`, `rais` va `hokim-yordamchisi` — UCHALASI HAM bu yerda ATAYLAB
+ * butun TUMAN kengligida natija oladi — bu `WorklistController`dan FARQLI,
+ * u yerda `rais` o'zining bitta `mahallaId`siga toraytiriladi. Sabab: bu
+ * xaritaning vazifasi "atrofimda nima bor" bo'lib, ma'muriy chegarani
+ * hurmat qilmaydi (rais mahallasi chetiga yetganda xarita bo'sh
+ * qolmasligi kerak), ma'lumot PII'siz kadastr darajasida, va raisning
+ * deputatdan KAMROQ ko'rishi mantiqsiz bo'lardi.
+ *
  * Tumandan tashqariga chiqish faqat `canSeeAll` (admin/viloyat) uchun.
  */
 class NearbyController extends Controller
@@ -53,7 +62,7 @@ class NearbyController extends Controller
         // koordinata orqali BOSHQA tumanni ochib qo'yardi.
         $districtId = $scope->canSeeAll
             ? $this->finder->districtIdForPoint($lat, $lng)
-            : $scope->districtId; // null => points() bo'sh ro'yxat qaytaradi
+            : $scope->districtId; // null => pointsWithOverflow() bo'sh ro'yxat qaytaradi
 
         $result = $this->finder->pointsWithOverflow($lat, $lng, $radiusM, $kinds, $limit, $districtId);
         $myStreets = array_flip($scope->streetIds);
@@ -82,8 +91,8 @@ class NearbyController extends Controller
             'center' => ['lat' => $lat, 'lng' => $lng],
             'radius_m' => $radiusM,
             // districtId = null holatini mahallaForPoint() o'zi RAD qiladi
-            // (points() bilan bir xil invariant) — bu yerda takror tekshiruv
-            // shart emas.
+            // (pointsWithOverflow() bilan bir xil invariant) — bu yerda
+            // takror tekshiruv shart emas.
             'current_mahalla' => $this->finder->mahallaForPoint($lat, $lng, $districtId),
             'counts' => $counts,
             'points' => $points,
@@ -97,9 +106,9 @@ class NearbyController extends Controller
      * invariant: `canSeeAll` (admin/viloyat) istalgan mahallani ko'ra oladi,
      * boshqa hamma faqat o'z tumani doirasida. Qamrovi aniqlanmagan
      * (`districtId === null`, `canSeeAll === false`) userga esa so'rov
-     * BAZAGA UMUMAN yuborilmaydi — `points()`/`mahallaForPoint()` bilan bir
-     * xil ko'rinishdagi 404 qaytadi, mavjud bo'lmagan id bilan farqlanmaydigan
-     * qilib.
+     * BAZAGA UMUMAN yuborilmaydi — `pointsWithOverflow()`/`mahallaForPoint()`
+     * bilan bir xil ko'rinishdagi 404 qaytadi, mavjud bo'lmagan id bilan
+     * farqlanmaydigan qilib.
      */
     public function boundary(Request $request, string $mahalla): JsonResponse
     {
@@ -167,7 +176,7 @@ class NearbyController extends Controller
             'is_social' => (bool) $r['is_social'],
             'category' => $r['category'] !== null ? (string) $r['category'] : null,
             'category_label' => $r['category_label'] !== null ? (string) $r['category_label'] : null,
-            'address' => (string) ($r['address'] ?? ''),
+            'address' => $r['address'] !== null ? (string) $r['address'] : null,
             'kadastr' => $r['kadastr'] !== null ? (string) $r['kadastr'] : null,
             'house_number' => $r['house_number'] !== null ? (string) $r['house_number'] : null,
             'street' => $r['street'] !== null ? (string) $r['street'] : null,

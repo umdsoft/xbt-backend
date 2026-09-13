@@ -145,7 +145,8 @@ UI yorliqlari uchun **`name_cyr`** ishlatiladi (hardcode QILINMAYDI — serverda
 - `auth:sanctum` + `system.access:mahalla`. `lat/lng/radius` validatsiya + radius MAX-cap.
 - `buildings` jadvalida rezident ismi/PII YO'Q (faqat kadastr/manzil) — deputat worklistda ham ko'radigan daraja. Monitoring **harakati** (surat) faqat biriktirilgan binoda.
 - **Qamrov (TASDIQLANGAN): tuman ichi — hammasi.** Radiusdagi BARCHA bino/tashkilot (biriktirilgan/biriktirilmagan) cadastre-darajasida (manzil/kadastr) ko'rinadi. Monitoring **harakati** (surat) faqat biriktirilgan binoda. Deputat district'i bilan cheklanadi (pilotda Shovot).
-- Endpoint so'rov narxini monitoring (log).
+- **Rol qamrovi (TASDIQLANGAN, review paytida aniqlashtirilgan):** `deputat`, `rais` va `hokim-yordamchisi` — UCHALASI HAM bu yerda ATAYLAB tuman kengligida natija oladi, garchi `WorklistController` `rais`ni o'zining bitta `mahallaId`siga toraytirsa ham. Sabab: bu xaritaning vazifasi "atrofimda nima bor" bo'lib, ma'muriy chegarani hurmat qilmaydi (rais mahallasi chetiga yetganda xarita bo'sh qolmasligi kerak), ma'lumot PII'siz kadastr darajasida, va raisning deputatdan KAMROQ ko'rishi mantiqsiz bo'lardi. Bu hujjat "faqat deputat" degan taassurot qoldirmasligi uchun aniq yozib qo'yilmoqda.
+- Endpoint so'rov narxini monitoring (log) — **KECHIKTIRILDI / HALI IMPLEMENTATSIYA QILINMAGAN.** Mahalla domenida umuman audit-log infratuzilmasi yo'q; bu qator hozircha REJA, amalga oshirilgan nazorat vositasi EMAS.
 
 ### 3.5 Testlar (backend, Pest/PHPUnit)
 - `ST_DWithin` radius: markazdan ichkarida/tashqarida bino to'g'ri filtrlanadi (Shovot koordinatalari bilan).

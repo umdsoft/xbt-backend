@@ -149,6 +149,12 @@ class NearbyApiTest extends TestCase
             ->json();
 
         $this->assertSame(3000, $body['radius_m']);
+
+        // FIX C: default `layers` = monitoring+org, `home` ATAYLAB OFF —
+        // 3 km da `home` ~4 190 nuqta (org ~244) beradi, dala telefoniga
+        // 17x og'irroq payload. Bu default PERFORMANCE uchun yuk ko'taruvchi,
+        // shuning uchun kimdir uni sokin kengaytirmasligi kerak.
+        $this->assertSame(0, $body['counts']['home'], "'home' qatlami default OFF bo'lishi kerak.");
     }
 
     public function test_orgs_layer_returns_only_non_residential_with_category(): void
@@ -274,7 +280,7 @@ class NearbyApiTest extends TestCase
     /**
      * Qamrovi aniqlanmagan (canSeeAll=false, districtId=null) operatsion user
      * uchun `current_mahalla` HAM null bo'lishi kerak — hatto koordinata real
-     * mahalla poligoni ICHIDA bo'lsa ham. `NearbyFinder::points()`dagi
+     * mahalla poligoni ICHIDA bo'lsa ham. `NearbyFinder::pointsWithOverflow()`dagi
      * invariant bilan bir xil: `districtId === null` "qamrov aniqlanmagan"
      * degani, "cheklovsiz qidir" degani EMAS. Aks holda `points` bo'sh
      * qaytgan taqdirda ham `current_mahalla` to'ldirilib, Task 1'da yopilgan
@@ -413,7 +419,7 @@ class NearbyApiTest extends TestCase
 
     /**
      * FIX 2: qamrovi aniqlanmagan (canSeeAll=false, districtId=null) deputat
-     * — `points()`/`mahallaForPoint()` bilan bir xil deny-by-default —
+     * — `pointsWithOverflow()`/`mahallaForPoint()` bilan bir xil deny-by-default —
      * HATTO O'Z (haqiqiy, chegarali) tumanidagi mahalla uchun ham 404 olishi
      * kerak; bazaga so'rov umuman yubormaymiz.
      */
@@ -436,6 +442,113 @@ class NearbyApiTest extends TestCase
             ->getJson("/api/mahalla/mahallas/{$mahallaId}/boundary")
             ->assertNotFound()
             ->assertJsonPath('message', 'Маҳалла чегараси топилмади.');
+    }
+
+    /**
+     * FIX A (rol qamrovi — foydalanuvchi qarori bilan hujjatlandi va
+     * PINLANDI): `rais` `WorklistController`da o'z `mahallaId`siga
+     * toraytiriladi, lekin BU YERDA ATAYLAB butun tuman kengligida qoladi
+     * (qarang: `NearbyController` sinf docblok'i). `makeRaisInPilotDistrict()`
+     * raisning profil mahallasini ATAYLAB eng zich mahalladan BOSHQA qilib
+     * beradi — shuning uchun agar kimdir bu yerni qaytadan `mahallaId`ga
+     * toraytirsa, dense markazda so'ralganda natija albatta BO'SH chiqadi va
+     * bu test MUVAFFAQIYATSIZ bo'ladi (mutatsiya bilan tekshirilgan).
+     */
+    public function test_rais_receives_district_wide_results_not_narrowed_to_own_mahalla(): void
+    {
+        [$user, $districtId] = $this->makeRaisInPilotDistrict();
+        [$lat, $lng] = $this->denseCenterIn($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $this->assertNotEmpty(
+            $body['points'],
+            'Rais tuman kengligida natija olishi kerak (mahallaId ga toraytirilmasligi kerak).',
+        );
+    }
+
+    /**
+     * FIX B (a) — `canSeeAll` (`viloyat`) uchun HALIGACHA testi yo'q edi.
+     * Shipped semantika: `canSeeAll` useri o'zi TURGAN nuqta tumaniga
+     * scoped bo'ladi (`districtIdForPoint`), butun VILOYATga emas va o'z
+     * (yoki pilot) tumaniga ham "yopishib" QOLMAYDI. Bu test buni pilotdan
+     * BOSHQA tumandagi koordinata bilan isbotlaydi: natija bo'sh bo'lmasligi
+     * va `current_mahalla` aynan o'sha (boshqa) tumanga tegishli bo'lishi
+     * kerak. Mutatsiya bilan tekshirilgan: `canSeeAll` ternar operatorini
+     * o'chirib, doim `$scope->districtId` (bu yerda `null`) ishlatilsa —
+     * natija bo'sh chiqadi va bu test MUVAFFAQIYATSIZ bo'ladi.
+     */
+    public function test_viloyat_sees_points_and_current_mahalla_in_non_pilot_district(): void
+    {
+        [, $pilotDistrictId] = $this->makeDeputatInPilotDistrict();
+
+        $otherDistrictId = DB::connection('master')->table('buildings')
+            ->whereNotNull('district_id')
+            ->whereNotNull('mahalla_id')
+            ->where('district_id', '!=', $pilotDistrictId)
+            ->value('district_id');
+
+        if ($otherDistrictId === null) {
+            $this->markTestSkipped('Boshqa tumanda mahalla-biriktirilgan bino topilmadi.');
+        }
+
+        [$lat, $lng] = $this->denseCenterIn((string) $otherDistrictId);
+
+        $user = $this->makeViloyatUser();
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=1000&layers=monitoring,homes,orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $this->assertNotEmpty(
+            $body['points'],
+            'canSeeAll (viloyat) turgan (pilotdan boshqa) tumanida natija olishi kerak.',
+        );
+        $this->assertNotNull($body['current_mahalla']);
+
+        $currentMahallaDistrict = DB::connection('master')->table('mahallas')
+            ->where('id', $body['current_mahalla']['id'])
+            ->value('district_id');
+
+        $this->assertSame(
+            (string) $otherDistrictId,
+            (string) $currentMahallaDistrict,
+            'current_mahalla o\'sha (pilotdan boshqa) tumanga tegishli bo\'lishi kerak — viloyat o\'z tumaniga QOTIB QOLMAYDI.',
+        );
+        $this->assertNotSame((string) $pilotDistrictId, (string) $currentMahallaDistrict);
+    }
+
+    /**
+     * FIX B (b) — aynan `test_boundary_for_mahalla_in_another_district_is_404_for_scoped_deputat`
+     * so'ragan mahalla: scoped deputat uchun 404, lekin `canSeeAll`
+     * (`viloyat`) uchun 200 bo'lishi kerak — chunki `canSeeAll` tuman bilan
+     * cheklanmaydi (`NearbyController::boundary()`dagi `$districtId = null`
+     * canSeeAll uchun). Mutatsiya bilan tekshirilgan.
+     */
+    public function test_viloyat_can_open_boundary_for_mahalla_outside_pilot_district(): void
+    {
+        [, $pilotDistrictId] = $this->makeDeputatInPilotDistrict();
+
+        $otherMahallaId = DB::connection('master')->table('mahallas')
+            ->where('district_id', '!=', $pilotDistrictId)
+            ->whereNotNull('district_id')
+            ->whereRaw('boundary IS NOT NULL')
+            ->value('id');
+
+        if ($otherMahallaId === null) {
+            $this->markTestSkipped('Boshqa tumanda chegarali mahalla topilmadi.');
+        }
+
+        $user = $this->makeViloyatUser();
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/mahallas/{$otherMahallaId}/boundary")
+            ->assertOk()
+            ->assertJsonPath('properties.id', (string) $otherMahallaId);
     }
 
     // ── Yordamchilar ────────────────────────────────────────────────────────
@@ -469,8 +582,18 @@ class NearbyApiTest extends TestCase
         return $this->insertDeputat(null, null, 'Қамровсиз депутат');
     }
 
-    /** Uch schemaga (auth.users, auth.user_system_access, mahalla.users) deputat yozadi. */
-    private function insertDeputat(?string $districtId, ?string $mahallaId, string $name): User
+    /**
+     * Uch schemaga (auth.users, auth.user_system_access, mahalla.users) user yozadi.
+     *
+     * `$role` ham `auth.user_system_access.role` (RBAC rol), ham
+     * `mahalla.users.position` (tavsifiy lavozim) ustuniga yoziladi — bu
+     * ikkalasi ayni shu qatorda har doim BIR XIL bo'ladi (qarang:
+     * `MahallaAccess::roleFor()` faqat `user_system_access.role`ga qaraydi,
+     * `position` esa faqat UI'da ko'rsatish uchun). Default `deputat` —
+     * mavjud chaqiruvchilar (`makeDeputatInPilotDistrict`,
+     * `makeDeputatWithoutDistrict`) o'zgarishsiz qoladi.
+     */
+    private function insertDeputat(?string $districtId, ?string $mahallaId, string $name, string $role = 'deputat'): User
     {
         $userId = (string) Str::uuid();
         $now = now();
@@ -488,7 +611,7 @@ class NearbyApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'user_id' => $userId,
             'system_id' => DB::connection('auth')->table('systems')->where('code', 'mahalla')->value('id'),
-            'role' => 'deputat',
+            'role' => $role,
             'is_active' => true,
             'created_at' => $now,
             'updated_at' => $now,
@@ -500,13 +623,61 @@ class NearbyApiTest extends TestCase
             'password' => bcrypt('secret'),
             'district_id' => $districtId,
             'mahalla_id' => $mahallaId,
-            'position' => 'deputat',
+            'position' => $role,
             'is_active' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
         return User::on('auth')->findOrFail($userId);
+    }
+
+    /**
+     * Pilot tumanida `rais` yaratadi — lekin uning PROFIL mahallasi ATAYLAB
+     * eng zich (dense) mahalladan BOSHQA qilib tanlanadi. Shu orqali
+     * `test_rais_receives_district_wide_results_not_narrowed_to_own_mahalla`
+     * chinakam "tuman kengligi"ni isbotlaydi: agar kimdir controllerni
+     * qaytadan `mahallaId`ga toraytirsa, dense markazda so'ralganda natija
+     * albatta BO'SH chiqadi (chunki rais boshqa mahallaga profillangan).
+     *
+     * @return array{0:User,1:string}
+     */
+    private function makeRaisInPilotDistrict(): array
+    {
+        $districtId = DB::connection('master')->table('districts')
+            ->where('soato_code', (string) config('mahalla.executive.default_district_soato'))
+            ->value('id');
+        $this->assertNotNull($districtId, 'Pilot tuman (soato_code) bazada topilmadi.');
+
+        $denseRow = DB::connection('master')->table('buildings')
+            ->selectRaw('mahalla_id, count(*) AS c')
+            ->where('district_id', $districtId)
+            ->whereNotNull('mahalla_id')
+            ->groupBy('mahalla_id')
+            ->orderByDesc('c')
+            ->first();
+        $denseMahallaId = $denseRow?->mahalla_id;
+
+        $mahallaId = DB::connection('master')->table('mahallas')
+            ->where('district_id', $districtId)
+            ->when($denseMahallaId !== null, fn ($q) => $q->where('id', '!=', $denseMahallaId))
+            ->value('id');
+        $mahallaId ??= $denseMahallaId;
+        $this->assertNotNull($mahallaId, 'Pilot tumanda mahalla topilmadi.');
+
+        $user = $this->insertDeputat($districtId, $mahallaId, 'Синов раис', 'rais');
+
+        return [$user, (string) $districtId];
+    }
+
+    /**
+     * `viloyat` (canSeeAll) useri — mahalla/tuman profilisiz: `MahallaAccess::scopeFor()`
+     * `viloyat` rolini `user_system_access.role`dan aniqlashi bilanoq
+     * `canSeeAll=true` qaytaradi, `mahalla.users` profiliga umuman qaramaydi.
+     */
+    private function makeViloyatUser(): User
+    {
+        return $this->insertDeputat(null, null, 'Вилоят фойдаланувчиси', 'viloyat');
     }
 
     /** Tumanning eng zich mahallasi markazi (real ma'lumotdan). @return array{0:float,1:float} */

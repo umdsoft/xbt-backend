@@ -24,28 +24,6 @@ class NearbyFinder
     public const KIND_ORG = 'org';
 
     /**
-     * Radius ichidagi binolar, masofa bo'yicha saralangan.
-     *
-     * Orqaga moslik uchun saqlanadi: `pointsWithOverflow()`ga delegatsiya
-     * qiladi va faqat nuqtalar ro'yxatini qaytaradi. "Aslida kesilganmi"
-     * degan haqiqiy ma'lumot kerak bo'lsa (masalan controllerda `truncated`
-     * hisoblash uchun) — `pointsWithOverflow()`ni to'g'ridan-to'g'ri ishlating.
-     *
-     * @param  array<int, string>  $kinds  monitoring|home|org (bo'sh bo'lsa — bo'sh natija)
-     * @return array<int, array<string, mixed>>
-     */
-    public function points(
-        float $lat,
-        float $lng,
-        int $radiusM,
-        array $kinds,
-        int $limit,
-        ?string $districtId,
-    ): array {
-        return $this->pointsWithOverflow($lat, $lng, $radiusM, $kinds, $limit, $districtId)['points'];
-    }
-
-    /**
      * Radius ichidagi binolar (masofa bo'yicha saralangan) + "yana bormi"
      * haqiqiy belgisi.
      *
@@ -113,12 +91,16 @@ class NearbyFinder
                ROUND(ST_Distance(b.geom::geography, pt.g)::numeric)::int AS distance_m
         FROM pt, master.buildings b
         LEFT JOIN master.object_types ot ON ot.id = b.object_type_id
-        LEFT JOIN mahalla.houses h ON h.building_id = b.id AND h.deleted_at IS NULL
+        LEFT JOIN LATERAL (
+            SELECT h.id, h.status FROM mahalla.houses h
+            WHERE h.building_id = b.id AND h.deleted_at IS NULL
+            ORDER BY h.created_at LIMIT 1
+        ) h ON true
         WHERE b.district_id = :district_id
           AND b.geom && ST_Expand(pt.gp, :deg)
           AND ST_DWithin(b.geom::geography, pt.g, :radius)
           AND {$kindSql}
-        ORDER BY distance_m
+        ORDER BY distance_m, b.id
         LIMIT :limit
         SQL;
 
@@ -159,13 +141,18 @@ class NearbyFinder
     /**
      * Nuqta qaysi mahallada (chegara poligoni bo'yicha).
      *
-     * `districtId === null` — xuddi yuqoridagi `points()`dagi kabi — "qamrov
-     * ANIQLANMAGAN" degani, "cheklovsiz qidir" degani EMAS: bunday holatda
-     * darhol `null` qaytaramiz, aks holda profili to'liq bo'lmagan
-     * (`canSeeAll=false`, `districtId=null`) user uchun `points` bo'sh
-     * qaytgan taqdirda ham `current_mahalla` ISTALGAN koordinatada
+     * `districtId === null` — xuddi yuqoridagi `pointsWithOverflow()`dagi
+     * kabi — "qamrov ANIQLANMAGAN" degani, "cheklovsiz qidir" degani EMAS:
+     * bunday holatda darhol `null` qaytaramiz, aks holda profili to'liq
+     * bo'lmagan (`canSeeAll=false`, `districtId=null`) user uchun `points`
+     * bo'sh qaytgan taqdirda ham `current_mahalla` ISTALGAN koordinatada
      * to'ldirilib qolar edi — Task 1'da yopilgan qamrov-kengayish xatosi
      * kichikroq shaklda qaytib kelardi.
+     *
+     * `is_active = true` — `DistrictGeoJsonController` bilan bir xil filtr:
+     * deaktivatsiya qilingan mahalla poligoni "joriy mahalla" sifatida
+     * ko'rsatilmasin (bugun hammasi faol, lekin birinchisi o'chirilganda
+     * ikkala endpoint kelishmovchiligiga yo'l qo'ymaslik uchun).
      *
      * @return array{id: string, name: string}|null
      */
@@ -179,6 +166,7 @@ class NearbyFinder
             'SELECT id, name_cyr
              FROM master.mahallas
              WHERE boundary IS NOT NULL
+               AND is_active = true
                AND ST_Contains(boundary, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))
                AND district_id = :district_id
              LIMIT 1',
@@ -193,16 +181,20 @@ class NearbyFinder
      * uchun keshlanadi va ST_SimplifyPreserveTopology bilan yengillashtiriladi
      * (tolerance ~0.0003° ≈ 33 m — DistrictGeoJsonController bilan bir xil).
      *
-     * `$districtId`: `points()`/`mahallaForPoint()` bilan bir xil deny-by-default
-     * invariant — `null` bo'lsa cheklovsiz emas, balki "chaqiruvchi allaqachon
-     * canSeeAll" degani (controller shunday chaqiradi). Har qanday scoped
-     * (canSeeAll=false) user uchun chaqiruvchi haqiqiy `districtId` beradi va
-     * bu yerda `AND district_id = :district_id` qo'shiladi — aks holda
-     * istalgan foydalanuvchi istalgan (~509) mahalla chegarasini so'rab olardi.
+     * `$districtId`: `pointsWithOverflow()`/`mahallaForPoint()` bilan bir xil
+     * deny-by-default invariant — `null` bo'lsa cheklovsiz emas, balki
+     * "chaqiruvchi allaqachon canSeeAll" degani (controller shunday
+     * chaqiradi). Har qanday scoped (canSeeAll=false) user uchun chaqiruvchi
+     * haqiqiy `districtId` beradi va bu yerda `AND district_id = :district_id`
+     * qo'shiladi — aks holda istalgan foydalanuvchi istalgan (~509) mahalla
+     * chegarasini so'rab olardi.
      *
      * KESH KALITI tuman qamrovini o'z ichiga oladi — aks holda bitta
      * (masalan canSeeAll uchun keshlangan) natija boshqa tumanga scoped
      * userga ham noto'g'ri berilib qolishi mumkin edi.
+     *
+     * `is_active = true` — `DistrictGeoJsonController`/`mahallaForPoint()`
+     * bilan bir xil filtr (qarang: yuqoridagi izoh).
      *
      * @return array<string, mixed>|null
      */
@@ -214,7 +206,7 @@ class NearbyFinder
             $sql = 'SELECT id, name_cyr,
                         ST_AsGeoJSON(ST_SimplifyPreserveTopology(boundary, 0.0003)) AS geojson
                  FROM master.mahallas
-                 WHERE id = :id AND boundary IS NOT NULL';
+                 WHERE id = :id AND boundary IS NOT NULL AND is_active = true';
             $params = ['id' => $mahallaId];
 
             if ($districtId !== null) {
