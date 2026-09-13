@@ -1014,7 +1014,7 @@ Run (Shovot zich nuqtasi, 3 km):
 
 ```bash
 cd D:/kadr/platform
-C:/php84/php.exe artisan tinker --execute="\$t=microtime(true); \$r=app(App\Domains\Mahalla\Services\NearbyFinder::class)->points(41.674814, 60.248507, 3000, ['monitoring','home','org'], 600, DB::connection('master')->table('districts')->where('soato_code','1733230')->value('id')); echo count(\$r).' nuqta, '.round((microtime(true)-\$t)*1000).' ms';"
+C:/php84/php.exe artisan tinker --execute="\$t=microtime(true); \$r=app(App\Domains\Mahalla\Services\NearbyFinder::class)->pointsWithOverflow(41.674814, 60.248507, 3000, ['monitoring','home','org'], 600, DB::connection('master')->table('districts')->where('soato_code','1733230')->value('id')); echo count(\$r['points']).' nuqta, has_more='.var_export(\$r['has_more'], true).', '.round((microtime(true)-\$t)*1000).' ms';"
 ```
 Expected: `600 nuqta, <150 ms` (o'lchangan asos: SQL ~24 ms).
 
