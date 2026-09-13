@@ -944,3 +944,178 @@ C:\php84\php.exe vendor/bin/pint --dirty
 git add app/Domains/Mahalla/Http/Controllers/Api/Executive/ tests/Feature/Mahalla/TumanViewerScopeTest.php
 git commit -m "feat(mahalla): tuman qamrovi — mahalla kesimidagi 3 ta endpoint va nearby bog'lanishi"
 ```
+
+---
+
+### Vazifa 5: `tuman` ҳисобини яратиш йўли
+
+> **Бу вазифа кўрик натижасида қўшилди.** 1-вазифа кўригида аниқландики:
+> рол яратилди, лекин ундан **фойдаланиб бўлмайди** —
+> `UserManagementController:124` ролни қаттиқ `'deputat'` деб ёзади,
+> `MakeViewerCommand:79` эса қаттиқ `'viloyat'`. Яъни `tuman` ҳисобини
+> яратишнинг ягона йўли — қўлда SQL, ва айнан шу йўлни `MakeViewerCommand`
+> ўз изоҳида «хавфли» деб атаб, бартараф этиш учун яратилган эди.
+
+**Файллар:**
+- Ўзгартириш: `app/Domains/Mahalla/Console/Commands/MakeViewerCommand.php`
+- Тест: `tests/Feature/Mahalla/MakeViewerCommandTest.php` (янги)
+
+**Интерфейслар:**
+- Ишлатади: `MahallaAccess::SYSTEM_CODE`, `MahallaAccess::VIEWER_ROLES`
+- Беради: `php artisan mahalla:make-viewer {login} {name} {--role=viloyat} {--district=}`
+
+**Хулқ-атвор:**
+
+| Ҳолат | Натижа |
+|---|---|
+| `--role=viloyat` (дефолт) | ҳозиргидек — фақат `auth` га ёзади, профил йўқ |
+| `--role=tuman --district=<uuid>` | `auth` + `mahalla.users` профили (`district_id` тўлдирилган) |
+| `--role=tuman` (туман БЕРИЛМАГАН) | **ХАТО, ҳисоб яратилмайди** |
+| `--role=tuman --district=<мавжуд эмас>` | **ХАТО, ҳисоб яратилмайди** |
+| `--role=deputat` ёки бошқа | **ХАТО** — бу буйруқ фақат кўрувчи роллар учун |
+
+> **Туман мажбурийлиги — дизайннинг асосий шарти.** Туmansiz `tuman` ҳисоби
+> ҳеч нарса кўрмайди (fail-closed), лекин уни яратишга рухсат бериш —
+> ишламайдиган ҳисоб тарқатиш. Буйруқ уни бошидан рад этсин.
+> Профил ва фойдаланувчи **битта транзакцияда** яратилсин: иккита ҳар хил
+> уланиш (`auth` + `mahalla`) бўлгани учун, `mahalla` ёзуви йиқилса
+> `auth` даги фойдаланувчи ҳам қолмаслиги керак — акс ҳолда логин банд
+> бўлиб қолади, профили эса йўқ.
+
+- [ ] **Қадам 1: Йиқиладиган тестларни ёзиш**
+
+```php
+public function test_viloyat_is_created_without_profile(): void
+{
+    $login = 'test_vil_'.Str::random(6);
+
+    $this->artisan('mahalla:make-viewer', ['login' => $login, 'name' => 'ТЕСТ вилоят'])
+        ->assertSuccessful();
+
+    $userId = DB::connection('auth')->table('users')->where('login', $login)->value('id');
+    $this->assertNotNull($userId);
+    $this->assertSame('viloyat', DB::connection('auth')->table('user_system_access')
+        ->where('user_id', $userId)->value('role'));
+    $this->assertSame(0, DB::connection('mahalla')->table('users')->where('id', $userId)->count(),
+        'viloyat uchun profil yaratilmaydi');
+}
+
+public function test_tuman_is_created_with_district_profile(): void
+{
+    $login = 'test_tum_'.Str::random(6);
+    $districtId = $this->districtId();
+
+    $this->artisan('mahalla:make-viewer', [
+        'login' => $login, 'name' => 'ТЕСТ туман',
+        '--role' => 'tuman', '--district' => $districtId,
+    ])->assertSuccessful();
+
+    $userId = DB::connection('auth')->table('users')->where('login', $login)->value('id');
+    $this->assertSame('tuman', DB::connection('auth')->table('user_system_access')
+        ->where('user_id', $userId)->value('role'));
+    $this->assertSame($districtId, DB::connection('mahalla')->table('users')
+        ->where('id', $userId)->value('district_id'));
+}
+
+public function test_tuman_without_district_is_rejected_and_creates_nothing(): void
+{
+    $login = 'test_nod_'.Str::random(6);
+
+    $this->artisan('mahalla:make-viewer', [
+        'login' => $login, 'name' => 'ТЕСТ', '--role' => 'tuman',
+    ])->assertFailed();
+
+    $this->assertSame(0, DB::connection('auth')->table('users')->where('login', $login)->count(),
+        'rad etilgan buyruq HECH NARSA yaratmasligi kerak');
+}
+
+public function test_unknown_district_is_rejected_and_creates_nothing(): void
+{
+    $login = 'test_bad_'.Str::random(6);
+
+    $this->artisan('mahalla:make-viewer', [
+        'login' => $login, 'name' => 'ТЕСТ', '--role' => 'tuman',
+        '--district' => '00000000-0000-0000-0000-000000000000',
+    ])->assertFailed();
+
+    $this->assertSame(0, DB::connection('auth')->table('users')->where('login', $login)->count());
+}
+
+public function test_operational_roles_are_rejected(): void
+{
+    foreach (['deputat', 'rais', 'hokim-yordamchisi', 'nonsense'] as $role) {
+        $login = 'test_op_'.Str::random(6);
+
+        $this->artisan('mahalla:make-viewer', [
+            'login' => $login, 'name' => 'ТЕСТ', '--role' => $role,
+        ])->assertFailed();
+
+        $this->assertSame(0, DB::connection('auth')->table('users')->where('login', $login)->count(),
+            "«{$role}» roli bu buyruq orqali yaratilmasligi kerak");
+    }
+}
+
+public function test_duplicate_login_is_still_rejected(): void
+{
+    // Mavjud xulq regressiyasi — `withTrashed()` tekshiruvi buzilmasin.
+}
+```
+
+- [ ] **Қадам 2: Тестларни ишга тушириб, ЙИҚИЛИШИНИ кўриш**
+
+```
+C:\php84\php.exe vendor/bin/phpunit --filter=MakeViewerCommandTest
+```
+Кутилган: `--role` опцияси мавжуд эмаслиги сабабли йиқилади.
+
+- [ ] **Қадам 3: Буйруқни кенгайтириш**
+
+`signature` га `{--role=viloyat : Кўрувчи роли (viloyat|tuman)}` ва
+`{--district= : Туман UUID (фақат tuman учун МАЖБУРИЙ)}` қўшилади.
+
+Валидация тартиби (ҳисоб яратилгунча ҲАММАСИ текширилади):
+1. `login`/`name` бўш эмас
+2. `role` ∈ `MahallaAccess::VIEWER_ROLES` ва `admin` ЭМАС
+   (`admin` ни бу буйруқ орқали яратиш мумкин эмас — у бошқарув роли)
+3. `role === 'tuman'` бўлса: `--district` берилган **ва** `master.districts`
+   да мавжуд
+4. логин банд эмас (`withTrashed()`)
+5. `mahalla` тизими `auth.systems` да бор
+
+Кейин ёзиш. `auth` транзакцияси ичида `mahalla` уланишига ҳам ёзиш керак —
+иккита уланиш бўлгани учун иккита ички транзакция:
+
+```php
+DB::connection('auth')->transaction(function () use (...) {
+    DB::connection('mahalla')->transaction(function () use (...) {
+        // auth.users + auth.user_system_access + (tuman bo'lsa) mahalla.users
+    });
+});
+```
+
+> Бу **тўлиқ атомар эмас** (икки база иккита алоҳида транзакция) — уни
+> изоҳда ҳалол ёз. Ички (`mahalla`) биринчи commit бўлади; ташқи йиқилса
+> профил етим қолиши мумкин. Бу аввалги ҳолатдан (қўлда SQL) яхшироқ,
+> лекин мукаммал эмас. Етим профил зарарсиз: `auth` да фойдаланувчи
+> бўлмаса, у ҳеч қаерга кира олмайди.
+
+Чиқишда туманни ҳам кўрсат:
+```
+  Роль:   tuman
+  Туман:  Шовот тумани
+```
+
+- [ ] **Қадам 4: Тестларни ўтказиш**
+- [ ] **Қадам 5: Мутация текшируви**
+
+`role === 'tuman' && district === null` текширувини олиб ташла →
+`test_tuman_without_district_is_rejected_and_creates_nothing` **йиқилиши ШАРТ**.
+Кейин қайтар. Натижани ҳисоботда ёз.
+
+- [ ] **Қадам 6: Коммит**
+
+```bash
+C:\php84\php.exe vendor/bin/pint --dirty
+git add app/Domains/Mahalla/Console/Commands/MakeViewerCommand.php tests/Feature/Mahalla/MakeViewerCommandTest.php
+git commit -m "feat(mahalla): make-viewer buyrug'i tuman rolini ham yaratadi"
+```
