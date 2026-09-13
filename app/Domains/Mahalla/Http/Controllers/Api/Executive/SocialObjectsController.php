@@ -28,6 +28,13 @@ class SocialObjectsController extends Controller
     {
         $model = $this->scope->district($request->user(), $district);
 
+        // `whereUuid()` route qismini nazorat qiladi; `?mahalla=` esa query
+        // parametri bo'lgani uchun marshrut cheklovidan chetda qoladi.
+        // Noto'g'ri format (masalan "x" yoki `mahalla[]=1` — massiv "Array"
+        // satriga aylanadi) tekshiruvsiz Postgres'ga yetib borib
+        // `SQLSTATE[22P02]` bilan 500 qaytarardi.
+        $request->validate(['mahalla' => ['nullable', 'uuid']]);
+
         $mahallaId = $request->query('mahalla');
         if ($mahallaId !== null) {
             $mahallaId = (string) $mahallaId;
