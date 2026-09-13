@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Mahalla;
 
+use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
@@ -145,6 +148,120 @@ class TumanViewerScopeTest extends TestCase
 
         $this->assertFalse($scope->canSeeAll);
         $this->assertTrue($scope->restrictToStreets);
+    }
+
+    public function test_scope_resolves_own_district_when_none_requested(): void
+    {
+        $districtId = $this->districtId();
+        $user = $this->makeTumanUser($districtId);
+
+        $model = app(ExecutiveScope::class)
+            ->district($user, null);
+
+        $this->assertSame($districtId, (string) $model->id);
+    }
+
+    public function test_scope_allows_own_district_when_requested_explicitly(): void
+    {
+        $districtId = $this->districtId();
+        $user = $this->makeTumanUser($districtId);
+
+        $model = app(ExecutiveScope::class)
+            ->district($user, $districtId);
+
+        $this->assertSame($districtId, (string) $model->id);
+    }
+
+    public function test_scope_forbids_another_district(): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeTumanUser($own);
+
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(403);
+
+        app(ExecutiveScope::class)->district($user, $other);
+    }
+
+    /**
+     * ENG MUHIM TEST. Profilida tuman ko'rsatilmagan `tuman` user standart
+     * tumanga (Shovot) TUSHMASLIGI kerak — aks holda noto'g'ri sozlangan
+     * hisob jimgina begona tuman ma'lumotini oladi.
+     */
+    public function test_scope_forbids_tuman_without_district_instead_of_defaulting(): void
+    {
+        $user = $this->makeTumanUser(null);
+
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(403);
+
+        app(ExecutiveScope::class)->district($user, null);
+    }
+
+    public function test_scope_lets_viloyat_open_any_district(): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeUserWithRole('viloyat');
+
+        $model = app(ExecutiveScope::class)
+            ->district($user, $other);
+
+        $this->assertSame($other, (string) $model->id);
+    }
+
+    public function test_scope_defaults_viloyat_to_configured_district(): void
+    {
+        $user = $this->makeUserWithRole('viloyat');
+
+        $model = app(ExecutiveScope::class)
+            ->district($user, null);
+
+        $this->assertSame($this->districtId(), (string) $model->id);
+    }
+
+    public function test_scope_rejects_mahalla_outside_own_district(): void
+    {
+        $own = $this->districtId();
+        $other = $this->anotherDistrictId($own);
+        $user = $this->makeTumanUser($own);
+
+        $foreign = DB::connection('master')->table('mahallas')
+            ->where('district_id', $other)->value('id');
+        $this->assertNotNull($foreign, 'Boshqa tumanda mahalla bo\'lishi kerak');
+
+        $this->expectException(ModelNotFoundException::class);
+
+        app(ExecutiveScope::class)
+            ->mahalla($user, (string) $foreign);
+    }
+
+    public function test_scope_accepts_mahalla_inside_own_district(): void
+    {
+        $own = $this->districtId();
+        $user = $this->makeTumanUser($own);
+
+        $mine = DB::connection('master')->table('mahallas')
+            ->where('district_id', $own)->value('id');
+
+        $model = app(ExecutiveScope::class)
+            ->mahalla($user, (string) $mine);
+
+        $this->assertSame((string) $mine, (string) $model->id);
+    }
+
+    public function test_visible_district_ids_is_null_for_viloyat_and_single_for_tuman(): void
+    {
+        $scope = app(ExecutiveScope::class);
+
+        $this->assertNull($scope->visibleDistrictIds($this->makeUserWithRole('viloyat')));
+
+        $own = $this->districtId();
+        $this->assertSame([$own], $scope->visibleDistrictIds($this->makeTumanUser($own)));
+
+        $this->assertSame([], $scope->visibleDistrictIds($this->makeTumanUser(null)),
+            'tumansiz user hech qanday tuman ko\'rmaydi');
     }
 
     // ---------- fikstura yordamchilari ----------
