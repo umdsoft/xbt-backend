@@ -336,27 +336,6 @@ final class ExecutiveMahallaStats
     }
 
     /**
-     * Mahalladagi kadastr turar-joy binolari soni (`master.buildings`,
-     * `type = 'residential'`).
-     *
-     * DIQQAT: bu javobdagi mavjud `households` maydonidan (zona jadvali
-     * uchun, `ExecutiveStats::mahalla()`) ATAYLAB alohida method — ikkovi
-     * bugungi kunda bir xil so'rovga tayansa ham (ikkalasi ham kadastr
-     * maxraji, `mahalla.houses` operatsion jadvali EMAS — qarang
-     * `ExecutiveStats` klass izohi), passport maydoni mustaqil so'ralishi
-     * kerak: kelajakda zona jadvali boshqa maxrajga o'tsa (masalan faqat
-     * kuzatilgan xonadonlar), passportdagi "hақiqiy xonadonlar soni"
-     * o'zgarmasdan qolishi shart.
-     */
-    public function householdsTotal(string $mahallaId): int
-    {
-        return (int) DB::connection('master')->table('buildings')
-            ->where('mahalla_id', $mahallaId)
-            ->where('type', 'residential')
-            ->count();
-    }
-
-    /**
      * Mahallaning O'Z MFY (mahalla fuqarolar yig'ini) binosi — kadastrda
      * `object_types.code = 'mfy_binosi'` deb klassifikatsiya qilingan bino.
      *

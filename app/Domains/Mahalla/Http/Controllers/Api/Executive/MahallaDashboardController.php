@@ -45,6 +45,10 @@ class MahallaDashboardController extends Controller
                 'week_start' => $period['week_start'],
                 'timezone' => $period['timezone'],
             ],
+            // Kadastr turar-joy binolari soni (`master.buildings`,
+            // `type = 'residential'`) — sparse `mahalla.houses` jadvalidan
+            // EMAS (qarang: ExecutiveStats::mahalla(), 'households_total'
+            // nomli dublikat maydon shu sabab OLIB TASHLANGAN edi).
             'households' => $data['households'],
             'indicators' => $data['indicators'],
             'social_objects' => $data['social_objects'],
@@ -55,10 +59,9 @@ class MahallaDashboardController extends Controller
             'staff' => $this->mahallaStats->staff((string) $model->id),
             // Mikrolойiҳa holatlari (kartada ko'rsatish uchun) — {total, planned, in_progress, done, cancelled}
             'micro_projects' => $this->microProjects->statusCounts((string) $model->id),
-            // Passport uchun qo'shimcha uchta maydon (2026-09-14). Qo'shimcha
+            // Passport uchun qo'shimcha maydonlar (2026-09-14). Qo'shimcha
             // MAYDONLAR — yuqoridagi hech biri o'zgarmaydi.
             'streets_count' => $this->mahallaStats->streetsCount((string) $model->id),
-            'households_total' => $this->mahallaStats->householdsTotal((string) $model->id),
             'mfy_building' => $this->mahallaStats->mfyBuilding((string) $model->id),
         ]);
     }
