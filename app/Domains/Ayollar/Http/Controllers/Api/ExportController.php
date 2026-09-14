@@ -13,6 +13,7 @@ use App\Domains\Ayollar\Models\RegionBalance;
 use App\Domains\Ayollar\Services\AuditLogger;
 use App\Domains\Ayollar\Services\QrService;
 use App\Domains\Ayollar\Support\AyollarAccess;
+use App\Domains\Ayollar\Support\BalanceFormXlsx;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Domains\Ayollar\Support\Rules;
 use App\Http\Controllers\Controller;
@@ -43,6 +44,152 @@ class ExportController extends Controller
         private readonly QrService $qr,
         private readonly AuditLogger $audit,
     ) {}
+
+    /**
+     * RASMIY BALANS SHAKLI — QOG'OZDAGI KO'RINISHDA.
+     *
+     * Mavjud `balance()` eksporti tekis ro'yxat beradi: ko'rsatkich,
+     * toifa, soni. U ma'lumotni tashiydi, lekin HUJJAT emas — uni
+     * yig'ilishga olib kirib bo'lmaydi.
+     *
+     * Bu yerdagi fayl rasmiy shaklning o'zi: rangli bloklar, chap
+     * chetda tik sarlavhalar («БАНДЛИК ҲОЛАТИ БЎЙИЧА»), «шундан»
+     * qatorlari kursiv va ichkariga surilgan. Rahbar uni ochib,
+     * qog'ozdagi bilan qator-baqator solishtira oladi.
+     *
+     * NOMLAR KIRILLDA: rasmiy shakl kirillda va hujjat ham shunday
+     * bo'lishi kerak.
+     */
+    public function balanceForm(Request $request, string $type, string $id): Response
+    {
+        $this->assertCanExport($request);
+
+        $balance = match ($type) {
+            'mahalla' => MahallaBalance::query()->findOrFail($id),
+            'district' => DistrictBalance::query()->findOrFail($id),
+            'region' => RegionBalance::query()->findOrFail($id),
+            default => abort(404),
+        };
+
+        $this->assertInScope($request, $balance);
+        $this->logExport($request, 'balance_form', (string) $balance->id);
+
+        $metrics = $balance->metrics ?? [];
+        $total = (int) $balance->total;
+
+        $rows = [];
+        $merges = [];
+
+        $X = BalanceFormXlsx::class;
+
+        // ---- Sarlavha ----
+        $rows[] = ['ХОТИН-ҚИЗЛАР ТОИФАСИ', 'Умумий', $X::S_TITLE];
+        $rows[] = ['ЖАМИ ХОТИН-ҚИЗЛАР', $total, $X::S_TOTAL];
+
+        // Chap chetdagi tik sarlavhalar qaysi qatorlarni qamraydi.
+        $employmentFrom = count($rows) + 1;
+
+        foreach ([
+            ['green', 'ЯХШИ ҲОЛАТДА (таълим ва бандлик)', $X::S_HEAD_GREEN, (int) $balance->green],
+            ['yellow', 'ҚЎШИМЧА ДАСТУРЛАРГА ЖАЛБ ҚИЛИШ ТАЛАБ ЭТИЛАДИ', $X::S_HEAD_YELLOW, (int) $balance->yellow],
+            ['red', 'АЛОҲИДА ИШЛАШ ТАЛАБ ЭТИЛАДИГАН ХОТИН-ҚИЗЛАР', $X::S_HEAD_RED, (int) $balance->red],
+        ] as [$category, $title, $style, $blockTotal]) {
+            if ($category === 'red') {
+                // Bandlik bloklari tugadi — tik sarlavha shu yergacha.
+                $merges[] = 'A'.$employmentFrom.':A'.count($rows);
+                $socialFrom = count($rows) + 1;
+            }
+
+            /*
+                TIK SARLAVHA BIRLASHMANING BIRINCHI QATORIGA.
+
+                Qog'ozda chap chetda ikki sarlavha bor: yashil va sariq
+                bloklarni «БАНДЛИК ҲОЛАТИ БЎЙИЧА», qizilni «ИЖТИМОИЙ
+                ҲОЛАТИ БЎЙИЧА» qamraydi. Matn faqat birinchi katakka
+                yoziladi — birlashtirilgan sohada Excel shuni ko'rsatadi.
+            */
+            $side = match ($category) {
+                'green' => 'БАНДЛИК ҲОЛАТИ БЎЙИЧА',
+                'red' => 'ИЖТИМОИЙ ҲОЛАТИ БЎЙИЧА',
+                default => '',
+            };
+
+            $rows[] = [$title, $blockTotal, $style, $side];
+
+            /*
+                «ФОИЗДА» QATORI — QOG'OZDAGIDEK.
+
+                Shaklda har blok sarlavhasidan keyin shu yozuv turadi
+                va unga blokning JAMIGA nisbatan ulushi yoziladi.
+                Quyidagi qatorlar esa sonlar bilan to'ldiriladi.
+            */
+            $rows[] = ['Фоизда (жами хотин-қизларга нисбатан)', self::share($blockTotal, $total), $X::S_PERCENT_ROW];
+
+            foreach ($this->formRows($category) as $metric) {
+                $sub = Rules::subRowOwner($metric->code) !== null;
+
+                $rows[] = [
+                    ($sub ? 'шундан, ' : '').$metric->name_cyr,
+                    (int) ($metrics[$metric->code] ?? 0),
+                    $sub ? $X::S_ITEM_SUB : $X::S_ITEM,
+                ];
+            }
+        }
+
+        $merges[] = 'A'.($socialFrom ?? 1).':A'.count($rows);
+
+        // Suv belgisi — fayl ham nazoratsiz ko'chiriladi (promt §6.5).
+        $rows[] = ['', null, $X::S_DEFAULT];
+        $rows[] = [
+            'Юклаб олди: '.$request->user()->name.' ('.$request->user()->login.') · '.now()->format('d.m.Y H:i'),
+            null,
+            $X::S_DEFAULT,
+        ];
+
+        return response(
+            BalanceFormXlsx::build($rows, $merges, 'Баланс'),
+            200,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="balans-shakli-'
+                    .$type.'-'.$balance->period_year.'-'.$balance->period_month.'.xlsx"',
+            ],
+        );
+    }
+
+    /** Ulush — qog'ozdagi kabi «62,0%». */
+    private static function share(int $part, int $whole): string
+    {
+        return $whole > 0 ? number_format($part / $whole * 100, 1, ',', ' ').'%' : '—';
+    }
+
+    /**
+     * Blok qatorlari — SHAKLDAGI TARTIBDA, «шундан» egasidan keyin.
+     *
+     * @return \Illuminate\Support\Collection<int, Metric>
+     */
+    private function formRows(string $category): \Illuminate\Support\Collection
+    {
+        $all = Metric::query()->orderBy('sort_order')->get();
+
+        $own = $all->filter(fn (Metric $m) => $m->category === $category)->values();
+
+        // «шундан» qatorlari `meta` toifasida turadi — ular egasining
+        // ORQASIGA qo'shiladi, aks holda ro'yxat oxirida qolib ketardi.
+        $out = collect();
+
+        foreach ($own as $metric) {
+            $out->push($metric);
+
+            foreach ($all as $candidate) {
+                if (Rules::subRowOwner($candidate->code) === $metric->code) {
+                    $out->push($candidate);
+                }
+            }
+        }
+
+        return $out;
+    }
 
     /**
      * Balans shakli — `metric_registry` dan generatsiya qilinadi.

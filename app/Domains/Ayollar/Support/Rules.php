@@ -161,6 +161,21 @@ final class Rules
      * yashirish uni «—» ga aylantirardi va javob YO'Q bo'lib
      * ko'rinardi. Xom kod xunuk, lekin rost.
      */
+    /**
+     * Qator boshqasining ICHIDAN chiqadimi — qog'ozdagi «шундан».
+     *
+     * Egasining kodini qaytaradi, mustaqil qator uchun `null`.
+     * «Shundan» qatori yig'indiga QO'SHILMAYDI: aks holda bir odam
+     * ikki marta sanalardi — masalan MTTga qatnaydigan bola «3–6 ёш»
+     * qatorida ham, «шундан, мактабгача таълим» qatorida ham.
+     */
+    public static function subRowOwner(string $code): ?string
+    {
+        $owner = self::all()['sub_rows'][$code] ?? null;
+
+        return is_string($owner) ? $owner : null;
+    }
+
     public static function label(string $value): string
     {
         $label = self::all()['labels'][$value] ?? null;

@@ -802,5 +802,9 @@
     "ajrim_yoqasida": "Ajrim yoqasiga kelib qolgan",
     "odam_savdosi": "Odam savdosidan jabrlangan",
     "yot_goyalar": "Yot g‘oyalar ta’sirida"
+  },
+  "sub_rows": {
+    "_note": "Qaysi qator boshqasining ICHIDAN chiqadi — qog‘ozdagi «шундан» qatorlari. Ular yig‘indiga QO‘SHILMAYDI (aks holda bir odam ikki marta sanalardi) va egasidan keyin, ichkariga surilgan holda ko‘rsatiladi. Ekran ham, XLSX ham shu xaritani o‘qiydi.",
+    "mtt_covered": "age_3_6"
   }
 }
