@@ -244,6 +244,10 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // AYOLLAR BALANSI domeni — o'z `ayollar` schema'si, ustiga `master` (geo
+        // spravochniklari) va `public` (departments/hokimliklar, auth ko'prigi).
+        // Tartib MUHIM: `ayollar` birinchi, aks holda nomdosh jadval master'dan
+        // olinardi. Baza BITTA (`DB_DATABASE`) — ajratish faqat schema darajasida.
         'ayollar' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST', '127.0.0.1'),
