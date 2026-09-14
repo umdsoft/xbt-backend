@@ -117,6 +117,64 @@ class AyollarSummaryTest extends TestCase
         $this->assertNull($flag['count']);
     }
 
+    /**
+     * NOL YASHIRILMAYDI — bu testning sababi haqiqiy nuqson.
+     *
+     * `$count < $threshold` shartida 0 ham 5 dan kichik, ya'ni nol ham
+     * yashirilardi. Natijada MA'LUMOT UMUMAN TO'PLANMAGAN mahallada yettita
+     * og'ir toifa «<5» bo'lib chiqardi va rahbar bu «1..4 ta yashirin holat
+     * bor» deb o'qirdi. Productionda hozir aynan shunday holat: 509 ta
+     * mahallaning hammasida 0 ta anketa.
+     *
+     * `<5` = «holat BOR, lekin shaxsni himoya qilyapmiz».
+     * `0`  = «hech kim yo'q». Ikkisi aralashsa — keng ko'lamli yolg'on xavotir.
+     */
+    public function test_sensitive_flag_with_zero_is_not_suppressed(): void
+    {
+        [$user, $mahallaId] = $this->tumanAndMahalla();
+
+        // Ataylab HECH QANDAY bayroq ekilmaydi — barcha sonlar nol.
+        $res = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/mahallas/'.$mahallaId.'/ayollar-summary')
+            ->assertOk();
+
+        foreach (['violence_victim', 'human_trafficking', 'minor_mother'] as $code) {
+            $flag = $this->findFlag($res->json('flags'), $code);
+            $this->assertNotNull($flag, "{$code} bayrog'i javobda bo'lishi kerak");
+            $this->assertFalse(
+                $flag['suppressed'],
+                "{$code}: nol yashirilmasligi kerak — aks holda ma'lumotsiz mahalla ".
+                "«yashirin holatlari bor» bo'lib ko'rinadi"
+            );
+            $this->assertSame(0, $flag['count'], "{$code}: aniq nol qaytishi kerak");
+        }
+    }
+
+    /**
+     * Noma'lum kod YO'QOLMAYDI.
+     *
+     * Tasnif manbai `resources/ayollar/rules.json` boshqa tarmoqda turadi.
+     * Unga 14-bayroq qo'shilsa va bazada paydo bo'lsa, faqat qattiq yozilgan
+     * yorliqlar bo'yicha aylansak, yangi muammo turi paneldan jimgina
+     * tushib qolardi — rahbar uni umuman ko'rmasdi.
+     */
+    public function test_unknown_flag_code_still_appears(): void
+    {
+        [$user, $mahallaId] = $this->tumanAndMahalla();
+
+        $this->seedRedFlags($mahallaId, 'yangi_toifa_2027', 3);
+
+        $res = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/mahalla/executive/mahallas/'.$mahallaId.'/ayollar-summary')
+            ->assertOk();
+
+        $flag = $this->findFlag($res->json('flags'), 'yangi_toifa_2027');
+        $this->assertNotNull($flag, 'noma\'lum kod ham javobda bo\'lishi kerak');
+        $this->assertSame(3, $flag['count']);
+        $this->assertSame('yangi_toifa_2027', $flag['label'],
+            'yorlig\'i yo\'q kod xom kodi bilan ko\'rsatiladi');
+    }
+
     public function test_non_sensitive_flag_is_not_suppressed(): void
     {
         [$user, $mahallaId] = $this->tumanAndMahalla();

@@ -20,10 +20,18 @@ use Illuminate\Support\Facades\Schema;
  * жавоблар) БИР МАРТА ҲАМ ўқилмайди — тегишли устунлар SELECT'га умуман
  * қўшилмаган.
  *
- * МАХФИЙЛИК (small-cell suppression): нозик тоифаларда сон 5 (конфигурацияда
- * созланадиган) дан кам бўлса, аниқ сон ЎРНИГА `null` + `suppressed=true`
+ * МАХФИЙЛИК (small-cell suppression): нозик тоифаларда сон 1..4 оралиғида
+ * (чегара конфигурацияда) бўлса, аниқ сон ЎРНИГА `null` + `suppressed=true`
  * қайтарилади. Кичик маҳаллада "зўравонлик қурбони: 1" — сон эмас, шахсни
  * очиб бериш.
+ *
+ * НОЛ ҲЕЧ ҚАЧОН ЯШИРИЛМАЙДИ. `<5` белгиси «1 дан 4 гача ҳолат бор, лекин
+ * шахсни ҳимоя қиляпмиз» деган маънони билдиради. Нолни ҳам яширсак,
+ * маълумот умуман тўпланмаган маҳалла «яширин ҳолатлари бор» бўлиб
+ * кўринади — ҳозир айнан шундай: 509 маҳалланинг ҳаммасида 0 та анкета,
+ * яъни етти хил оғир тоифа «<5» деб чиқарди ва раҳбар бутун туманида
+ * зўравонлик ва одам савдоси бор деб ўқирди. Ноль — ҳимоя қилинадиган
+ * шахс эмас, у ҳеч кимни очмайди.
  */
 final class AyollarSummary
 {
@@ -73,7 +81,26 @@ final class AyollarSummary
         $urgentTotal = 0;
         $threshold = (int) config('mahalla.ayollar_small_cell_threshold', 5);
 
-        foreach (self::LABELS as $code => $label) {
+        /*
+         * Кодлар рўйхати — маълум ёрлиқлар ВА базада ҳақиқатан учраган
+         * кодлар БИРЛАШМАСИ.
+         *
+         * Нега бирлашма: тасниф манбаи `resources/ayollar/rules.json`,
+         * у бу репода ҳам эмас (Аёллар домени бошқа тармоқда). Агар у ерга
+         * 14-байроқ қўшилса ва базада пайдо бўлса, фақат `LABELS` бўйича
+         * айлансак, янги тоифа панелдан ЖИМГИНА йўқоларди — раҳбар янги
+         * муаммо турини умуман кўрмасди. Бирлашма билан у кўринади,
+         * ёрлиғи хом код бўлса ҳам — кўринмасликдан кўра яхши.
+         */
+        $codes = array_keys(self::LABELS);
+        foreach (array_keys($counts) as $seen) {
+            if (! in_array($seen, $codes, true)) {
+                $codes[] = $seen;
+            }
+        }
+
+        foreach ($codes as $code) {
+            $label = self::LABELS[$code] ?? $code;
             $count = $counts[$code] ?? 0;
             $sensitive = in_array($code, self::SENSITIVE, true);
 
@@ -81,7 +108,8 @@ final class AyollarSummary
                 $urgentTotal += $count;
             }
 
-            $suppressed = $sensitive && $count < $threshold;
+            // `$count > 0` ШАРТ: ноль яширилмайди — қаранг, синф изоҳи.
+            $suppressed = $sensitive && $count > 0 && $count < $threshold;
 
             $flags[] = [
                 'code' => $code,
