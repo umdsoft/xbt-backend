@@ -144,6 +144,7 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+
         // ADVISOR (Hokim maslahatchilari platformasi) domeni — operatsion.
         // advisors + topshiriq/KPI/loyiha (keyingi bosqichlar) + master geo (tumanlar).
         // Mahalla ulanishi naqshi: bir xil host/DB, alohida schema (advisor).

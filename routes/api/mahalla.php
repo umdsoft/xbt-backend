@@ -9,6 +9,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Admin\ReviewController;
 use App\Domains\Mahalla\Http\Controllers\Api\Admin\UserManagementController;
 use App\Domains\Mahalla\Http\Controllers\Api\ContextController;
 use App\Domains\Mahalla\Http\Controllers\Api\DashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\AyollarSummaryController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictListController;
@@ -190,6 +191,10 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 // Mahalla ichidagi mikrolойiҳalar (faqat ko'rish)
                 Route::get('/mahallas/{mahalla}/projects', ExecutiveProjectsController::class)
                     ->name('mahalla.projects')
+                    ->whereUuid('mahalla');
+                // Aёллар хатлови жамланмаси (faqat agregat — Ayollar RBAC'iga tegilmaydi)
+                Route::get('/mahallas/{mahalla}/ayollar-summary', AyollarSummaryController::class)
+                    ->name('mahalla.ayollar-summary')
                     ->whereUuid('mahalla');
             });
 

@@ -480,7 +480,33 @@ final liveLocationProvider = StreamProvider.autoDispose<LocationState>((ref) {
   - оқим хатоси → `error`, охирги позиция йўқолмайди
 - [ ] **Қадам 3-4: Йиқилиш → ёзиш → ўтиш**
 - [ ] **Қадам 5: `capture/` тегилмаганини исботлаш** (`git diff --stat`)
-- [ ] **Қадам 6: Коммит** — `feat(mobil): xarita uchun jonli GPS provayderi`
+
+- [ ] **Қадам 6: 4-вазифадаги контроллерга улаш** ⚠️
+
+> **Режадаги тартиб хатоси — 4-вазифа шу вазифага боғлиқ эди.** 4-вазифа
+> контроллери `liveLocationProvider` ни талаб қилади, лекин у ўшанда ҳали
+> мавжуд эмас эди. 4-вазифа ижрочиси GPS қабулини
+> `NearbyController.reportPosition(lat, lng)` оммавий методига ажратиб,
+> файл компиляция бўлишини таъминлаган — тўғри қарор.
+>
+> **Энди уни улаш ШУ ВАЗИФАНИНГ масъулияти.** `nearby_controller.dart`
+> файлидаги кутубхона изоҳида аниқ қайси қатор қўшилиши ёзилган.
+
+`NearbyController.build()` ичига:
+
+```dart
+    ref.listen(liveLocationProvider, (prev, next) {
+      final pos = next.valueOrNull?.position;
+      if (pos != null) reportPosition(pos.latitude, pos.longitude);
+    });
+```
+
+Уланганини тест билан тасдиқла: сохта GPS оқимига позиция берилса,
+контроллер `reportPosition` ни чақиришини (ва дебаунс ишлашини) текшир.
+**Улаш бажарилмаса — харита ҳеч қачон маълумот сўрамайди** ва буни ҳеч
+қандай мавжуд тест ушламайди.
+
+- [ ] **Қадам 7: Коммит** — `feat(mobil): xarita uchun jonli GPS provayderi va kontrollerga ulash`
 
 ---
 
