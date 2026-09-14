@@ -151,7 +151,8 @@ class AnketaController extends Controller
             'gps_lng' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        $woman = Woman::query()->findOrFail($data['woman_id']);
+        // Havola klient UUID'si bo'lishi mumkin — `ResolvesClientRef`.
+        $woman = Woman::query()->byClientRef($data['woman_id'])->firstOrFail();
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $woman->mahalla_id, (string) $woman->district_id)) {
             abort(403, 'Bu MFY sizning doirangizda emas.');
@@ -329,7 +330,8 @@ class AnketaController extends Controller
             ];
         }
 
-        $woman = Woman::query()->findOrFail($item['woman_id']);
+        // Havola klient UUID'si bo'lishi mumkin — `ResolvesClientRef`.
+        $woman = Woman::query()->byClientRef($item['woman_id'])->firstOrFail();
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $woman->mahalla_id, (string) $woman->district_id)) {
             return ['client_uuid' => $item['client_uuid'], 'status' => 'forbidden'];

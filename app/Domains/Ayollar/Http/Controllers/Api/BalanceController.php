@@ -79,8 +79,14 @@ class BalanceController extends Controller
 
     public function region(Request $request): JsonResponse
     {
-        if (! $this->access->can($request->user(), 'ayollar.view')) {
-            abort(403);
+        // DOIRA TEKSHIRUVI — `ayollar.view` YETARLI EMAS.
+        //
+        // `ayollar.view` har bir rolda bor, ya'ni u «tizimni ko'ra
+        // oladi» degani, «viloyatni ko'ra oladi» degani emas. Shu
+        // sababdan MFY faoli viloyat balansini — 13 tumanning
+        // yig'indisini — ocha olardi.
+        if (! $this->scope->canAccessRegion($request->user())) {
+            abort(403, 'Viloyat balansi sizning doirangizda emas.');
         }
 
         [$year, $month] = $this->period($request);
