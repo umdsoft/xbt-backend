@@ -151,7 +151,21 @@ class ExportController extends Controller
      */
     public function anketaPdf(Request $request, string $id): Response
     {
-        $this->assertCanExport($request);
+        /*
+            BITTA ANKETA — OMMAVIY EKSPORTDAN AYRIM HUQUQ.
+
+            `assertCanExport()` butun reestr va balans varaqalari
+            uchun. Bitta ayolning hujjati esa MFY faolining kundalik
+            ishi va unga `ayollar.anketa.pdf` beriladi.
+
+            Nima himoyada qoladi: quyidagi `scope->apply()` so'rovni
+            foydalanuvchi doirasi bilan cheklaydi — begona mahalla
+            anketasi `findOrFail` da 404 bo'ladi. Yuklash jurnalga
+            tushadi, PDFda esa kim va qachon olgani yozib qo'yiladi.
+        */
+        if (! $this->access->can($request->user(), 'ayollar.anketa.pdf')) {
+            $this->assertCanExport($request);
+        }
 
         $query = Anketa::query()->with(['woman', 'redFlags']);
         $this->scope->apply($query, $request->user());
