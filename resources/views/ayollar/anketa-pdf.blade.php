@@ -69,6 +69,8 @@
         table.answers td { padding: 1.3mm 0; border-bottom: 0.2mm solid #EDF0EE; vertical-align: top; }
         table.answers td.q { width: 10mm; color: #8B9AA0; font-size: 7.5pt; }
         table.answers td.t { width: 62mm; color: #5F7078; font-size: 8pt; }
+        /* Ichki savol yorlig'i — javobdan so'nikroq, lekin o'qiladigan. */
+        table.answers span.sub { color: #8B9AA0; font-size: 7.5pt; }
 
         .note {
             margin-top: 6mm; padding: 3mm; background: #F1F3F1;
@@ -142,10 +144,22 @@
             <div class="eyebrow">{{ $section['number'] }}-boʻlim · {{ $section['title'] }}</div>
             <table class="answers">
                 @foreach ($section['items'] as $item)
+                    {{--
+                        Bir band ichidagi bir nechta savol (2, 8, 17-bandlar)
+                        har biri O'Z YORLIG'I bilan alohida qatorda. Avval
+                        ular bitta katakka qo'shilib, kalit nomlariga
+                        aylanardi: «royxat, turar_joy».
+                    --}}
                     <tr>
                         <td class="q">{{ $item['number'] }}</td>
                         <td class="t">{{ $item['title'] }}</td>
-                        <td>{{ $item['value'] }}</td>
+                        <td>
+                            @foreach ($item['rows'] as $row)
+                                <div>
+                                    @if ($row['label'])<span class="sub">{{ $row['label'] }}:</span> @endif{{ $row['text'] }}
+                                </div>
+                            @endforeach
+                        </td>
                     </tr>
                 @endforeach
             </table>

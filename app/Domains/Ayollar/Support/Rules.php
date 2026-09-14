@@ -110,4 +110,61 @@ final class Rules
     {
         return self::all()['sensitive_questions'] ?? [];
     }
+
+    /**
+     * BAND MATNI — EKRAN VA PDF UCHUN BITTA MANBA.
+     *
+     * Avval matnlar faqat frontendda yashardi va backend ularni
+     * bilmasdi. Natijada PDFda «1-savol», «2-savol» chiqardi va
+     * hujjatni o'qigan odam qaysi savolga javob berilganini qog'oz
+     * anketa bilan solishtirmasdan bila olmasdi.
+     */
+    public static function questionTitle(int $question): string
+    {
+        $title = self::all()['questions'][(string) $question]['title'] ?? null;
+
+        return is_string($title) && $title !== '' ? $title : $question.'-band';
+    }
+
+    /**
+     * Bir band ichidagi ichki savollar yorliqlari (2, 8, 17-bandlar).
+     *
+     * @return array<string, string>
+     */
+    public static function questionGroups(int $question): array
+    {
+        $groups = self::all()['questions'][(string) $question]['groups'] ?? [];
+
+        return is_array($groups) ? $groups : [];
+    }
+
+    /**
+     * Ko'p tanlovli bandning belgilari (26-band).
+     *
+     * @return array<string, string>
+     */
+    public static function questionOptions(int $question): array
+    {
+        $options = self::all()['questions'][(string) $question]['options'] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    /**
+     * Qiymatning o'qiladigan nomi: `oila_qurmagan` -> «Oila qurmagan».
+     *
+     * `enums` da faqat KODLAR turadi, nomlar esa frontendda edi —
+     * shuning uchun PDFda xom kod chiqardi. Endi yorliqlar
+     * `rules.json` da va ikkala tomon o'shani o'qiydi.
+     *
+     * Topilmasa QIYMATNING O'ZI qaytadi: nomsiz qolgan yangi kodni
+     * yashirish uni «—» ga aylantirardi va javob YO'Q bo'lib
+     * ko'rinardi. Xom kod xunuk, lekin rost.
+     */
+    public static function label(string $value): string
+    {
+        $label = self::all()['labels'][$value] ?? null;
+
+        return is_string($label) && $label !== '' ? $label : $value;
+    }
 }

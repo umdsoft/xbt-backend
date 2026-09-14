@@ -221,8 +221,11 @@ class ExportController extends Controller
 
                 $items[] = [
                     'number' => $q,
-                    'title' => $q.'-savol',
-                    'value' => $this->displayAnswer($answers["q{$q}"]),
+                    // Savolning O'ZI. Avval bu yerda «1-savol» turardi va
+                    // hujjatni o'qigan odam qaysi savolga javob berilganini
+                    // qog'oz anketa bilan solishtirmasdan bila olmasdi.
+                    'title' => Rules::questionTitle($q),
+                    'rows' => $this->answerRows($q, $answers["q{$q}"]),
                 ];
             }
 
@@ -252,6 +255,45 @@ class ExportController extends Controller
         return false;
     }
 
+    /**
+     * Bandning javobi — YORLIQLI QATORLAR.
+     *
+     * Avval hammasi bitta satrga qo'shilardi va PDFni o'qib bo'lmasdi:
+     *
+     *   - xom enum kodi chiqardi («oila_qurmagan», «ota_tamirtalab»),
+     *     chunki nomlar faqat frontendda edi;
+     *   - bir band ichidagi bir nechta savol (2, 8, 17-bandlar) kalit
+     *     nomlariga aylanardi: «royxat, turar_joy» — javobning o'zi
+     *     butunlay yo'qolardi.
+     *
+     * Endi har ichki savol o'z yorlig'i bilan alohida qatorda, qiymat
+     * esa `rules.json` dagi yorliq xaritasidan o'qiladi.
+     *
+     * @return array<int, array{label: ?string, text: string}>
+     */
+    private function answerRows(int $question, mixed $value): array
+    {
+        $groups = Rules::questionGroups($question);
+
+        if (is_array($value) && $groups !== []) {
+            $rows = [];
+
+            foreach ($groups as $key => $label) {
+                if (! array_key_exists($key, $value)) {
+                    continue;
+                }
+
+                $rows[] = ['label' => $label, 'text' => $this->displayAnswer($value[$key])];
+            }
+
+            if ($rows !== []) {
+                return $rows;
+            }
+        }
+
+        return [['label' => null, 'text' => $this->displayAnswer($value)]];
+    }
+
     private function displayAnswer(mixed $value): string
     {
         if ($value === null || $value === '') {
@@ -262,13 +304,22 @@ class ExportController extends Controller
             return $value ? 'Ha' : 'Yo‘q';
         }
 
-        if (is_array($value)) {
-            $on = array_keys(array_filter($value));
-
-            return $on === [] ? '—' : implode(', ', $on);
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
         }
 
-        return (string) $value;
+        if (is_array($value)) {
+            // Belgilar to'plami (26-band): kalitning O'ZI javob.
+            $on = array_keys(array_filter($value));
+
+            if ($on === []) {
+                return '—';
+            }
+
+            return implode(', ', array_map(fn ($k) => Rules::label((string) $k), $on));
+        }
+
+        return Rules::label((string) $value);
     }
 
     // ---------------------------------------------------------------
