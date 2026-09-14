@@ -20,6 +20,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\ScoringController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Hokim\ProjectController;
 use App\Domains\Mahalla\Http\Controllers\Api\HouseController;
+use App\Domains\Mahalla\Http\Controllers\Api\MahallaPointsController;
 use App\Domains\Mahalla\Http\Controllers\Api\NearbyController;
 use App\Domains\Mahalla\Http\Controllers\Api\ObservationController;
 use App\Domains\Mahalla\Http\Controllers\Api\PhotoController;
@@ -54,6 +55,12 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
             ->middleware('throttle:60,1')
             ->whereUuid('mahalla')
             ->name('mahallas.boundary');
+
+        // Турган туманнинг маҳалла марказлари — харита қатлами + маршрут
+        // мақсадлари. `/nearby` билан БИР ХИЛ қамров инварианти.
+        Route::get('/mahalla-points', MahallaPointsController::class)
+            ->middleware('throttle:60,1')
+            ->name('mahalla-points');
 
         // Eski (houses-asosli) endpointlar — moslik uchun saqlanadi
         Route::get('/houses', [HouseController::class, 'index'])->name('houses.index');
