@@ -503,7 +503,7 @@ class ExecutiveDashboardTest extends TestCase
                 'micro_projects',
                 // B3 (2026-09-14): passport uchun qo'shimcha uchta maydon.
                 // `mfy_building` tuzilishi shart emas — ko'p mahallada `null`.
-                'streets_count', 'households_total', 'mfy_building',
+                'streets_count', 'mfy_building',
             ]);
 
         // `indicators` `null` bo'lishi mumkin (ko'rsatkich yuklanmagan
@@ -540,27 +540,6 @@ class ExecutiveDashboardTest extends TestCase
 
         $actual = app(ExecutiveMahallaStats::class)
             ->streetsCount($mahallaId);
-
-        $this->assertSame($expected, $actual);
-    }
-
-    /**
-     * B3: `households_total` — kadastrning haqiqiy turar-joy binolari soni
-     * (`master.buildings`, `type = 'residential'`). Mavjud `households`
-     * maydonidan (zona jadvali) ATAYLAB mustaqil hisoblanadi — servis
-     * darajasida alohida method sifatida.
-     */
-    public function test_households_total_matches_cadastre_residential_buildings(): void
-    {
-        [$mahallaId] = $this->mahallaWithStreet();
-
-        $expected = DB::connection('master')->table('buildings')
-            ->where('mahalla_id', $mahallaId)
-            ->where('type', 'residential')
-            ->count();
-
-        $actual = app(ExecutiveMahallaStats::class)
-            ->householdsTotal($mahallaId);
 
         $this->assertSame($expected, $actual);
     }
@@ -634,7 +613,7 @@ class ExecutiveDashboardTest extends TestCase
      * keladi — servis metodlarini to'g'ridan-to'g'ri emas, kontroller
      * ularni javobga qanday ulashini tekshiradi.
      */
-    public function test_mahalla_endpoint_streets_and_households_total_match_service(): void
+    public function test_mahalla_endpoint_streets_count_matches_service(): void
     {
         $user = $this->makeUser('viloyat');
         $mahallaId = $this->mahallaWithMfyBuilding();
@@ -646,7 +625,6 @@ class ExecutiveDashboardTest extends TestCase
             ->json();
 
         $this->assertSame($stats->streetsCount($mahallaId), $body['streets_count']);
-        $this->assertSame($stats->householdsTotal($mahallaId), $body['households_total']);
         $this->assertSame($stats->mfyBuilding($mahallaId), $body['mfy_building']);
         $this->assertNotNull($body['mfy_building'], 'bu mahalla MFY binosi klassifikatsiya qilingan biri sifatida tanlangan edi');
     }
