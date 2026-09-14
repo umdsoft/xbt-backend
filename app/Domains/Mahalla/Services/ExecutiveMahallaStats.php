@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Services;
 
+use App\Domains\Mahalla\Support\BuildingNameCleaner;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Domains\Mahalla\Support\MahallaZones;
 use Illuminate\Support\Carbon;
@@ -16,9 +17,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class ExecutiveMahallaStats
 {
-    public function __construct(private readonly ExecutiveStats $stats)
-    {
-    }
+    public function __construct(private readonly ExecutiveStats $stats) {}
 
     /**
      * Kunlar bo'yicha o'zgargan xonadonlar (oxirgi `$days` kun).
@@ -318,5 +317,58 @@ final class ExecutiveMahallaStats
         }
 
         return $out;
+    }
+
+    /**
+     * Mahalladagi FAOL ko'chalar soni (`master.streets`).
+     *
+     * `is_active` filtrlanadi: rais ko'cha muharriridan o'chirilgan ko'cha
+     * qatordan ketmaydi (bog'liq uy/biriktiruvlar tufayli), faqat bayroq
+     * bilan belgilanadi — filtrsiz sanoq o'chirilgan ko'chani ham
+     * hisoblagan bo'lardi.
+     */
+    public function streetsCount(string $mahallaId): int
+    {
+        return (int) DB::connection('master')->table('streets')
+            ->where('mahalla_id', $mahallaId)
+            ->where('is_active', true)
+            ->count();
+    }
+
+    /**
+     * Mahallaning O'Z MFY (mahalla fuqarolar yig'ini) binosi — kadastrda
+     * `object_types.code = 'mfy_binosi'` deb klassifikatsiya qilingan bino.
+     *
+     * Shovotning 52 mahallasidan atigi 11 tasida bunday bino kadastrda
+     * belgilangan — qolganida `null` ODATIY holat (rais hali
+     * klassifikatsiya qilmagan), "topilmadi" degan xatolik EMAS.
+     * Bir nechtasi klassifikatsiya qilingan bo'lsa `id` bo'yicha
+     * birinchisi olinadi — javob so'rovlar orasida barqaror bo'lishi uchun.
+     *
+     * @return array{id: string, lat: float, lng: float, name: string, address: ?string}|null
+     */
+    public function mfyBuilding(string $mahallaId): ?array
+    {
+        $row = DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.mahalla_id', $mahallaId)
+            ->where('t.code', 'mfy_binosi')
+            ->orderBy('b.id')
+            ->first(['b.id', 'b.lat', 'b.lng', 'b.purpose', 'b.address', 't.name_cyr']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $row->id,
+            'lat' => (float) $row->lat,
+            'lng' => (float) $row->lng,
+            // `purpose` bo'sh bo'lsa obyekt turining rasmiy nomiga
+            // qaytiladi (qarang: BuildingNameCleaner, /nearby'da ham
+            // xuddi shu qoida) — panelda bino nomsiz qolmasligi kerak.
+            'name' => BuildingNameCleaner::clean($row->purpose) ?? (string) $row->name_cyr,
+            'address' => $row->address !== null ? (string) $row->address : null,
+        ];
     }
 }
