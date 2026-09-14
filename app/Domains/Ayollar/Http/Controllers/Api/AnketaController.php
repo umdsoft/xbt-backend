@@ -56,6 +56,23 @@ class AnketaController extends Controller
             }
         }
 
+        /*
+            QIZIL BELGI BO'YICHA FILTR.
+
+            Qizil qatorlar `balance_row` EMAS: ular alohida jadvalda
+            (`anketa_red_flags`) va bitta ayolda bir nechtasi bo'lishi
+            mumkin. Shuning uchun yuqoridagi oddiy `where` ular uchun
+            ishlamaydi.
+
+            Balans jadvalidagi qizil qatorga bosilganda ro'yxat shu
+            filtr bilan ochiladi.
+        */
+        if ($request->filled('red_flag')) {
+            $flag = $request->string('red_flag')->toString();
+
+            $query->whereHas('redFlags', fn ($q) => $q->where('flag_code', $flag));
+        }
+
         // Qidiruv: F.I.Sh., ro'yxat raqami yoki QR token.
         //
         // JShShIR bo'yicha qidiruv ALOHIDA endpoint'da (`check-duplicate`):
