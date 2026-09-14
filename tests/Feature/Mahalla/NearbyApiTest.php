@@ -179,6 +179,125 @@ class NearbyApiTest extends TestCase
         }
     }
 
+    /**
+     * B2: reja hujjatida (`docs/superpowers/plans/2026-09-14-atrof-aniqlik.md`)
+     * aynan keltirilgan misol — hozir xaritada «Бошқа / аниқланмаган» ko'rinadi,
+     * lekin kadastrda `purpose = "ЙИЛКИЧИ БОБО КАБРИСТОНИ"`. `purpose` XOM
+     * holda, `name` esa HARF REGISTRI O'ZGARTIRILMAGAN holda qaytishi kerak.
+     */
+    public function test_org_point_purpose_and_name_reflect_the_reported_cemetery_example(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$buildingId, $purpose, $lat, $lng] = $this->realBuildingWithExactPurpose(
+            $districtId,
+            'ЙИЛКИЧИ БОБО КАБРИСТОНИ',
+        );
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=200&layers=orgs&limit=50")
+            ->assertOk()
+            ->assertJsonStructure([
+                'points' => [['id', 'purpose', 'name']],
+            ])
+            ->json();
+
+        $point = collect($body['points'])->firstWhere('id', $buildingId);
+        $this->assertNotNull($point, 'Kabriston binosi natijalar orasida topilmadi.');
+        $this->assertSame($purpose, $point['purpose'], 'purpose XOM holda (tozalanmagan) qaytishi kerak.');
+        $this->assertSame(
+            'ЙИЛКИЧИ БОБО КАБРИСТОНИ',
+            $point['name'],
+            'Harf registri o\'zgartirilmasligi kerak — bu kadastrning rasmiy yozuvi.',
+        );
+    }
+
+    /**
+     * B2: reja hujjatidagi ikkinchi misol — «Савдо объекти» o'rniga
+     * `purpose`dagi haqiqiy bozor nomi ko'rinishi kerak (imlosi kadastrda
+     * шундай: "дехкон", "деҳқон" emas — bu ATAYLAB tuzatilmaydi).
+     */
+    public function test_org_point_name_shows_the_real_market_name_instead_of_generic_category(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$buildingId, $purpose, $lat, $lng] = $this->realBuildingWithExactPurpose(
+            $districtId,
+            'Шовот дехкон бозори',
+        );
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=200&layers=orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $point = collect($body['points'])->firstWhere('id', $buildingId);
+        $this->assertNotNull($point, 'Bozor binosi natijalar orasida topilmadi.');
+        $this->assertSame($purpose, $point['purpose']);
+        $this->assertSame('Шовот дехкон бозори', $point['name']);
+        $this->assertSame('savdo', $point['category'], 'Bu bino baribir "savdo" toifasida qoladi — faqat name aniqlashadi.');
+    }
+
+    /**
+     * B2 tozalash qoidasi: chetdagi tirnoq olib tashlanadi, lekin `purpose`
+     * XOM holda (tirnoq bilan) qaytadi. Real kadastr qatoridan foydalaniladi —
+     * bu suite hech qanday bino qatorini o'zi KIRITMAYDI (qarang: sinf docblok
+     * o'rnidagi topshiriq izohi / DatabaseTransactions).
+     */
+    public function test_org_point_name_strips_surrounding_quotes_but_purpose_stays_raw(): void
+    {
+        [$user, $districtId] = $this->makeDeputatInPilotDistrict();
+        [$buildingId, $purpose, $lat, $lng] = $this->realBuildingWithQuotedPurpose($districtId);
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$lat}&lng={$lng}&radius_m=200&layers=orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $point = collect($body['points'])->firstWhere('id', $buildingId);
+        $this->assertNotNull($point, 'Tirnoqli purpose\'li bino natijalar orasida topilmadi.');
+
+        $this->assertSame($purpose, $point['purpose'], 'purpose bazadagi kabi TIRNOQ BILAN qaytishi kerak.');
+        $this->assertStringStartsWith('"', $purpose, 'Test tayyorlovi: tanlangan qator chindan tirnoqli bo\'lishi kerak.');
+
+        $this->assertNotNull($point['name']);
+        $this->assertStringStartsNotWith('"', $point['name'], 'name boshidagi tirnoq olib tashlanishi kerak.');
+        $this->assertStringEndsNotWith('"', $point['name'], 'name oxiridagi tirnoq olib tashlanishi kerak.');
+    }
+
+    /**
+     * `purpose` bazada NULL bo'lganda ikkalasi ham (`purpose`, `name`) `null`
+     * qaytishi kerak — mobil ilova `category_label`ga qaytadi.
+     *
+     * Pilot (Shovot) tumanida `purpose`siz non_residential bino YO'Q (1617
+     * tadan hammasida to'ldirilgan), shuning uchun bu holatni isbotlash uchun
+     * `viloyat` (canSeeAll) foydalanuvchisi orqali BOSHQA tumandagi real
+     * qatordan foydalaniladi — district-scope o'zi alohida testlar bilan
+     * qulflangan (`test_deputat_cannot_read_another_district_by_moving_the_point`
+     * va b.), bu yerda faqat purpose=NULL → purpose/name=null isbotlanadi.
+     */
+    public function test_org_point_purpose_and_name_are_null_when_cadastre_has_no_purpose_text(): void
+    {
+        $b = DB::connection('master')->table('buildings')
+            ->where('type', 'non_residential')
+            ->whereNull('purpose')
+            ->whereNotNull('lat')->whereNotNull('lng')
+            ->whereNotNull('district_id')
+            ->first(['id', 'lat', 'lng']);
+
+        $this->assertNotNull($b, 'Bazada purpose\'siz tashkilot binosi topilmadi.');
+
+        $user = $this->makeViloyatUser();
+
+        $body = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/mahalla/nearby?lat={$b->lat}&lng={$b->lng}&radius_m=200&layers=orgs&limit=50")
+            ->assertOk()
+            ->json();
+
+        $point = collect($body['points'])->firstWhere('id', (string) $b->id);
+        $this->assertNotNull($point, 'purpose\'siz bino natijalar orasida topilmadi.');
+        $this->assertNull($point['purpose']);
+        $this->assertNull($point['name']);
+    }
+
     public function test_homes_layer_returns_only_unmonitored_residential(): void
     {
         [$user, $districtId] = $this->makeDeputatInPilotDistrict();
@@ -678,6 +797,48 @@ class NearbyApiTest extends TestCase
     private function makeViloyatUser(): User
     {
         return $this->insertDeputat(null, null, 'Вилоят фойдаланувчиси', 'viloyat');
+    }
+
+    /**
+     * B2: `purpose`si ANIQ shu matnga teng REAL binoni topadi (reja
+     * hujjatidagi misollarni feature darajasida qulflash uchun). Yangi qator
+     * KIRITILMAYDI — mavjud kadastr qatoridan foydalaniladi.
+     *
+     * @return array{0:string,1:string,2:float,3:float} [buildingId, purpose, lat, lng]
+     */
+    private function realBuildingWithExactPurpose(string $districtId, string $purpose): array
+    {
+        $b = DB::connection('master')->table('buildings')
+            ->where('district_id', $districtId)
+            ->where('type', 'non_residential')
+            ->where('purpose', $purpose)
+            ->whereNotNull('lat')->whereNotNull('lng')
+            ->first(['id', 'purpose', 'lat', 'lng']);
+
+        $this->assertNotNull($b, "Pilot tumanda purpose='{$purpose}' bino topilmadi.");
+
+        return [(string) $b->id, (string) $b->purpose, (float) $b->lat, (float) $b->lng];
+    }
+
+    /**
+     * B2: boshi VA oxiri ASCII tirnoq (`"`) bilan o'ralgan XOM `purpose`
+     * matnli REAL binoni topadi — chetdagi tirnoqni olib tashlash qoidasini
+     * isbotlash uchun (haqiqiy kadastrda ko'p uchraydigan naqsh).
+     *
+     * @return array{0:string,1:string,2:float,3:float} [buildingId, purpose, lat, lng]
+     */
+    private function realBuildingWithQuotedPurpose(string $districtId): array
+    {
+        $b = DB::connection('master')->table('buildings')
+            ->where('district_id', $districtId)
+            ->where('type', 'non_residential')
+            ->where('purpose', 'like', '"%"')
+            ->whereNotNull('lat')->whereNotNull('lng')
+            ->first(['id', 'purpose', 'lat', 'lng']);
+
+        $this->assertNotNull($b, 'Pilot tumanda tirnoq bilan o\'ralgan purpose matnli bino topilmadi.');
+
+        return [(string) $b->id, (string) $b->purpose, (float) $b->lat, (float) $b->lng];
     }
 
     /** Tumanning eng zich mahallasi markazi (real ma'lumotdan). @return array{0:float,1:float} */
