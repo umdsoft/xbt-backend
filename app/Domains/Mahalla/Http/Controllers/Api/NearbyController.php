@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Mahalla\Http\Controllers\Api;
 
 use App\Domains\Mahalla\Services\NearbyFinder;
+use App\Domains\Mahalla\Support\BuildingNameCleaner;
 use App\Domains\Mahalla\Support\MahallaAccess;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -165,6 +166,7 @@ class NearbyController extends Controller
     private function presentPoint(array $r, array $myStreets): array
     {
         $streetId = $r['street_id'] !== null ? (string) $r['street_id'] : null;
+        $purpose = $r['purpose'] !== null ? (string) $r['purpose'] : null;
 
         return [
             'id' => (string) $r['id'],
@@ -176,6 +178,12 @@ class NearbyController extends Controller
             'is_social' => (bool) $r['is_social'],
             'category' => $r['category'] !== null ? (string) $r['category'] : null,
             'category_label' => $r['category_label'] !== null ? (string) $r['category_label'] : null,
+            // `purpose` — kadastrning XOM matni (audit uchun, tozalanmagan).
+            // `name` — shu matndan olingan KO'RSATISH nomi (tozalangan, harf
+            // registri o'zgartirilmagan) — bo'sh bo'lsa `null`, chaqiruvchi
+            // tomon `category_label`ga qaytadi (qarang: BuildingNameCleaner).
+            'purpose' => $purpose,
+            'name' => BuildingNameCleaner::clean($purpose),
             'address' => $r['address'] !== null ? (string) $r['address'] : null,
             'kadastr' => $r['kadastr'] !== null ? (string) $r['kadastr'] : null,
             'house_number' => $r['house_number'] !== null ? (string) $r['house_number'] : null,

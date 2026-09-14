@@ -83,6 +83,7 @@ class NearbyFinder
                b.street,
                b.street_id,
                b.mahalla_name,
+               b.purpose,
                ot.code     AS category,
                ot.name_cyr AS category_label,
                COALESCE(ot.is_social, false) AS is_social,
