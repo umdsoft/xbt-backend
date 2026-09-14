@@ -136,4 +136,11 @@ return [
         // Hozircha faqat Shovot ochiladi; kod barcha tumanlar uchun tayyor.
         'default_district_soato' => env('MAHALLA_EXECUTIVE_DISTRICT', '1733230'),
     ],
+
+    /*
+     * Аёллар жамланмасида кичик сонларни яшириш чегараси.
+     * Нозик тоифада бундан кам бўлса аниқ сон берилмайди — кичик маҳаллада
+     * «зўравонлик қурбони: 1» шахсни очиб беради (small-cell disclosure).
+     */
+    'ayollar_small_cell_threshold' => (int) env('MAHALLA_AYOLLAR_SMALL_CELL', 5),
 ];

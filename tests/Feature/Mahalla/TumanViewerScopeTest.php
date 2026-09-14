@@ -6,13 +6,13 @@ namespace Tests\Feature\Mahalla;
 
 use App\Domains\Mahalla\Support\ExecutiveScope;
 use App\Domains\Mahalla\Support\MahallaAccess;
-use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Tests\Feature\Mahalla\Concerns\ExecutiveScopeFixtures;
 use Tests\TestCase;
 
 /**
@@ -24,6 +24,7 @@ use Tests\TestCase;
 class TumanViewerScopeTest extends TestCase
 {
     use DatabaseTransactions;
+    use ExecutiveScopeFixtures;
 
     /** @var array<int, string> */
     protected array $connectionsToTransact = ['pgsql', 'auth', 'master', 'mahalla'];
@@ -527,27 +528,8 @@ class TumanViewerScopeTest extends TestCase
     }
 
     // ---------- fikstura yordamchilari ----------
-
-    protected function districtId(): string
-    {
-        $id = DB::connection('master')->table('districts')
-            ->where('soato_code', (string) config('mahalla.executive.default_district_soato'))
-            ->value('id');
-
-        $this->assertNotNull($id, 'Standart tuman (Shovot) bazada bo\'lishi kerak');
-
-        return (string) $id;
-    }
-
-    protected function anotherDistrictId(string $exclude): string
-    {
-        $id = DB::connection('master')->table('districts')
-            ->where('id', '!=', $exclude)->orderBy('sort_order')->value('id');
-
-        $this->assertNotNull($id, 'Ikkinchi tuman bazada bo\'lishi kerak');
-
-        return (string) $id;
-    }
+    // districtId/anotherDistrictId/makeUserWithRole/makeTumanUser/makeMahallaProfileUser
+    // -> Concerns\ExecutiveScopeFixtures (AyollarSummaryTest bilan umumiy).
 
     /**
      * Berilgan tumandagi HAQIQIY (kamida bitta ko'chasi bor) mahalla va shu
@@ -566,66 +548,5 @@ class TumanViewerScopeTest extends TestCase
         $this->assertNotNull($row, 'Tumanda ko\'chasi bor mahalla topilishi kerak');
 
         return [(string) $row->mahalla_id, (string) $row->street_id];
-    }
-
-    protected function makeUserWithRole(string $role): User
-    {
-        $userId = (string) Str::uuid();
-        $now = now();
-
-        DB::connection('auth')->table('users')->insert([
-            'id' => $userId, 'login' => 'test_'.substr($userId, 0, 8),
-            'password' => bcrypt('secret'), 'name' => 'ТЕСТ раҳбар',
-            'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
-        ]);
-
-        $systemId = DB::connection('auth')->table('systems')
-            ->where('code', 'mahalla')->value('id');
-
-        DB::connection('auth')->table('user_system_access')->insert([
-            'id' => (string) Str::uuid(),
-            'user_id' => $userId, 'system_id' => $systemId, 'role' => $role,
-            'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
-        ]);
-
-        return User::on('auth')->findOrFail($userId);
-    }
-
-    /**
-     * `tuman` roli + mahalla profili (district_id shu yerdan olinadi).
-     * `$districtId = null` — profilda tuman ko'rsatilmagan holat.
-     *
-     * `mahalla.users` ustunlari (haqiqiy bazada tekshirildi — migratsiya fayli
-     * `password`ni nullable deb ko'rsatadi, lekin haqiqiy jadvalda u NOT NULL,
-     * shuning uchun bu yerda ham beriladi):
-     * id, name (NOT NULL), login (NOT NULL, UNIQUE), password (NOT NULL), email?,
-     * district_id?, mahalla_id?, is_active, timestamps, deleted_at.
-     */
-    protected function makeTumanUser(?string $districtId, ?string $mahallaId = null): User
-    {
-        return $this->makeMahallaProfileUser('tuman', $districtId, $mahallaId);
-    }
-
-    /**
-     * Berilgan rol bilan `mahalla.users` profiliga ega user yaratadi
-     * (`makeTumanUser()`ning umumlashtirilgani — boshqa geo-qamrovli
-     * rollar, masalan `rais`/`hokim-yordamchisi`, uchun ham ishlatiladi).
-     */
-    protected function makeMahallaProfileUser(string $role, ?string $districtId, ?string $mahallaId = null): User
-    {
-        $user = $this->makeUserWithRole($role);
-
-        DB::connection('mahalla')->table('users')->insert([
-            'id' => $user->id,
-            'name' => 'ТЕСТ '.$role,
-            'login' => 'test_'.substr((string) $user->id, 0, 8),
-            'password' => bcrypt('secret'),
-            'district_id' => $districtId,
-            'mahalla_id' => $mahallaId,
-            'is_active' => true,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $user;
     }
 }
