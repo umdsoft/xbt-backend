@@ -94,10 +94,38 @@ class HouseholdController extends Controller
 
         // `client_uuid` bo'yicha idempotent: offline navbat bir xonadonni
         // bir necha marta yuborsa ham bitta yozuv hosil bo'ladi.
+        $existing = ! empty($data['client_uuid'])
+            ? Household::query()->where('client_uuid', $data['client_uuid'])->first()
+            : null;
+
+        /*
+            BIR BINODA BITTA XONADON.
+
+            Baza `households_building_unique` cheklovini tutadi. Bir
+            uydan IKKINCHI ayolni ro'yxatga olish esa mutlaqo oddiy
+            holat — ona va qizi, kelin va qaynona. Klient bunda yangi
+            xonadon yaratardi, `insert` cheklovga urilardi va faolga
+            «500 Internal Server Error» ko'rinardi. Ro'yxatga olish
+            shu joyda butunlay to'xtab qolardi.
+
+            Endi mavjud xonadon QAYTARILADI: ikkinchi ayol o'sha
+            xonadonga biriktiriladi. Klient javobdagi `id` ni olib,
+            ayolni shunga bog'laydi.
+        */
+        if ($existing === null && ! empty($data['building_id'])) {
+            $existing = Household::query()->where('building_id', $data['building_id'])->first();
+
+            if ($existing !== null) {
+                return response()->json(['household' => $existing, 'reused' => true], 200);
+            }
+        }
+
         $household = Household::query()->updateOrCreate(
-            $data['client_uuid'] ?? null
-                ? ['client_uuid' => $data['client_uuid']]
-                : ['id' => (string) Str::uuid()],
+            $existing !== null
+                ? ['id' => $existing->id]
+                : ($data['client_uuid'] ?? null
+                    ? ['client_uuid' => $data['client_uuid']]
+                    : ['id' => (string) Str::uuid()]),
             $data + ['created_by' => $request->user()->id],
         );
 
