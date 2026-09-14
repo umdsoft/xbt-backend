@@ -55,6 +55,11 @@ class MahallaDashboardController extends Controller
             'staff' => $this->mahallaStats->staff((string) $model->id),
             // Mikrolойiҳa holatlari (kartada ko'rsatish uchun) — {total, planned, in_progress, done, cancelled}
             'micro_projects' => $this->microProjects->statusCounts((string) $model->id),
+            // Passport uchun qo'shimcha uchta maydon (2026-09-14). Qo'shimcha
+            // MAYDONLAR — yuqoridagi hech biri o'zgarmaydi.
+            'streets_count' => $this->mahallaStats->streetsCount((string) $model->id),
+            'households_total' => $this->mahallaStats->householdsTotal((string) $model->id),
+            'mfy_building' => $this->mahallaStats->mfyBuilding((string) $model->id),
         ]);
     }
 }
