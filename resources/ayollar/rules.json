@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "note": "Rasmiy qogoz anketa (26 band) bilan 1:1. Toifalash zinapoyasi (category_ladder) OZGARMAGAN — faqat savol raqamlari xaritasi, bolimlar va qizil belgi manbalari rasmiy shaklga keltirildi.",
   "fields": {
     "_note": "Semantik kalit -> rasmiy anketa bandi. Zinapoya SHU kalitlar bilan ishlaydi, raqamlar bilan emas.",
@@ -624,6 +624,17 @@
     26
   ],
   "keyboard_questions": [],
+  "optional_when": [
+    {
+      "question": 10,
+      "note": "Ta'limda bo'lgan ayoldan BANDLIK holati majburiy emas. Zinapoya birinchi moslikda to'xtaydi va ta'lim qadamlari (3-7) bandlik qadamlaridan (8-22) OLDIN turadi: maktab o'quvchisi 6-qadamda, talaba 4-qadamda yopiladi va bandlik javobiga umuman yetib borilmaydi. Ya'ni javob toifaga ham, balans qatoriga ham ta'sir qilmaydi - uni talab qilish faqat ortiqcha to'siq. Shart 'yoq' dan BOSHQA qiymat: 'abituriyent' ham 23-qadamda yopiladi. Ta'lim javobi berilmagan bo'lsa ('ne' operatori bo'sh qiymatni rad etadi) bandlik MAJBURIY bo'lib qoladi - aks holda anketa zinapoyadan tushib, balansdan tashqarida qolardi.",
+      "when": {
+        "field": "education_status",
+        "op": "neq",
+        "value": "yoq"
+      }
+    }
+  ],
   "readonly_questions": [
     1,
     3,
