@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Auth\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -81,7 +82,7 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)],
+            'password' => array_merge(['required', 'confirmed'], PasswordPolicy::rules()),
         ]);
 
         $user = $request->user();
@@ -98,8 +99,34 @@ class AuthController extends Controller
             ]);
         }
 
-        // 'hashed' cast parolni saqлаšда хешлайди.
-        $user->forceFill(['password' => $data['password']])->save();
+        // Uzunlik va tarkib qoidasidan o'tadigan, lekin baribir oson
+        // topiladigan parollar (login yoki mahalla nomi ichida).
+        $rejected = PasswordPolicy::reject($data['password'], (string) $user->login);
+
+        if ($rejected !== null) {
+            throw ValidationException::withMessages(['password' => $rejected]);
+        }
+
+        // 'hashed' cast parolni saqlashda xeshlaydi.
+        $user->forceFill([
+            'password' => $data['password'],
+            'password_changed_at' => now(),
+        ])->save();
+
+        /*
+            JURNAL — PAROLSIZ.
+
+            Yozilmasa, «hisobim ishlamayapti» degan murojaatda
+            administratorda hech qanday iz qolmaydi: parol o'zgarganmi,
+            yo'qmi — bilib bo'lmaydi. Parolning O'ZI hech qachon
+            yozilmaydi, faqat o'zgarish fakti.
+        */
+        Log::channel('stack')->info('auth.password_changed', [
+            'user_id' => $user->id,
+            'login' => $user->login,
+            'ip' => $request->ip(),
+            'agent' => substr((string) $request->userAgent(), 0, 200),
+        ]);
 
         // Stateful (SPA sessiya) so'rovда: yangi hash bilan qayta autentifikatsiya +
         // sessiya id'sini almashtirish — shunda foydalanuvchi tizimdan chiqmaydi.

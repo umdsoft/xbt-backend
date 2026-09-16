@@ -9,6 +9,7 @@ use App\Domains\Ayollar\Services\AuditLogger;
 use App\Domains\Ayollar\Services\StaffProvisioner;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Http\Controllers\Controller;
+use App\Support\Auth\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -191,6 +192,10 @@ class StaffController extends Controller
 
         DB::connection('auth')->table('users')->where('id', $id)->update([
             'password' => bcrypt($password),
+            // Administrator tiklagani ham parol o'zgarishi — sana shu
+            // yerda ham yangilanadi, aks holda «oxirgi marta qachon
+            // o'zgargan?» degan savolga javob yarim bo'lardi.
+            'password_changed_at' => now(),
             'updated_at' => now(),
         ]);
 
@@ -230,7 +235,12 @@ class StaffController extends Controller
             'is_active' => ['boolean'],
             // Yaratishda ixtiyoriy (berilmasa tasodifiy hosil qilinadi),
             // tahrirlashda ham ixtiyoriy (berilmasa tegilmaydi).
-            'password' => ['nullable', 'string', 'min:8', 'max:72'],
+            //
+            // Qoida MARKAZIY: administrator qo'lda bergan parol ham
+            // foydalanuvchining o'zi qo'yadigan parol bilan bir xil
+            // talabdan o'tadi. Aks holda zaif parol admin orqali
+            // tizimga kirib kelardi.
+            'password' => array_merge(['nullable', 'max:72'], PasswordPolicy::rules()),
             'login' => [
                 'required', 'string', 'max:60', 'regex:/^[a-z0-9_.-]+$/',
                 Rule::unique('auth.users', 'login')->ignore($id),
