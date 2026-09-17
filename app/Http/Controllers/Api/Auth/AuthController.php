@@ -80,9 +80,24 @@ class AuthController extends Controller
      */
     public function changePassword(Request $request): JsonResponse
     {
+        /*
+            XATO MATNLARI O'QILADIGAN BO'LSIN.
+
+            Tarjima fayllari yo'q va Laravel xom kalitni qaytarardi:
+            «validation.password.numbers». Foydalanuvchining katta
+            qismi MFY faollari — ular uchun bu matn hech narsa
+            anglatmaydi va nima qilishni ham ko'rsatmaydi.
+        */
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => array_merge(['required', 'confirmed'], PasswordPolicy::rules()),
+        ], [
+            'current_password.required' => 'Жорий паролни киритинг.',
+            'password.required' => 'Янги паролни киритинг.',
+            'password.confirmed' => 'Янги парол такрори мос келмади.',
+            'password.min' => 'Парол камида '.PasswordPolicy::MIN_LENGTH.' белгидан иборат бўлсин.',
+            'password.letters' => 'Паролда камида битта ҳарф бўлсин.',
+            'password.numbers' => 'Паролда камида битта рақам бўлсин.',
         ]);
 
         $user = $request->user();
