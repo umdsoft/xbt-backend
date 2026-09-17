@@ -12,6 +12,7 @@ use App\Domains\Ayollar\Services\AnketaValidator;
 use App\Domains\Ayollar\Services\BalanceRefresher;
 use App\Domains\Ayollar\Services\CategoryResolver;
 use App\Domains\Ayollar\Services\QrService;
+use App\Domains\Ayollar\Support\AnketaFilters;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Domains\Ayollar\Support\Rules;
@@ -50,43 +51,7 @@ class AnketaController extends Controller
 
         $this->scope->apply($query, $request->user());
 
-        foreach (['category', 'status', 'age_group', 'balance_row', 'district_id', 'mahalla_id'] as $filter) {
-            if ($request->filled($filter)) {
-                $query->where($filter, $request->string($filter)->toString());
-            }
-        }
-
-        /*
-            QIZIL BELGI BO'YICHA FILTR.
-
-            Qizil qatorlar `balance_row` EMAS: ular alohida jadvalda
-            (`anketa_red_flags`) va bitta ayolda bir nechtasi bo'lishi
-            mumkin. Shuning uchun yuqoridagi oddiy `where` ular uchun
-            ishlamaydi.
-
-            Balans jadvalidagi qizil qatorga bosilganda ro'yxat shu
-            filtr bilan ochiladi.
-        */
-        if ($request->filled('red_flag')) {
-            $flag = $request->string('red_flag')->toString();
-
-            $query->whereHas('redFlags', fn ($q) => $q->where('flag_code', $flag));
-        }
-
-        // Qidiruv: F.I.Sh., ro'yxat raqami yoki QR token.
-        //
-        // JShShIR bo'yicha qidiruv ALOHIDA endpoint'da (`check-duplicate`):
-        // uni bu yerga qo'shish har qidiruvda hash hisoblashni va
-        // maxfiy maydonni so'rov satriga tushirishni anglatardi.
-        if ($request->filled('q')) {
-            $term = $request->string('q')->trim()->toString();
-
-            $query->where(function ($q) use ($term): void {
-                $q->where('reg_number', 'ilike', "%{$term}%")
-                    ->orWhere('qr_token', strtoupper($term))
-                    ->orWhereHas('woman', fn ($w) => $w->where('full_name_norm', 'ilike', '%'.mb_strtolower($term).'%'));
-            });
-        }
+        AnketaFilters::apply($query, $request);
 
         $perPage = min((int) $request->integer('per_page', 25), 100);
 

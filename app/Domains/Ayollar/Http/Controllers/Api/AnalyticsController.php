@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
 use App\Domains\Ayollar\Models\Anketa;
+use App\Domains\Ayollar\Support\AnketaFilters;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Domains\Ayollar\Support\Rules;
@@ -45,30 +46,128 @@ class AnalyticsController extends Controller
             $ids->where('district_id', $request->string('district_id')->toString());
         }
 
-        $questions = Rules::needQuestions();
+        /*
+            EHTIYOJ — «ha» deganlar SONI, javoblar taqsimoti emas.
+
+            Avval bu yer `answers->>'qN'` bo'yicha guruhlardi va ekranga
+            «true / false» chiqarardi. Ikki sababdan yaroqsiz edi:
+
+              1. «Yo'q» degan 4 900 kishi ehtiyoj emas — ular ro'yxatni
+                 to'ldirib, haqiqiy sonni ko'mib yuborardi;
+              2. 17-band OBYEKT saqlaydi (`{istak, joy}`) va `->>` uni
+                 butun JSON satr sifatida qaytarardi — ekranda
+                 `{"istak":true,"joy":"texnikum"}` ko'rinardi.
+
+            Endi har band uchun: nechta javob bor, nechtasida EHTIYOJ
+            bor, ulushi qancha, va ehtiyoj qayerda to'plangan.
+        */
         $result = [];
 
-        foreach ($questions as $q) {
-            // JSONB ichidagi javob bo'yicha guruhlash. `answers->>'q16'`
-            // GIN indeksdan foydalanmaydi, lekin bu so'rov kunda bir necha
-            // marta chaqiriladi va natija keshlanadi — optimallashtirish
-            // hozircha erta bo'lardi.
-            $rows = DB::connection('ayollar')->table('anketas')
-                ->whereIn('id', $ids)
-                ->whereRaw('answers ->> ? is not null', ["q{$q}"])
-                ->selectRaw('answers ->> ? as answer, count(*) as c', ["q{$q}"])
-                ->groupBy('answer')
-                ->orderByDesc('c')
-                ->limit(20)
-                ->get();
-
-            $result[] = [
-                'question' => $q,
-                'answers' => $rows->map(fn ($r) => ['value' => $r->answer, 'count' => (int) $r->c])->all(),
-            ];
+        foreach (Rules::needQuestions() as $q) {
+            $result[] = $this->needGroup($ids, $q, $request);
         }
 
         return response()->json(['needs' => $result]);
+    }
+
+    /**
+     * Bitta ehtiyoj bandining kesimi.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Anketa>  $ids
+     * @return array<string, mixed>
+     */
+    private function needGroup($ids, int $question, Request $request): array
+    {
+        $isGrouped = Rules::questionGroups($question) !== [];
+
+        // JSONB yo'li reyestr filtri bilan AYNAN BIR XIL bo'lishi shart:
+        // aks holda xaritadagi son bilan bosilgandan keyin ochilgan
+        // ro'yxat uzunligi mos kelmasdi.
+        $flag = AnketaFilters::needFlagSql($question);
+
+        $base = DB::connection('ayollar')->table('anketas')
+            ->whereIn('id', $ids)
+            ->whereRaw("{$flag} is not null");
+
+        $total = (clone $base)->count();
+
+        $yesFilter = fn ($q) => $q->whereRaw(AnketaFilters::needYesSql($question));
+
+        $need = (clone $base)->tap($yesFilter)->count();
+
+        return [
+            'question' => $question,
+            'title' => Rules::questionTitle($question),
+            'total' => $total,
+            'need' => $need,
+            'share' => $total > 0 ? round($need * 100 / $total, 1) : 0.0,
+            'breakdown' => $isGrouped ? $this->needBreakdown($base, $question, $yesFilter) : [],
+            'areas' => $this->needAreas($base, $yesFilter, $request),
+        ];
+    }
+
+    /**
+     * Guruhli bandning ichki taqsimoti — 17-bandda «qayerda o'qimoqchi».
+     *
+     * Aynan shu raqam rejalashtirishga kerak: «kasb-hunar istagi 1 200»
+     * degan son bilan hech narsa qilib bo'lmaydi, «texnikumda 700,
+     * monomarkazda 300» esa joy va o'rin sonini aytadi.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function needBreakdown($base, int $question, callable $yesFilter): array
+    {
+        $rows = (clone $base)->tap($yesFilter)
+            ->whereRaw("answers -> 'q{$question}' ->> 'joy' is not null")
+            ->selectRaw("answers -> 'q{$question}' ->> 'joy' as v, count(*) as c")
+            ->groupBy('v')->orderByDesc('c')->get();
+
+        return $rows->map(fn ($r) => [
+            'value' => $r->v,
+            'label' => Rules::label((string) $r->v),
+            'count' => (int) $r->c,
+        ])->all();
+    }
+
+    /**
+     * Ehtiyoj QAYERDA to'plangan.
+     *
+     * Doiraga qarab kesim o'zgaradi: viloyat rahbari tumanlarni
+     * ko'radi, tuman rahbari o'z MFYlarini. MFY faoliga bu ro'yxat
+     * ortiqcha — unda bitta hudud bor.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function needAreas($base, callable $yesFilter, Request $request): array
+    {
+        $level = $this->access->scopeLevel($request->user());
+        $byMahalla = $level !== AyollarAccess::SCOPE_REGION || $request->filled('district_id');
+
+        if ($level === AyollarAccess::SCOPE_MAHALLA) {
+            return [];
+        }
+
+        $column = $byMahalla ? 'mahalla_id' : 'district_id';
+        $table = $byMahalla ? 'master.mahallas' : 'master.districts';
+
+        $rows = (clone $base)->tap($yesFilter)
+            ->selectRaw("{$column} as id, count(*) as c")
+            ->groupBy('id')->orderByDesc('c')->limit(10)->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $names = DB::connection('master')->table($table)
+            ->whereIn('id', $rows->pluck('id')->all())
+            ->pluck('name_lat', 'id');
+
+        return $rows->map(fn ($r) => [
+            'id' => (string) $r->id,
+            'name' => $names[$r->id] ?? '—',
+            'count' => (int) $r->c,
+            'level' => $byMahalla ? 'mahalla' : 'district',
+        ])->all();
     }
 
     /**
