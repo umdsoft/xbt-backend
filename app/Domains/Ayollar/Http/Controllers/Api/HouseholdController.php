@@ -9,6 +9,7 @@ use App\Domains\Ayollar\Services\CadastreDirectory;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Http\Controllers\Controller;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -120,15 +121,76 @@ class HouseholdController extends Controller
             }
         }
 
-        $household = Household::query()->updateOrCreate(
-            $existing !== null
-                ? ['id' => $existing->id]
-                : ($data['client_uuid'] ?? null
-                    ? ['client_uuid' => $data['client_uuid']]
-                    : ['id' => (string) Str::uuid()]),
-            $data + ['created_by' => $request->user()->id],
-        );
+        /*
+            POYGA HOLATI — YUQORIDAGI TEKSHIRUV YETARLI EMAS.
+
+            Ikki faol (yoki bitta faolning ikki urinishi) bir vaqtda
+            bitta binoga yozsa, ikkalasi ham yuqorida «xonadon yo'q»
+            javobini oladi va ikkalasi ham `insert` qiladi. Biri
+            cheklovga uriladi.
+
+            2026-09-17 da shu sabab BIR KUNDA 989 ta «500» chiqdi va
+            u yolg'iz qolmadi: xonadon yaratilmagani uchun klient
+            uning `id` sini ololmadi, natijada 836 ta anketa va 36 ta
+            ayol so'rovi ham 404 bergan. Ya'ni bitta poyga butun
+            ro'yxatga olish zanjirini uzgan.
+
+            Shuning uchun cheklov XATO EMAS, JAVOB deb qaraladi:
+            kimdir bizdan oldin ulgurgan bo'lsa, o'sha yozuv
+            qaytariladi. Natija foydalanuvchi uchun bir xil —
+            ikkinchi ayol o'sha xonadonga biriktiriladi.
+        */
+        try {
+            $household = Household::query()->updateOrCreate(
+                $existing !== null
+                    ? ['id' => $existing->id]
+                    : ($data['client_uuid'] ?? null
+                        ? ['client_uuid' => $data['client_uuid']]
+                        : ['id' => (string) Str::uuid()]),
+                $data + ['created_by' => $request->user()->id],
+            );
+        } catch (QueryException $e) {
+            // 23505 — PostgreSQL `unique_violation`. Boshqa xatolar
+            // (ulanish, tur, cheklov) YUTILMAYDI: ular haqiqiy nosozlik.
+            if ($e->getCode() !== '23505') {
+                throw $e;
+            }
+
+            $household = $this->findConflicting($data);
+
+            if ($household === null) {
+                throw $e;
+            }
+
+            return response()->json(['household' => $household, 'reused' => true], 200);
+        }
 
         return response()->json(['household' => $household], 201);
+    }
+
+    /**
+     * Cheklovga urilgan so'rov qaysi yozuv bilan to'qnashdi.
+     *
+     * Ikki noyob cheklov bor — `client_uuid` va `building_id` —
+     * shuning uchun ikkalasi ham qaraladi. Topilmasa `null`: u holda
+     * to'qnashuv boshqa sababdan va xato yashirilmaydi.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function findConflicting(array $data): ?Household
+    {
+        if (! empty($data['client_uuid'])) {
+            $byUuid = Household::query()->where('client_uuid', $data['client_uuid'])->first();
+
+            if ($byUuid !== null) {
+                return $byUuid;
+            }
+        }
+
+        if (! empty($data['building_id'])) {
+            return Household::query()->where('building_id', $data['building_id'])->first();
+        }
+
+        return null;
     }
 }
