@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Http\Controllers\Api;
 
 use App\Domains\Ayollar\Models\Anketa;
+use App\Domains\Ayollar\Services\DailyChange;
 use App\Domains\Ayollar\Support\AnketaFilters;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
@@ -242,6 +243,20 @@ class AnalyticsController extends Controller
                     : null,
             ])->sortBy('quality')->values(),
         ]);
+    }
+
+    /**
+     * KUNLIK O'ZGARISH — tuman va MFY kesimida.
+     *
+     * «Tumanlar kesimi» jadvali JAMI sonni beradi va u savolga javob
+     * bermaydi: raqam BUGUN qancha o'sdi? Hisob-kitob va tanlovlar
+     * `DailyChange` da — kontroller faqat ruxsatni tekshiradi.
+     */
+    public function daily(Request $request, DailyChange $daily): JsonResponse
+    {
+        $this->authorize($request, 'ayollar.view');
+
+        return response()->json($daily->build($request));
     }
 
     /**
