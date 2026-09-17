@@ -4,19 +4,26 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\MobileAuthController;
+use App\Support\Auth\LoginThrottle;
 use Illuminate\Support\Facades\Route;
 
 /*
  * Markaziy identifikatsiya (Sanctum SPA). Barcha domen modullari shu API ostida.
  */
-// throttle:5,1 — brute-force himoyasi (daqiqada 5 urinish, IP bo'yicha).
+/*
+ * Kirish cheklovi — `LoginThrottle` (HISOB bo'yicha, IP bo'yicha EMAS).
+ *
+ * Avvalgi `throttle:5,1` faqat IPni sanardi va bitta idoradagi
+ * o'nlab faolni bir-birining xatosi uchun bloklardi. Sabab va uch
+ * qatlamli yangi qoida `app/Support/Auth/LoginThrottle.php` da.
+ */
 Route::post('/login', [AuthController::class, 'login'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:'.LoginThrottle::NAME)
     ->name('api.login');
 
-// Mobil (Sanctum API token) login — SPA sessiyadan alohida, xuddi shunday rate-limit.
+// Mobil (Sanctum API token) login — SPA sessiyadan alohida, xuddi shu qoida.
 Route::post('/mobile/login', [MobileAuthController::class, 'login'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:'.LoginThrottle::NAME)
     ->name('api.mobile.login');
 
 Route::middleware('auth:sanctum')->group(function () {
