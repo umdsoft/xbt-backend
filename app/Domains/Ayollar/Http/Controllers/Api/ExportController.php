@@ -12,9 +12,10 @@ use App\Domains\Ayollar\Models\Metric;
 use App\Domains\Ayollar\Models\RegionBalance;
 use App\Domains\Ayollar\Services\AuditLogger;
 use App\Domains\Ayollar\Services\QrService;
+use App\Domains\Ayollar\Support\AnketaFilters;
 use App\Domains\Ayollar\Support\AyollarAccess;
-use App\Domains\Ayollar\Support\BalanceFormXlsx;
 use App\Domains\Ayollar\Support\AyollarScope;
+use App\Domains\Ayollar\Support\BalanceFormXlsx;
 use App\Domains\Ayollar\Support\Rules;
 use App\Http\Controllers\Controller;
 use App\Support\SimpleXlsx;
@@ -251,9 +252,15 @@ class ExportController extends Controller
         $query = Anketa::query()->countable();
         $this->scope->apply($query, $request->user());
 
-        if ($request->filled('district_id')) {
-            $query->where('district_id', $request->string('district_id')->toString());
-        }
+        /*
+            EKRANDAGI FILTRLAR FAYLGA HAM TUSHADI.
+
+            Avval bu yer faqat `district_id` ni bilardi. Ehtiyojlar
+            xaritasidan 1 200 ta ayolni filtrlab kelgan foydalanuvchi
+            «Eksport» bosganda butun viloyat reyestrini olardi va
+            faylni qo'lda qayta filtrlashga majbur bo'lardi.
+        */
+        AnketaFilters::apply($query, $request);
 
         $mahallas = DB::connection('master')->table('mahallas')->pluck('name_lat', 'id');
         $districts = DB::connection('master')->table('districts')->pluck('name_lat', 'id');
