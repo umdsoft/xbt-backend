@@ -7,6 +7,7 @@ namespace App\Domains\Ayollar\Http\Controllers\Api;
 use App\Domains\Ayollar\Models\Anketa;
 use App\Domains\Ayollar\Services\DailyChange;
 use App\Domains\Ayollar\Support\AnketaFilters;
+use App\Domains\Ayollar\Support\AreaFilter;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Domains\Ayollar\Support\Rules;
@@ -43,9 +44,8 @@ class AnalyticsController extends Controller
         $ids = Anketa::query()->countable()->select('id');
         $this->scope->apply($ids, $request->user());
 
-        if ($request->filled('district_id')) {
-            $ids->where('district_id', $request->string('district_id')->toString());
-        }
+        // Yaroqsiz UUID SQL darajasida 500 berardi — `AreaFilter` ga qara.
+        AreaFilter::apply($ids, $request, 'district_id');
 
         /*
             EHTIYOJ — «ha» deganlar SONI, javoblar taqsimoti emas.
