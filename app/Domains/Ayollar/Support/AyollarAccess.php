@@ -120,6 +120,21 @@ class AyollarAccess
             'ayollar.anketa.create',
             'ayollar.anketa.update',
             'ayollar.sync',
+            /*
+                BITTA ANKETA PDF — HA; OMMAVIY EKSPORT — YO'Q.
+
+                `ayollar.export` butun reestrni PII bilan va balans
+                varaqalarini yuklashni ochadi. Faolga uni berish
+                mahalladagi HAMMA ayolning shaxsiy ma'lumotini bitta
+                faylga chiqarishga ruxsat bo'lardi.
+
+                O'zi ro'yxatga olgan bitta ayolning hujjati esa
+                faolning kundalik ishi: uni bosib chiqarib, papkaga
+                qo'yadi. Doira filtri (`AyollarScope`) begona
+                mahallani baribir bermaydi, PDFda suv belgisi bor va
+                har yuklash jurnalga tushadi.
+            */
+            'ayollar.anketa.pdf',
             // PII va qizil ismlar ATAYLAB yo'q — faol yig'adi, ko'rmaydi.
         ],
         self::ROLE_CHAIRMAN => [

@@ -105,9 +105,98 @@ final class Rules
         return self::all()['need_questions'] ?? [];
     }
 
+    /**
+     * SHARTLI IXTIYORIY BANDLAR — javoblarga qarab.
+     *
+     * `need_questions` band HAR DOIM ixtiyoriy deydi; bu esa javobga
+     * bog'liq. Masalan 10-band («Bandlik holati») ta'limda bo'lgan
+     * ayoldan so'ralmaydi.
+     *
+     * Eskiroq `rules.json` da bu bo'lim bo'lmasligi mumkin —
+     * o'shanda bo'sh ro'yxat qaytadi va xatti-harakat o'zgarmaydi.
+     *
+     * @return array<int, array{question: int, when: array<string, mixed>}>
+     */
+    public static function optionalWhen(): array
+    {
+        return self::all()['optional_when'] ?? [];
+    }
+
     /** @return array<int, int> */
     public static function sensitiveQuestions(): array
     {
         return self::all()['sensitive_questions'] ?? [];
+    }
+
+    /**
+     * BAND MATNI — EKRAN VA PDF UCHUN BITTA MANBA.
+     *
+     * Avval matnlar faqat frontendda yashardi va backend ularni
+     * bilmasdi. Natijada PDFda «1-savol», «2-savol» chiqardi va
+     * hujjatni o'qigan odam qaysi savolga javob berilganini qog'oz
+     * anketa bilan solishtirmasdan bila olmasdi.
+     */
+    public static function questionTitle(int $question): string
+    {
+        $title = self::all()['questions'][(string) $question]['title'] ?? null;
+
+        return is_string($title) && $title !== '' ? $title : $question.'-band';
+    }
+
+    /**
+     * Bir band ichidagi ichki savollar yorliqlari (2, 8, 17-bandlar).
+     *
+     * @return array<string, string>
+     */
+    public static function questionGroups(int $question): array
+    {
+        $groups = self::all()['questions'][(string) $question]['groups'] ?? [];
+
+        return is_array($groups) ? $groups : [];
+    }
+
+    /**
+     * Ko'p tanlovli bandning belgilari (26-band).
+     *
+     * @return array<string, string>
+     */
+    public static function questionOptions(int $question): array
+    {
+        $options = self::all()['questions'][(string) $question]['options'] ?? [];
+
+        return is_array($options) ? $options : [];
+    }
+
+    /**
+     * Qiymatning o'qiladigan nomi: `oila_qurmagan` -> «Oila qurmagan».
+     *
+     * `enums` da faqat KODLAR turadi, nomlar esa frontendda edi —
+     * shuning uchun PDFda xom kod chiqardi. Endi yorliqlar
+     * `rules.json` da va ikkala tomon o'shani o'qiydi.
+     *
+     * Topilmasa QIYMATNING O'ZI qaytadi: nomsiz qolgan yangi kodni
+     * yashirish uni «—» ga aylantirardi va javob YO'Q bo'lib
+     * ko'rinardi. Xom kod xunuk, lekin rost.
+     */
+    /**
+     * Qator boshqasining ICHIDAN chiqadimi — qog'ozdagi «шундан».
+     *
+     * Egasining kodini qaytaradi, mustaqil qator uchun `null`.
+     * «Shundan» qatori yig'indiga QO'SHILMAYDI: aks holda bir odam
+     * ikki marta sanalardi — masalan MTTga qatnaydigan bola «3–6 ёш»
+     * qatorida ham, «шундан, мактабгача таълим» qatorida ham.
+     */
+    public static function subRowOwner(string $code): ?string
+    {
+        $owner = self::all()['sub_rows'][$code] ?? null;
+
+        return is_string($owner) ? $owner : null;
+    }
+
+    public static function label(string $value): string
+    {
+        $label = self::all()['labels'][$value] ?? null;
+
+        return is_string($label) && $label !== '' ? $label : $value;
     }
 }

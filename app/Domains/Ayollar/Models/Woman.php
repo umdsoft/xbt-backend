@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Models;
 
 use App\Domains\Ayollar\Services\PiiCipher;
+use App\Domains\Ayollar\Concerns\ResolvesClientRef;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Woman extends Model
 {
     use HasUuids;
+    use ResolvesClientRef;
     use SoftDeletes;
 
     protected $connection = 'ayollar';

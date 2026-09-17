@@ -62,7 +62,7 @@ class AnketaValidator
         }
 
         // 2. Yosh guruhiga tegishli majburiy savollar to'ldirilgan.
-        foreach ($this->requiredFor($age) as $question) {
+        foreach ($this->requiredFor($age, $answers) as $question) {
             if (! $this->answered($answers, "q{$question}")) {
                 $errors[] = $this->err(
                     'required_missing',
@@ -141,21 +141,40 @@ class AnketaValidator
     /**
      * Shu yosh guruhi uchun majburiy savollar.
      *
-     * Hozircha yosh guruhining BARCHA savollari majburiy. Haqiqiy anketa
-     * kelganda ixtiyoriy savollar `rules.json` da belgilanadi — shuning
-     * uchun ro'yxat shu yerda ALOHIDA metodda, sxemaga aralashtirilmagan.
+     * Ikki xil ixtiyoriylik bor va ikkalasi ham shu yerda hisobga
+     * olinadi — aks holda server klientdan boshqacha o'ylardi va
+     * faol to'ldirgan anketa saqlanish paytida rad etilardi.
      *
+     * @param  array<string, mixed>  $answers
      * @return array<int, int>
      */
-    private function requiredFor(int $age): array
+    private function requiredFor(int $age, array $answers): array
     {
         $questions = $this->schema->forAge($age)['questions'];
 
-        // «Istak» savollari ixtiyoriy: ular balansga ta'sir qilmaydi,
-        // faqat ehtiyojlar xaritasini boyitadi. Majburiy qilinsa, faol
-        // javob bilmagan joyda tasodifiy variant tanlashga majbur
-        // bo'lardi va xarita yolg'on ma'lumot bilan to'lardi.
+        // «Istak» savollari HAR DOIM ixtiyoriy: ular balansga ta'sir
+        // qilmaydi, faqat ehtiyojlar xaritasini boyitadi. Majburiy
+        // qilinsa, faol javob bilmagan joyda tasodifiy variant
+        // tanlashga majbur bo'lardi va xarita yolg'on bilan to'lardi.
         $optional = Rules::needQuestions();
+
+        /*
+            SHARTLI IXTIYORIYLIK — javobga qarab.
+
+            10-band («Bandlik holati») ta'limda bo'lgan ayoldan
+            so'ralmaydi: zinapoya ta'lim qadamida yopiladi va bandlik
+            javobiga umuman yetib bormaydi.
+
+            Bu tekshiruv qo'shilmaganda klient bandni ixtiyoriy deb
+            ko'rsatardi, server esa o'sha anketani «10-savol
+            to'ldirilmagan» deb 422 bilan qaytarardi — faol nima
+            qilishni bilmay qolardi.
+        */
+        foreach (Rules::optionalWhen() as $rule) {
+            if ($this->resolver->isQuestionOptional((int) $rule['question'], $answers)) {
+                $optional[] = (int) $rule['question'];
+            }
+        }
 
         return array_values(array_diff($questions, $optional));
     }

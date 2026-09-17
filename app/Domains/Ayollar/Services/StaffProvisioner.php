@@ -138,14 +138,31 @@ class StaffProvisioner
     {
         // Chalkashadigan belgilar (0/O, 1/l/I) YO'Q: parol qog'ozga
         // yozib beriladi va faol uni planshetda qo'lda teradi.
-        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-        $out = '';
+        $letters = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+        $digits = '23456789';
 
-        for ($i = 0; $i < 12; $i++) {
-            $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        /*
+            HARF VA RAQAM KAFOLATLANADI.
+
+            Avval 12 belgi bitta alifbodan tanlanardi va natijada
+            har yettinchi parol RAQAMSIZ chiqardi. Markaziy siyosat
+            (PasswordPolicy) esa harf va raqamni talab qiladi — ya'ni
+            tizim o'zi bergan parol o'z qoidasidan o'tmasdi.
+        */
+        $pick = static fn (string $set, int $n): array => array_map(
+            static fn () => $set[random_int(0, strlen($set) - 1)],
+            range(1, $n),
+        );
+
+        $chars = [...$pick($letters, 9), ...$pick($digits, 3)];
+
+        // Raqamlar oxirida to'planib qolmasin — aks holda naqsh taxmin qilinadi.
+        for ($i = count($chars) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            [$chars[$i], $chars[$j]] = [$chars[$j], $chars[$i]];
         }
 
-        return $out;
+        return implode('', $chars);
     }
 
     /**

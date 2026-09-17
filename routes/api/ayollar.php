@@ -159,6 +159,9 @@ Route::middleware(['auth:sanctum', 'ayollar'])
         // ---------- Eksport ----------
         Route::get('/export/registry', [ExportController::class, 'registry'])->name('export.registry');
         Route::get('/export/balance/{type}/{id}', [ExportController::class, 'balance'])->name('export.balance');
+        // Rasmiy shakl ko'rinishidagi XLSX — qog'ozdagi bilan bir xil.
+        Route::get('/export/balance-form/{type}/{id}', [ExportController::class, 'balanceForm'])
+            ->name('export.balance_form');
         // Rasmiy hujjat — QR bilan. V bo'lim javoblari PDF'ga tushmaydi.
         Route::get('/export/anketa/{anketa}/pdf', [ExportController::class, 'anketaPdf'])->name('export.anketa_pdf');
     });

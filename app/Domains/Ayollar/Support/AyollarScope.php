@@ -97,6 +97,23 @@ class AyollarScope
         };
     }
 
+    /**
+     * VILOYAT BALANSI — FAQAT VILOYAT DOIRASIDAGILAR.
+     *
+     * Tuman yoki MFY darajasidagi xodim uchun viloyat yig'indisi o'z
+     * doirasidan TASHQARIDA: u qolgan 12 tumanning ma'lumotini ochadi.
+     * O'z tumanini ko'rish (`canAccessDistrict`) — kontekst, viloyatni
+     * ko'rish esa boshqa hududlarga kirish demak.
+     *
+     * 2026-09-14 gacha `BalanceController::region()` faqat
+     * `ayollar.view` ni tekshirardi va MFY faoli viloyat balansini
+     * bemalol ocha olardi.
+     */
+    public function canAccessRegion(User $user): bool
+    {
+        return $this->access->scopeLevel($user) === AyollarAccess::SCOPE_REGION;
+    }
+
     public function canAccessDistrict(User $user, string $districtId): bool
     {
         $staff = $this->access->staffFor($user);

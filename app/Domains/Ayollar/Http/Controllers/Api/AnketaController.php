@@ -56,6 +56,23 @@ class AnketaController extends Controller
             }
         }
 
+        /*
+            QIZIL BELGI BO'YICHA FILTR.
+
+            Qizil qatorlar `balance_row` EMAS: ular alohida jadvalda
+            (`anketa_red_flags`) va bitta ayolda bir nechtasi bo'lishi
+            mumkin. Shuning uchun yuqoridagi oddiy `where` ular uchun
+            ishlamaydi.
+
+            Balans jadvalidagi qizil qatorga bosilganda ro'yxat shu
+            filtr bilan ochiladi.
+        */
+        if ($request->filled('red_flag')) {
+            $flag = $request->string('red_flag')->toString();
+
+            $query->whereHas('redFlags', fn ($q) => $q->where('flag_code', $flag));
+        }
+
         // Qidiruv: F.I.Sh., ro'yxat raqami yoki QR token.
         //
         // JShShIR bo'yicha qidiruv ALOHIDA endpoint'da (`check-duplicate`):
@@ -151,7 +168,8 @@ class AnketaController extends Controller
             'gps_lng' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        $woman = Woman::query()->findOrFail($data['woman_id']);
+        // Havola klient UUID'si bo'lishi mumkin — `ResolvesClientRef`.
+        $woman = Woman::query()->byClientRef($data['woman_id'])->firstOrFail();
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $woman->mahalla_id, (string) $woman->district_id)) {
             abort(403, 'Bu MFY sizning doirangizda emas.');
@@ -329,7 +347,8 @@ class AnketaController extends Controller
             ];
         }
 
-        $woman = Woman::query()->findOrFail($item['woman_id']);
+        // Havola klient UUID'si bo'lishi mumkin — `ResolvesClientRef`.
+        $woman = Woman::query()->byClientRef($item['woman_id'])->firstOrFail();
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $woman->mahalla_id, (string) $woman->district_id)) {
             return ['client_uuid' => $item['client_uuid'], 'status' => 'forbidden'];

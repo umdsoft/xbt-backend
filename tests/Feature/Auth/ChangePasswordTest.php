@@ -85,4 +85,65 @@ class ChangePasswordTest extends TestCase
             'password_confirmation' => 'YangiParol2',
         ])->assertStatus(401);
     }
+
+    /**
+     * Siyosat: 10 belgi, harf va raqam.
+     *
+     * Eski qoida `min:8` edi va raqam talab qilmasdi — ya'ni `parolparol`
+     * o'tib ketardi.
+     */
+    public function test_qisqa_yoki_raqamsiz_parol_rad_etiladi(): void
+    {
+        $user = $this->makeUser('EskiParol1');
+
+        foreach (['Qisqa123', 'FaqatHarflar'] as $weak) {
+            $this->actingAs($user, 'sanctum')->postJson('/api/change-password', [
+                'current_password' => 'EskiParol1',
+                'password' => $weak,
+                'password_confirmation' => $weak,
+            ])->assertStatus(422)->assertJsonValidationErrors('password');
+        }
+
+        $fresh = User::on('auth')->findOrFail($user->id);
+        $this->assertTrue(Hash::check('EskiParol1', $fresh->password), 'Parol o‘zgarmasligi kerak edi.');
+    }
+
+    /**
+     * Login yoki mahalla nomi parol ichida bo'lmasin.
+     *
+     * Bu qoida validatsiya qoidasidan O'TIB KETADI (uzunlik va tarkib
+     * joyida), shuning uchun alohida tekshiriladi.
+     */
+    public function test_login_asosidagi_parol_rad_etiladi(): void
+    {
+        $user = User::create([
+            'login' => 'shovot_qiyot',
+            'name' => 'Парол синови',
+            'password' => 'EskiParol1',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/change-password', [
+            'current_password' => 'EskiParol1',
+            'password' => 'Qiyot202699',
+            'password_confirmation' => 'Qiyot202699',
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
+    }
+
+    /** Muvaffaqiyatli o'zgarishda sana yoziladi — administrator uchun yagona iz. */
+    public function test_ozgarish_sanasi_yoziladi(): void
+    {
+        $user = $this->makeUser('EskiParol1');
+
+        $this->assertNull($user->password_changed_at);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/change-password', [
+            'current_password' => 'EskiParol1',
+            'password' => 'Bahorgi7Shamol',
+            'password_confirmation' => 'Bahorgi7Shamol',
+        ])->assertOk();
+
+        $fresh = User::on('auth')->findOrFail($user->id);
+        $this->assertNotNull($fresh->password_changed_at);
+    }
 }

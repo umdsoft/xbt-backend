@@ -71,7 +71,11 @@ class WomanController extends Controller
             'client_uuid' => ['nullable', 'uuid'],
         ]);
 
-        $household = Household::query()->findOrFail($data['household_id']);
+        // HAVOLA IKKALA USTUN BO'YICHA: planshet o'z UUID'sini yuboradi,
+        // server esa yozuvni O'Z id'si bilan yaratib, klientnikini
+        // `client_uuid` ga yozadi. Faqat `id` bo'yicha qidirish har bir
+        // ayolni 404 bilan qaytarardi (`ResolvesClientRef` ga qarang).
+        $household = Household::query()->byClientRef($data['household_id'])->firstOrFail();
 
         if (! $this->scope->canAccessMahalla($request->user(), (string) $household->mahalla_id, (string) $household->district_id)) {
             abort(403, 'Bu MFY sizning doirangizda emas.');
