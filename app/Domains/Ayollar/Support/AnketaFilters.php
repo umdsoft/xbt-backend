@@ -83,9 +83,27 @@ final class AnketaFilters
      */
     public static function applyNeed(Builder $query, ?string $need): void
     {
+        if ($need === null || $need === '') {
+            return;
+        }
+
         $parsed = self::parseNeed($need);
 
+        /*
+            YAROQSIZ KALIT — BO'SH RO'YXAT, TO'LIQ RO'YXAT EMAS.
+
+            Avval bu yer yaroqsiz kalitni shunchaki e'tiborsiz
+            qoldirardi va foydalanuvchi BUTUN reyestrni ko'rardi —
+            ustida esa «Ehtiyoj bo'yicha…» degan tasma turardi. Ya'ni
+            5 330 ta ayol «bu ehtiyojga ega» bo'lib ko'rinardi.
+
+            Filtr tushunilmasa, javob «hech narsa» bo'lishi kerak:
+            bo'sh ro'yxat savol tug'diradi, noto'g'ri ro'yxat esa
+            yo'q.
+        */
         if ($parsed === null) {
+            $query->whereRaw('false');
+
             return;
         }
 
@@ -149,9 +167,9 @@ final class AnketaFilters
      * olmaydi). Shuning uchun shakl QAT'IY tekshiriladi va raqam
      * `int` ga aylantiriladi — inyeksiya uchun joy qolmaydi.
      *
-     * Noma'lum band ham rad etiladi: `q99` bo'sh ro'yxat emas, FILTRSIZ
-     * ro'yxat berardi va foydalanuvchi buni «ehtiyoj hammada bor» deb
-     * o'qirdi.
+     * `need_questions` ro'yxatida yo'q band ham rad etiladi — `q11`
+     * ehtiyoj bandi emas, u toifalash bandi. Rad etilgan kalit bilan
+     * nima bo'lishini `applyNeed()` hal qiladi: bo'sh ro'yxat.
      *
      * @return array{0: int, 1: ?string}|null
      */
