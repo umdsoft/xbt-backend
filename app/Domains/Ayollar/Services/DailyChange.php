@@ -64,14 +64,27 @@ final class DailyChange
         $kunlar = $this->dayLabels($from, $days);
         $perDay = $this->perDay($ids, $column, $from);
         $jami = $this->totals($ids, $column);
-        $nomlar = $this->names($table, array_keys($jami));
+
+        /*
+            HUDUDLAR RO'YXATI ANKETADAN EMAS, KADASTRDAN.
+
+            Avval qatorlar anketalardan guruhlanardi va bu eng muhim
+            qatorlarni YASHIRARDI: Qo'shko'pir va Xonqa tumanlarida
+            bitta ham anketa yo'q edi, shuning uchun ular jadvalda
+            umuman ko'rinmasdi.
+
+            Aynan shu ikki tuman rahbarga eng kerak — «kim ishlamayapti»
+            degan savolga javob o'sha yerda. Bo'sh qator «0» deb
+            turishi kerak, yo'q bo'lib ketishi emas.
+        */
+        $nomlar = $this->areas($request, $column);
 
         $rows = [];
 
-        foreach ($jami as $id => $total) {
+        foreach ($nomlar as $id => $name) {
             $counts = array_map(fn (string $kun) => $perDay[$id][$kun] ?? 0, $kunlar);
 
-            $rows[] = $this->row((string) $id, $nomlar[$id] ?? '—', $total, $counts, $level);
+            $rows[] = $this->row((string) $id, $name, $jami[$id] ?? 0, $counts, $level);
         }
 
         // Tartib: BUGUN eng ko'p qo'shgan hudud tepada. Rahbar ekranga
@@ -83,10 +96,12 @@ final class DailyChange
             'days' => $kunlar,
             'level' => $level,
             'rows' => $rows,
+            // «Jami» KO'RINADIGAN qatorlardan yig'iladi — ekrandagi
+            // ustun yig'indisi bilan doim mos tushishi uchun.
             'totals' => $this->row(
                 'jami',
                 'Jami',
-                array_sum($jami),
+                array_sum(array_column($rows, 'total')),
                 $this->sumColumns(array_column($rows, 'counts'), count($kunlar)),
                 $level,
             ),
@@ -194,19 +209,40 @@ final class DailyChange
     }
 
     /**
-     * @param  array<int, string>  $ids
-     * @return array<string, string>
+     * DOIRAGA KIRADIGAN BARCHA HUDUD — anketasi bor-yo'qligidan qat'i nazar.
+     *
+     * Ro'yxat kadastrdan (`master`) olinadi va foydalanuvchining
+     * doirasi bilan cheklanadi:
+     *
+     *   · viloyat rahbari + tuman tanlanmagan -> barcha tumanlar;
+     *   · tuman tanlangan yoki tuman xodimi   -> o'sha tumanning MFYlari;
+     *   · MFY faoli                           -> faqat o'z mahallasi.
+     *
+     * @return array<string, string>  id => nom
      */
-    private function names(string $table, array $ids): array
+    private function areas(Request $request, string $column): array
     {
-        if ($ids === []) {
-            return [];
+        $staff = $this->access->staffFor($request->user());
+        $level = $this->access->scopeLevel($request->user());
+
+        if ($column === 'district_id') {
+            return DB::connection('master')->table('districts')
+                ->orderBy('name_lat')->pluck('name_lat', 'id')->all();
         }
 
-        return DB::connection('master')->table($table)
-            ->whereIn('id', $ids)
-            ->pluck('name_lat', 'id')
-            ->all();
+        $query = DB::connection('master')->table('mahallas');
+
+        if ($level === AyollarAccess::SCOPE_MAHALLA) {
+            $query->where('id', $staff?->mahalla_id);
+        } elseif ($request->filled('district_id')) {
+            [, $uuid] = AreaFilter::read($request, 'district_id');
+            // Yaroqsiz UUIDda hech narsa qaytmasin — ro'yxat ham bo'sh.
+            $query->where('district_id', $uuid ?? '00000000-0000-0000-0000-000000000000');
+        } else {
+            $query->where('district_id', $staff?->district_id);
+        }
+
+        return $query->orderBy('name_lat')->pluck('name_lat', 'id')->all();
     }
 
     /**
