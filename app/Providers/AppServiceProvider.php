@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domains\Mahalla\Support\ExecutiveCache;
+use App\Support\Auth\LoginThrottle;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Support\Facades\Event;
@@ -31,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Kirish cheklovi — hisob bo'yicha, IP bo'yicha emas.
+        // Sababi va uch qatlami `LoginThrottle` da tushuntirilgan.
+        LoginThrottle::register();
+
         // AI tahlil navbati uchun rate-limit (daqiqadagi so'rov). AnalyzeObservationJob'dagi
         // RateLimited('mahalla-ai') shu limiterни ishlatadi — limit oshsa job avtomatik
         // kechiktirilib qayta navbatga qo'yiladi.
