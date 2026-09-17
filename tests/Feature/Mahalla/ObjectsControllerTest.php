@@ -65,7 +65,7 @@ class ObjectsControllerTest extends TestCase
                 'types' => [['code', 'name', 'count']],
                 'objects' => [[
                     'id', 'type_code', 'type_name', 'mahalla',
-                    'address', 'purpose', 'lat', 'lng', 'is_social',
+                    'address', 'purpose', 'name', 'lat', 'lng', 'is_social',
                 ]],
             ]);
 
@@ -293,7 +293,12 @@ class ObjectsControllerTest extends TestCase
 
         $match = $objects->firstWhere('id', $row->id);
         $this->assertNotNull($match, 'tanlangan bino javobda bo\'lishi kerak');
-        $this->assertSame($cleaned, $match['purpose'], 'purpose TOZALANGAN holda kelishi kerak, xom kadastr matni emas');
+        // `purpose` XOM qoladi — `socialObjects()` va `/nearby` bilan BIR XIL
+        // ma'no: tur noto'g'ri tasniflangan bo'lsa kadastrdagi asl yozuv
+        // ko'rinib tursin va tuzatish mumkin bo'lsin. Tozalangan ko'rsatish
+        // ismi ALOHIDA `name` maydonida keladi (aynan `/nearby` dagi juftlik).
+        $this->assertSame($row->purpose, $match['purpose'], 'purpose XOM kelishi kerak');
+        $this->assertSame($cleaned, $match['name'], 'name TOZALANGAN kelishi kerak');
     }
 
     /**

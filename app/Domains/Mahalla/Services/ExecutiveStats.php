@@ -370,11 +370,22 @@ final class ExecutiveStats
                     ? null
                     : ['id' => $r->mahalla_id, 'name' => $r->mahalla_name],
                 'address' => $r->address,
-                // Kadastr matnidan TOZALANGAN ism (qarang: BuildingNameCleaner,
-                // /nearby'da ham xuddi shu qoida) — tirnoq/bo'shliq olinadi,
-                // harf registri o'zgarmaydi. Tozalash bo'sh natija bersa
-                // (masalan `purpose` allaqachon bo'sh) xom qiymatga qaytiladi.
-                'purpose' => BuildingNameCleaner::clean($r->purpose) ?? $r->purpose,
+                /*
+                 * `purpose` XOM qoladi — `socialObjects()` va `/nearby` bilan
+                 * BIR XIL ma'no. U yerdagi izoh sababini aytadi: tur noto'g'ri
+                 * tasniflangan bo'lsa kadastrdagi asl yozuvdan ko'rinib tursin
+                 * va tuzatish mumkin bo'lsin. Uni tozalangan qiymat bilan
+                 * ALMASHTIRISH shu imkoniyatni yo'q qilardi va bitta obyekt
+                 * ikki endpointda ikki xil ko'rinardi.
+                 */
+                'purpose' => $r->purpose,
+                /*
+                 * Ko'rsatish uchun tozalangan ism — AYNAN `/nearby` dagi
+                 * qoida (`NearbyController::presentPoint`): tirnoq va ortiqcha
+                 * bo'shliq olinadi, harf registri O'ZGARMAYDI. Bo'sh bo'lsa
+                 * `null` — chaqiruvchi tomon `type_name` ga qaytadi.
+                 */
+                'name' => BuildingNameCleaner::clean($r->purpose),
                 'lat' => $r->lat === null ? null : (float) $r->lat,
                 'lng' => $r->lng === null ? null : (float) $r->lng,
                 'is_social' => (bool) $r->is_social,
