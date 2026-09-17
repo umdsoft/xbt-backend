@@ -105,6 +105,23 @@ final class Rules
         return self::all()['need_questions'] ?? [];
     }
 
+    /**
+     * SHARTLI IXTIYORIY BANDLAR — javoblarga qarab.
+     *
+     * `need_questions` band HAR DOIM ixtiyoriy deydi; bu esa javobga
+     * bog'liq. Masalan 10-band («Bandlik holati») ta'limda bo'lgan
+     * ayoldan so'ralmaydi.
+     *
+     * Eskiroq `rules.json` da bu bo'lim bo'lmasligi mumkin —
+     * o'shanda bo'sh ro'yxat qaytadi va xatti-harakat o'zgarmaydi.
+     *
+     * @return array<int, array{question: int, when: array<string, mixed>}>
+     */
+    public static function optionalWhen(): array
+    {
+        return self::all()['optional_when'] ?? [];
+    }
+
     /** @return array<int, int> */
     public static function sensitiveQuestions(): array
     {

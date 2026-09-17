@@ -131,6 +131,40 @@ class CategoryResolver
      * @param  array<string, mixed>  $answers
      * @return array<int, array{code: string, source_question: int}>
      */
+    /**
+     * Band SHU JAVOBLAR bilan majburiy emasmi (`rules.json` -> `optional_when`).
+     *
+     * NEGA SHU SINFDA: shart tekshirgichi (`matches`) va maydon
+     * yechgichi (`valueOf`) allaqachon shu yerda. Ularni ikkinchi
+     * marta yozish ikki xil talqin degani bo'lardi — zinapoya
+     * `neq` ni bir xil, tekshirgich boshqacha tushunib qolishi
+     * mumkin edi.
+     *
+     * NIMA UCHUN KERAK: 10-band («Bandlik holati») ta'limda bo'lgan
+     * ayoldan so'ralmaydi — zinapoya ta'lim qadamida (3–7) yopiladi
+     * va bandlik javobiga yetib bormaydi. Klient buni biladi;
+     * server ham bilishi SHART, aks holda faol tashlab ketgan bandni
+     * server «to'ldirilmagan» deb rad etardi.
+     *
+     * @param  array<string, mixed>  $answers
+     */
+    public function isQuestionOptional(int $question, array $answers): bool
+    {
+        foreach (Rules::optionalWhen() as $rule) {
+            if ((int) $rule['question'] !== $question) {
+                continue;
+            }
+
+            $actual = $this->valueOf($rule['when']['field'], $answers, null);
+
+            if ($this->matches($rule['when'], $actual)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function redFlagsFor(array $answers): array
     {
         $flags = [];
