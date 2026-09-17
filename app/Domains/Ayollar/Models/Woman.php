@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\Ayollar\Models;
 
-use App\Domains\Ayollar\Services\PiiCipher;
 use App\Domains\Ayollar\Concerns\ResolvesClientRef;
+use App\Domains\Ayollar\Services\PiiCipher;
+use App\Support\Text\PersonName;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -52,6 +53,28 @@ class Woman extends Model
     protected $hidden = [
         'pinfl_encrypted', 'passport_encrypted', 'phone_encrypted', 'pinfl_hash',
     ];
+
+    /**
+     * Ro'yxatlarda ko'rsatiladigan F.I.Sh.
+     *
+     * SAQLANGAN QIYMAT O'ZGARMAYDI — `full_name` faol qanday yozgan
+     * bo'lsa, shundayligicha qoladi (hujjatdagi asl shakl). Bu esa
+     * faqat KO'RSATISH uchun: bitta jadvalda «АБДУЛЛАЕВА САНОБАР»,
+     * «Salayeva Halima» va «bobojonova soxiba» yonma-yon turganda
+     * ro'yxatni o'qib ham, saralab ham bo'lmaydi.
+     *
+     * Alohida maydon, `full_name` ning ustiga yozilmaydi: klient
+     * qaysi birini ko'rsatishni o'zi hal qiladi va asl yozuv
+     * kerak bo'lganda qo'lda qoladi.
+     */
+    protected $appends = ['full_name_display'];
+
+    protected function fullNameDisplay(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => PersonName::standard($this->attributes['full_name'] ?? null),
+        );
+    }
 
     protected function casts(): array
     {
