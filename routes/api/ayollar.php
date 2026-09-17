@@ -94,10 +94,20 @@ Route::middleware(['auth:sanctum', 'ayollar'])
 
         // ---------- Balans ----------
         Route::get('/balances/region', [BalanceController::class, 'region'])->name('balances.region');
-        Route::get('/balances/district/{district}', [BalanceController::class, 'district'])->name('balances.district');
+        /*
+         * `whereUuid` — UUID ustunlariga YAROQSIZ qiymat tushmasin.
+         *
+         * Bu ustunlar PostgreSQLda `uuid` turida va `/balances/district/yoq`
+         * SQL darajasida XATO, ya'ni 500 berardi. Eskirgan havola yoki
+         * qo'lda tahrirlangan URL yetarli edi — hujum shart emas.
+         * Endi bunday yo'l marshrutga UMUMAN tushmaydi (404).
+         */
+        Route::get('/balances/district/{district}', [BalanceController::class, 'district'])
+            ->whereUuid('district')->name('balances.district');
         Route::get('/balances/district/{district}/mahallas', [BalanceController::class, 'mahallasOfDistrict'])
-            ->name('balances.district.mahallas');
-        Route::get('/balances/mahalla/{mahalla}', [BalanceController::class, 'mahalla'])->name('balances.mahalla');
+            ->whereUuid('district')->name('balances.district.mahallas');
+        Route::get('/balances/mahalla/{mahalla}', [BalanceController::class, 'mahalla'])
+            ->whereUuid('mahalla')->name('balances.mahalla');
 
         Route::post('/balances/{type}/{id}/close', [BalanceController::class, 'close'])->name('balances.close');
         Route::post('/balances/{type}/{id}/sign', [BalanceController::class, 'sign'])->name('balances.sign');

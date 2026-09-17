@@ -21,8 +21,11 @@ use Illuminate\Http\Request;
  */
 final class AnketaFilters
 {
-    /** To'g'ridan-to'g'ri ustunga tushadigan filtrlar. */
-    private const SIMPLE = ['category', 'status', 'age_group', 'balance_row', 'district_id', 'mahalla_id'];
+    /** To'g'ridan-to'g'ri ustunga tushadigan MATNLI filtrlar. */
+    private const SIMPLE = ['category', 'status', 'age_group', 'balance_row'];
+
+    /** UUID turidagi ustunlar — shakli tekshirilishi SHART. */
+    private const AREA = ['district_id', 'mahalla_id'];
 
     /**
      * @param  Builder<\App\Domains\Ayollar\Models\Anketa>  $query
@@ -33,6 +36,12 @@ final class AnketaFilters
             if ($request->filled($filter)) {
                 $query->where($filter, $request->string($filter)->toString());
             }
+        }
+
+        // Hudud filtri ALOHIDA: ustun `uuid` turida va yaroqsiz
+        // qiymat SQL darajasida 500 berardi. Sabab `AreaFilter` da.
+        foreach (self::AREA as $filter) {
+            AreaFilter::apply($query, $request, $filter);
         }
 
         /*

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Ayollar\Services;
 
 use App\Domains\Ayollar\Models\Anketa;
+use App\Domains\Ayollar\Support\AreaFilter;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ final class DailyChange
      */
     public function build(Request $request): array
     {
-        $days = max(2, min((int) $request->integer('days', self::DEFAULT_DAYS), self::MAX_DAYS));
+        $days = self::days($request);
         $from = Carbon::today()->subDays($days - 1);
 
         [$column, $table, $level] = $this->cut($request);
@@ -57,9 +58,8 @@ final class DailyChange
         $ids = Anketa::query()->countable()->select('id');
         $this->scope->apply($ids, $request->user());
 
-        if ($request->filled('district_id')) {
-            $ids->where('district_id', $request->string('district_id')->toString());
-        }
+        // Yaroqsiz UUID SQL darajasida 500 berardi — `AreaFilter` ga qara.
+        AreaFilter::apply($ids, $request, 'district_id');
 
         $kunlar = $this->dayLabels($from, $days);
         $perDay = $this->perDay($ids, $column, $from);
@@ -91,6 +91,29 @@ final class DailyChange
                 $level,
             ),
         ];
+    }
+
+    /**
+     * DAVR — kunlarda.
+     *
+     * Kamida 2 kun: «kecha» ustuni bo'lmasa, farqni hisoblab
+     * bo'lmaydi va ekranning asosiy ma'nosi yo'qoladi.
+     *
+     * Ma'nosiz qiymat (`days=abc`) DEFAULTga qaytadi. Avval
+     * `integer()` uni 0 deb o'qib, eng kichik chegaraga — 2 kunga
+     * tushirardi: foydalanuvchi 7 kunlik ekranni so'rab, ikki
+     * ustunli jadval olardi va sababini bilmasdi.
+     */
+    public static function days(Request $request): int
+    {
+        $raw = $request->query('days');
+        $asked = is_numeric($raw) ? (int) $raw : self::DEFAULT_DAYS;
+
+        if ($asked < 1) {
+            $asked = self::DEFAULT_DAYS;
+        }
+
+        return max(2, min($asked, self::MAX_DAYS));
     }
 
     /**
