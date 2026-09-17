@@ -15,6 +15,7 @@ use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictGeoJsonController
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\DistrictListController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ExecutiveProjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\MahallaDashboardController;
+use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObjectsController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ObodDashboardController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\ScoringController;
 use App\Domains\Mahalla\Http\Controllers\Api\Executive\SocialObjectsController;
@@ -166,6 +167,13 @@ Route::middleware(['auth:sanctum', 'system.access:mahalla'])
                 // URL oxirida qo'llab-quvvatlaydi.
                 Route::get('/districts/{district}/social-objects', SocialObjectsController::class)
                     ->name('district.social-objects')
+                    ->whereUuid('district');
+
+                // Radiussiz, butun tuman: BARCHA turar-joy bo'lmagan obyektlar
+                // (ijtimoiylari `is_social: true` bayrog'i bilan belgilangan
+                // holda). `/nearby` 600 ta bilan kesiladi — bu yerda kesilmaydi.
+                Route::get('/districts/{district}/objects', ObjectsController::class)
+                    ->name('district.objects')
                     ->whereUuid('district');
 
                 // «Raqamli mahalla» skoring — mahallalar reytingi + kvadrant.

@@ -281,6 +281,7 @@ class TumanViewerScopeTest extends TestCase
         return [
             'dashboard' => ['/api/mahalla/executive/districts/%s'],
             'social-objects' => ['/api/mahalla/executive/districts/%s/social-objects'],
+            'objects' => ['/api/mahalla/executive/districts/%s/objects'],
             'geojson' => ['/api/mahalla/executive/districts/%s/geojson'],
             'scoring' => ['/api/mahalla/executive/scoring/%s'],
         ];

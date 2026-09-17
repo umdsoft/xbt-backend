@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Mahalla\Services;
 
+use App\Domains\Mahalla\Support\BuildingNameCleaner;
 use App\Domains\Mahalla\Support\ExecutiveCache;
 use App\Domains\Mahalla\Support\MahallaZones;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -285,6 +287,97 @@ final class ExecutiveStats
                 'purpose' => $r->purpose,
                 'lat' => $r->lat === null ? null : (float) $r->lat,
                 'lng' => $r->lng === null ? null : (float) $r->lng,
+            ])
+            ->all();
+
+        return [
+            'total' => count($objects),
+            'types' => $types,
+            'objects' => $objects,
+        ];
+    }
+
+    /**
+     * Tuman ichidagi BARCHA turar-joy BO'LMAGAN obyektlar — `socialObjects()`
+     * dan farqli, `t.is_social` bilan cheklanmaydi.
+     *
+     * Nega kerak: xaritadagi `/nearby` radius bo'yicha ishlaydi va 600 tadan
+     * qattiq kesiladi — Shovotda 1000/3000/5000 metrda ham doim aynan 600
+     * qaytadi (`truncated: true`), ya'ni butun tumanni hech qachon ko'rsata
+     * olmaydi. Bu yerda esa ro'yxat RADIUSSIZ, butunicha — rahbar "barcha
+     * MFY binosi" kabi savolga radius bilan o'ynamasdan javob topadi.
+     *
+     * Filtr `b.type = 'non_residential'` — kadastr darajasidagi ustun,
+     * `object_types.is_social` bilan ARALASHTIRILMAYDI: bu ancha kattaroq
+     * to'plam (Shovotda ~1600 ta, ijtimoiylari ~113 tasi shu ichida). Har
+     * obyektda qo'shimcha `is_social` bayrog'i bor — mijoz ijtimoiylarini
+     * xaritada boshqacha stilda ko'rsatishi uchun.
+     *
+     * Javob shakli `socialObjects()` bilan ATAYLAB bir xil (`total`, `types`,
+     * `objects` — bir xil maydon nomlari) — veb mijozning shu shakl uchun
+     * yozilgan tiplari qayta ishlatiladi.
+     *
+     * @return array{total: int, types: array<int, mixed>, objects: array<int, mixed>}
+     */
+    public function objects(string $districtId, ?string $mahallaId = null): array
+    {
+        return ExecutiveCache::remember(
+            "objects:{$districtId}:".($mahallaId ?? 'all'),
+            fn () => $this->buildObjects($districtId, $mahallaId),
+        );
+    }
+
+    /**
+     * `buildSocialObjects()` bilan SQL shaklan juda o'xshash, lekin ATAYLAB
+     * mustaqil: filtr sharti boshqa (`b.type` vs `t.is_social`) va natijada
+     * qo'shimcha `is_social` ustuni bor. Ikkalasini bitta umumiy metodga
+     * majburlash shart bo'lmagan shartli mantiq (parametr bilan filtrni
+     * tanlash) qo'shardi — ishlab turgan `socialObjects()`ni bu o'zgarish
+     * xavfiga qo'yishga arzimaydi (production filialida ishlaydi).
+     *
+     * @return array{total: int, types: array<int, mixed>, objects: array<int, mixed>}
+     */
+    private function buildObjects(string $districtId, ?string $mahallaId): array
+    {
+        $base = fn () => DB::connection('master')->table('buildings as b')
+            ->join('object_types as t', 't.id', '=', 'b.object_type_id')
+            ->where('b.district_id', $districtId)
+            ->where('b.type', 'non_residential')
+            ->when($mahallaId !== null, fn ($q) => $q->where('b.mahalla_id', $mahallaId));
+
+        $types = $base()
+            ->groupBy('t.code', 't.name_cyr', 't.sort_order')
+            ->orderBy('t.sort_order')
+            ->selectRaw('t.code, t.name_cyr as name, count(*) as n')
+            ->get()
+            ->map(fn ($r) => ['code' => $r->code, 'name' => $r->name, 'count' => (int) $r->n])
+            ->all();
+
+        $objects = $base()
+            ->leftJoin('mahallas as m', 'm.id', '=', 'b.mahalla_id')
+            ->orderBy('t.sort_order')
+            ->orderBy('m.name_cyr')
+            ->get([
+                'b.id', 't.code as type_code', 't.name_cyr as type_name',
+                'm.id as mahalla_id', 'm.name_cyr as mahalla_name',
+                'b.address', 'b.purpose', 'b.lat', 'b.lng', 't.is_social',
+            ])
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type_code' => $r->type_code,
+                'type_name' => $r->type_name,
+                'mahalla' => $r->mahalla_id === null
+                    ? null
+                    : ['id' => $r->mahalla_id, 'name' => $r->mahalla_name],
+                'address' => $r->address,
+                // Kadastr matnidan TOZALANGAN ism (qarang: BuildingNameCleaner,
+                // /nearby'da ham xuddi shu qoida) — tirnoq/bo'shliq olinadi,
+                // harf registri o'zgarmaydi. Tozalash bo'sh natija bersa
+                // (masalan `purpose` allaqachon bo'sh) xom qiymatga qaytiladi.
+                'purpose' => BuildingNameCleaner::clean($r->purpose) ?? $r->purpose,
+                'lat' => $r->lat === null ? null : (float) $r->lat,
+                'lng' => $r->lng === null ? null : (float) $r->lng,
+                'is_social' => (bool) $r->is_social,
             ])
             ->all();
 
@@ -657,7 +750,7 @@ final class ExecutiveStats
      *
      * @param  array{today_start_utc: Carbon, week_start_utc: Carbon}  $period
      */
-    private function changeQuery(array $period): \Illuminate\Database\Query\Builder
+    private function changeQuery(array $period): Builder
     {
         return DB::connection('mahalla')->table('zone_observations as o')
             ->join('houses as h', 'h.id', '=', 'o.house_id')
