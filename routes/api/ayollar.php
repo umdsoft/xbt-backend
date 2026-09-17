@@ -107,6 +107,10 @@ Route::middleware(['auth:sanctum', 'ayollar'])
         Route::get('/analytics/needs', [AnalyticsController::class, 'needs'])->name('analytics.needs');
         Route::get('/analytics/activists', [AnalyticsController::class, 'activists'])->name('analytics.activists');
         Route::get('/analytics/pace', [AnalyticsController::class, 'pace'])->name('analytics.pace');
+
+        // Kunlik o'zgarish — tuman va MFY kesimida. `district_id`
+        // berilsa kesim MFYlarga tushadi.
+        Route::get('/analytics/daily', [AnalyticsController::class, 'daily'])->name('analytics.daily');
         Route::get('/analytics/red', [AnalyticsController::class, 'redComposition'])->name('analytics.red');
 
         // ---------- Ish rejasi ----------
