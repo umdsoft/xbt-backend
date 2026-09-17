@@ -150,21 +150,30 @@ class AnalyticsController extends Controller
         $column = $byMahalla ? 'mahalla_id' : 'district_id';
         $table = $byMahalla ? 'master.mahallas' : 'master.districts';
 
+        /*
+            TAXALLUS `area_id` — `id` EMAS.
+
+            `anketas` jadvalining O'ZIDA `id` ustuni bor. `... as id`
+            deb nomlab `group by id` yozilganda PostgreSQL chiqish
+            taxallusini emas, KIRISH ustunini oladi va har anketa
+            alohida guruh bo'lib qoladi. Ekranda bu shunday ko'rindi:
+            bitta tuman ro'yxatda uch marta, har safar «1» bilan.
+        */
         $rows = (clone $base)->tap($yesFilter)
-            ->selectRaw("{$column} as id, count(*) as c")
-            ->groupBy('id')->orderByDesc('c')->limit(10)->get();
+            ->selectRaw("{$column} as area_id, count(*) as c")
+            ->groupBy($column)->orderByDesc('c')->limit(10)->get();
 
         if ($rows->isEmpty()) {
             return [];
         }
 
         $names = DB::connection('master')->table($table)
-            ->whereIn('id', $rows->pluck('id')->all())
+            ->whereIn('id', $rows->pluck('area_id')->all())
             ->pluck('name_lat', 'id');
 
         return $rows->map(fn ($r) => [
-            'id' => (string) $r->id,
-            'name' => $names[$r->id] ?? '—',
+            'id' => (string) $r->area_id,
+            'name' => $names[$r->area_id] ?? '—',
             'count' => (int) $r->c,
             'level' => $byMahalla ? 'mahalla' : 'district',
         ])->all();
