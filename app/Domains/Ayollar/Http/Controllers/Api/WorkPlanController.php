@@ -8,6 +8,7 @@ use App\Domains\Ayollar\Models\Anketa;
 use App\Domains\Ayollar\Models\Woman;
 use App\Domains\Ayollar\Models\WorkPlan;
 use App\Domains\Ayollar\Services\SensitiveAccessService;
+use App\Domains\Ayollar\Support\AreaFilter;
 use App\Domains\Ayollar\Support\AyollarAccess;
 use App\Domains\Ayollar\Support\AyollarScope;
 use App\Http\Controllers\Controller;
@@ -38,10 +39,14 @@ class WorkPlanController extends Controller
         $query = WorkPlan::query()->with('woman:id,full_name,mahalla_id');
         $this->scope->apply($query, $request->user());
 
-        foreach (['status', 'district_id', 'mahalla_id'] as $filter) {
-            if ($request->filled($filter)) {
-                $query->where($filter, $request->string($filter)->toString());
-            }
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->toString());
+        }
+
+        // Hudud ustunlari `uuid` turida: xom matn SQL darajasida 500
+        // berardi. Sabab va qaror `AreaFilter` da.
+        foreach (['district_id', 'mahalla_id'] as $filter) {
+            AreaFilter::apply($query, $request, $filter);
         }
 
         // Ismlarni ko'ra olmaydigan rol uchun ular OLIB TASHLANADI —
@@ -58,7 +63,24 @@ class WorkPlanController extends Controller
             });
         }
 
-        return response()->json($page + ['names_hidden' => ! $canSeeNames]);
+        /*
+            `toArray()` — SHART.
+
+            `$page` obyekt (`LengthAwarePaginator`), massiv emas.
+            PHP 8 da `obyekt + massiv` — TypeError, ya'ni 500. Ekranda
+            bu «Ma'lumot yuklanmadi · Server Error» bo'lib chiqardi.
+
+            Nega bugungacha sezilmadi: `ayollar.workplan.view` faqat
+            IKKI rolda bor — «Tuman oila va xotin-qizlar bo'limi» va
+            «Viloyat tahlilchisi». Ikkalasida ham hisob yo'q edi,
+            administratorda esa bu huquq yo'q va menyu bandi unga
+            umuman ko'rinmasdi. Sahifa hech qachon ochilmagan.
+
+            `toArray()` paginator'ning odatdagi tuzilishini beradi
+            (`data`, `total`, `current_page`…) — SPA aynan shuni
+            o'qiydi.
+        */
+        return response()->json($page->toArray() + ['names_hidden' => ! $canSeeNames]);
     }
 
     public function store(Request $request): JsonResponse
