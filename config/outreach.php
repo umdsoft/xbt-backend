@@ -64,6 +64,13 @@ return [
         // Circuit breaker: this many consecutive failed attempts stops everything.
         'breaker_consecutive_failures' => 5,
 
+        // Preflight (outreach:send-preflight): the public IP letters leave from,
+        // the name Mailcow introduces itself with, and the DKIM selector.
+        'egress_ip' => env('OUTREACH_EGRESS_IP', '89.249.62.68'),
+        'helo_name' => env('OUTREACH_HELO_NAME', 'mail.digital-xorazm.uz'),
+        'dkim_selector' => env('OUTREACH_DKIM_SELECTOR', 'dkim'),
+        'test_from' => env('OUTREACH_PREFLIGHT_FROM'),
+
         // Envelope sender for bounces (a Mailcow mailbox read by the poller).
         'bounce_address' => env('OUTREACH_BOUNCE_ADDRESS'),
 

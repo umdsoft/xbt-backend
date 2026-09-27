@@ -3,6 +3,7 @@
 use App\Console\Commands\PruneInteriorPhotos;
 use App\Domains\Advisor\Outreach\Console\PollInboxCommand;
 use App\Domains\Advisor\Outreach\Console\SendDueLettersCommand;
+use App\Domains\Advisor\Outreach\Console\SendPreflightCommand;
 use App\Console\Commands\ReanalyzeStuckObservations;
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
 use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
@@ -56,6 +57,7 @@ ConsoleApplication::starting(function ($artisan) {
     // Advisor outreach: automatic sending of approved letters.
     $artisan->resolve(SendDueLettersCommand::class);
     $artisan->resolve(PollInboxCommand::class);
+    $artisan->resolve(SendPreflightCommand::class);
 });
 
 /*
