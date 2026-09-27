@@ -42,6 +42,8 @@ class SendDispatchTest extends OutreachTestCase
         // The dev DB may hold real/demo mailboxes; tests use only their own
         // (rolled back with the transaction).
         Sender::query()->update(['active' => false]);
+        // Likewise park letters already queued in the dev DB (e.g. DEMO series).
+        Message::query()->whereIn('status', [Message::APPROVED, Message::SENDING])->update(['status' => Message::DRAFT]);
 
         config([
             'mail.mailers.outreach' => ['transport' => 'array'],
