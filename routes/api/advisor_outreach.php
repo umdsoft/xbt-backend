@@ -5,8 +5,12 @@ declare(strict_types=1);
 use App\Domains\Advisor\Outreach\Http\Controllers\ActivityController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ApprovalController;
 use App\Domains\Advisor\Outreach\Http\Controllers\CompanyController;
+use App\Domains\Advisor\Outreach\Http\Controllers\McpTokenController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ReferenceController;
+use App\Domains\Advisor\Outreach\Mcp\AuthenticateMcpToken;
+use App\Domains\Advisor\Outreach\Mcp\OutreachServer;
 use Illuminate\Support\Facades\Route;
+use Laravel\Mcp\Facades\Mcp;
 
 /*
  * ADVISOR — OUTREACH CRM (foreign IT investors). Contract:
@@ -37,4 +41,18 @@ Route::middleware(['auth:sanctum', 'advisor'])
         Route::patch('/messages/{id}', [ApprovalController::class, 'edit'])->name('messages.edit');
         Route::post('/messages/{id}/approve', [ApprovalController::class, 'approve'])->name('messages.approve');
         Route::post('/messages/{id}/reject', [ApprovalController::class, 'reject'])->name('messages.reject');
+
+        Route::get('/mcp-tokens', [McpTokenController::class, 'index'])->name('mcp-tokens.index');
+        Route::post('/mcp-tokens', [McpTokenController::class, 'store'])->name('mcp-tokens.store');
+        Route::post('/mcp-tokens/{id}/revoke', [McpTokenController::class, 'revoke'])->name('mcp-tokens.revoke');
+        Route::get('/mcp-info', [McpTokenController::class, 'info'])->name('mcp-info');
     });
+
+/*
+ * MCP endpoint for Claude. Authenticated ONLY by an outreach MCP token (no
+ * Sanctum, no session); a request budget per token on top of per-tool write
+ * caps. See docs/outreach/README-mcp.md.
+ */
+Mcp::web(config('outreach.mcp.path'), OutreachServer::class)
+    ->middleware([AuthenticateMcpToken::class, 'throttle:outreach-mcp'])
+    ->name('api.outreach.mcp');

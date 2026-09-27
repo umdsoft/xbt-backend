@@ -24,6 +24,9 @@ class AppServiceProvider extends ServiceProvider
         // keshlanadi, aks holda har ruxsat tekshiruvida auth schema'ga so'rov ketardi
         // (middleware -> kontroller -> scope zanjirida 3+ marta).
         $this->app->singleton(\App\Domains\Qurilish\Support\QurilishAccess::class);
+
+        // Outreach MCP: the authenticated token caller, one per request.
+        $this->app->scoped(\App\Domains\Advisor\Outreach\Mcp\McpSession::class);
     }
 
     /**
@@ -47,6 +50,11 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute($rpm);
         });
+
+        // Outreach MCP: every call, per token (write caps live in OutreachTool).
+        // Runs after AuthenticateMcpToken; falls back to IP for safety.
+        RateLimiter::for('outreach-mcp', fn ($request) => Limit::perMinute((int) config('outreach.mcp.rate_per_minute', 120))
+            ->by('outreach-mcp:'.($request->attributes->get('outreach_mcp_token_id') ?? $request->ip())));
 
         /*
          * Har qanday `mahalla:*` buyruq tugagach rahbariyat keshini tozalaydi.

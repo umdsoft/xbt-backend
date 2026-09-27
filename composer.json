@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.8",
+        "laravel/mcp": "^1.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "phpoffice/phpword": "^1.4",
