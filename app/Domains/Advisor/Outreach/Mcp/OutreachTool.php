@@ -45,15 +45,18 @@ abstract class OutreachTool extends Tool
         }
     }
 
-    /** @param  callable(): array<string, mixed>  $fn */
-    protected function write(callable $fn): Response
+    /**
+     * @param  callable(): array<string, mixed>  $fn
+     * @param  int  $cost  write units the call may use (a bulk call costs one per item)
+     */
+    protected function write(callable $fn, int $cost = 1): Response
     {
-        $limited = $this->consumeWriteQuota($this->actor());
+        $limited = $this->consumeWriteQuota($this->actor(), max(1, $cost));
 
         return $limited ?? $this->read($fn);
     }
 
-    private function consumeWriteQuota(Actor $actor): ?Response
+    private function consumeWriteQuota(Actor $actor, int $cost): ?Response
     {
         $user = (string) $actor->userId();
         $perMinute = (int) config('outreach.mcp.writes_per_minute', 60);
@@ -61,17 +64,23 @@ abstract class OutreachTool extends Tool
         $minuteKey = 'outreach-mcp-w:'.$user;
         $dayKey = 'outreach-mcp-d:'.$user.':'.now()->toDateString();
 
-        if (RateLimiter::tooManyAttempts($dayKey, $perDay)) {
+        if ($this->exceeds($dayKey, $perDay, $cost)) {
             return $this->limitError('daily_write_cap', "Daily write cap of {$perDay} reached. Resume tomorrow.", $perDay);
         }
-        if (RateLimiter::tooManyAttempts($minuteKey, $perMinute)) {
+        if ($this->exceeds($minuteKey, $perMinute, $cost)) {
             return $this->limitError('write_rate_limited', 'Too many writes. Retry in '.RateLimiter::availableIn($minuteKey).' s.', $perMinute);
         }
 
-        RateLimiter::hit($minuteKey, self::MINUTE);
-        RateLimiter::hit($dayKey, self::DAY);
+        RateLimiter::increment($minuteKey, self::MINUTE, $cost);
+        RateLimiter::increment($dayKey, self::DAY, $cost);
 
         return null;
+    }
+
+    /** Would `$cost` more writes go over `$max`? (For cost 1 this is tooManyAttempts.) */
+    private function exceeds(string $key, int $max, int $cost): bool
+    {
+        return $cost > $max || RateLimiter::tooManyAttempts($key, $max - $cost + 1);
     }
 
     private function limitError(string $reason, string $message, int $limit): Response
