@@ -1,8 +1,18 @@
 # Outreach CRM — amalga oshirish rejasi (1-bosqich)
 
-Holati: 2026-09-27 · qoralama · egasining tasdig'ini kutmoqda. Tasdiqlanmaguncha migratsiya va kod yozilmaydi.
+Holati: 2026-09-27 · 2-tahrir (egasining javoblari kiritildi) · yakuniy tasdiq kutilmoqda. Tasdiqlanmaguncha migratsiya va kod yozilmaydi.
 
 Asos: [SPEC.md](SPEC.md) (0, 3, 4.1, 5, 8-bo'limlar), [CLAUDE.md](CLAUDE.md). `country-analysis.md` hali qo'shilmagan — seed bo'limi shunga bog'liq.
+
+## Qabul qilingan qarorlar
+
+| Mavzu | Qaror |
+| --- | --- |
+| Kim ishlaydi | Viloyat hokimligi va tuman (shahar) hokimliklari maslahatchilari (`advisor_viloyat`, `advisor_tuman`) |
+| Kim tasdiqlaydi | Faqat viloyat — bittalab va **ommaviy** tasdiqlash |
+| "Hudud" | Lidning **davlati**. Xorazm tumani bo'yicha bo'linish yo'q |
+| Lid manbasi | Claude har kuni avtomatik yig'ib MCP orqali yuklaydi + maslahatchilar qo'lda qo'shadi |
+| MCP | Platforma ichida (8-bo'lim, (a)), internetdan ochiq, lekin kirish tor doirada — faqat egasi uchun (5-bo'lim) |
 
 ## 0. Kod bazasidan kelib chiqqan cheklovlar
 
@@ -72,9 +82,8 @@ Barchasi `advisor` schema'sida. `*_user_id` — `auth.users.id` (FK yo'q, uuid +
 | `id` uuid PK | |
 | `name`, `domain` (**unique**, normallashtirilgan) | domen: kichik harf, `www.`/sxema/yo'l olib tashlanadi |
 | `country_code` → `outreach_countries.code` | FK (bir schema ichida) |
-| `region_city` | kompaniya shtab-kvartirasi shahri (xorijda) |
-| `district_id` null | Xorazmdagi mas'ul tuman (`master.districts`) — **3-savolga qarang** |
-| `owner_user_id` | lid egasi — maslahatchi (`auth.users.id`) |
+| `region_city` | kompaniya shtab-kvartirasi shahri (xorijda, ma'lumot uchun) |
+| `owner_user_id` | lid egasi — maslahatchi (`auth.users.id`). Claude qo'shgan lidda — MCP token egasi. Viloyat UI'da egasini almashtira oladi (lidni tumanga berish) |
 | `employees`, `industry`, `has_offshore_center`, `open_roles_6m`, `client_regions` (jsonb), `languages` (jsonb), `source` | ICP kirish ma'lumotlari |
 | `export_contract_usd` null, `parent_revenue_usd` null | Zero Risk mezoni uchun (ixtiyoriy) |
 | `icp_score` smallint, `tier` char(1) A/B/C | server hisoblaydi, qo'lda yozilmaydi |
@@ -159,13 +168,17 @@ Yangi ruxsat kodlari (`AdvisorAccess::PERMISSIONS`ga qo'shiladi):
 | `outreach.approve` | xat seriyasini tasdiqlash yoki rad etish (**faqat UI**) |
 | `outreach.mcp` | o'z MCP tokenini yaratish va bekor qilish |
 
-Viloyat `*` orqali hammasini avtomatik oladi. Bo'linma va tuman uchun variantlar (1-savol):
+Tanlangan taqsimot:
 
-- **A — faqat viloyat** (tavsiya, eng kam huquq). Bo'linma va tumanga hech narsa berilmaydi. Hozir tashabbus egasi bitta — `umdsoft`.
-- **B — viloyat + bo'linma.** Bo'linma `view` + `manage` + `mcp` oladi, `approve` — faqat viloyat.
-- **C — hammaga, egalik bo'yicha.** Tuman ham qo'shadi, lekin faqat o'z lidlarini ko'radi va tahrirlaydi.
+| Rol | view | manage | approve | mcp | Qamrov |
+| --- | --- | --- | --- | --- | --- |
+| `advisor_viloyat` | ha | ha | ha (bittalab + ommaviy) | ha | barcha lidlar |
+| `advisor_tuman` | ha | ha | yo'q | yo'q | faqat o'z lidlari (`owner_user_id = o'zi`) |
+| `advisor_bolinma` | yo'q | yo'q | yo'q | yo'q | — (hozir outreach'da ishtirok etmaydi; kerak bo'lsa keyin qo'shiladi) |
 
-Qamrov (B yoki C tanlansa): viloyat hammasini ko'radi. Qolganlar ko'radi — hammasini (B) yoki faqat `owner_user_id = o'zi` (C). Tahrirlash — egasi yoki viloyat.
+- Viloyat `*` orqali hammasini avtomatik oladi, tumanga `outreach.view` va `outreach.manage` aniq yoziladi.
+- Tuman boshqa maslahatchining lidini ko'rmaydi (404). Dublikat tekshiruvida faqat "bu kompaniya allaqachon bor" deyiladi.
+- MCP token faqat viloyatda bo'ladi — tizimga Claude orqali kirish faqat egasining qo'lida.
 
 ## 5. MCP tokenlari va xavfsizlik
 
@@ -174,8 +187,24 @@ Qamrov (B yoki C tanlansa): viloyat hammasini ko'radi. Qolganlar ko'radi — ham
 - **Saqlash va umr.** Faqat sha256 hash saqlanadi. Bir maslahatchida bitta faol token. Standart muddat 90 kun, UI'dan bekor qilinadi.
 - **Tool cheklovlari.** O'chirish tool'i yo'q. Tasdiqlash tool'i yo'q — `approve` faqat UI controller'ida, MCP kodida umuman chaqirilmaydi.
 - **Audit.** Har bir yozish amali `outreach_audit_log`ga `actor=claude`, `via=mcp`, `mcp_token_id` bilan yoziladi.
-- **Rate limit.** `RateLimiter::for('outreach-mcp')` token bo'yicha: 60 chaqiruv/daqiqa, shundan yozish 20/daqiqa (6-savol).
 - **Kiruvchi ma'lumot.** MCP'dan kelgan matn (kompaniya tavsifi, summary) faqat ma'lumot sifatida saqlanadi va UI'da escape qilinadi.
+
+### Internetga ochiq endpoint uchun himoya qavatlari
+
+Endpoint internetdan ochiq, chunki Claude har kuni avtomatik ishlaydi va qayerdan ishga tushishi oldindan ma'lum emas (IP ro'yxati bilan cheklab bo'lmaydi). Kirish imkoni shunday toraytiriladi:
+
+| # | Qavat | Nimani to'xtatadi |
+| --- | --- | --- |
+| 1 | **Cloudflare Access service token** — `/mcp/outreach` oldida. So'rovda `CF-Access-Client-Id` va `CF-Access-Client-Secret` bo'lmasa, Cloudflare uni origin'ga yetkazmaydi | Tashqi skanerlar serverga umuman yetib kelmaydi |
+| 2 | **Platforma tokeni** (256 bit, faqat hash saqlanadi, 90 kun, bekor qilinadi) | Cloudflare kaliti sizib chiqsa ham tizimga kira olmaydi |
+| 3 | **Token faqat viloyatda** va faqat MCP route'ida ishlaydi | Token sizib chiqsa, boshqa API'ga kira olmaydi |
+| 4 | **Rate limit**: 120 chaqiruv/daqiqa, yozish 60/daqiqa, **kunlik yozish chegarasi 3 000** | Sizib chiqqan token bilan bazani to'ldirib yuborib bo'lmaydi |
+| 5 | **Imkoniyat chegarasi**: o'chirish va tasdiqlash tool'lari yo'q, `→ sent` va inson bosqichlari MCP'dan yopiq | Eng yomon holatda ham xat ketmaydi va ma'lumot o'chmaydi |
+| 6 | **Audit + SOC ogohlantirish**: har yozish auditga tushadi. Kunlik chegaraga yaqinlashish yoki noma'lum IP'dan chaqiruv mavjud `soc-alerter` orqali emailga keladi | Suiiste'mol darhol ko'rinadi |
+
+Kunlik chegara avtomatik yig'ish uchun mo'ljallangan: taxminan 300 kompaniya + 600 kontakt + tekshiruvlar. Kerak bo'lsa `.env`da o'zgartiriladi.
+
+1-qavat Cloudflare panelida sozlanadi (Zero Trust → Access → Service Auth). Sozlash yo'riqnomasini README'ga yozaman, uni siz yoki men sizning ruxsatingiz bilan qo'shamiz.
 
 **Topilgan alohida xavf (hozir tuzatilmaydi):** hozirgi advisor route'lari istalgan Sanctum tokenni qabul qiladi. Mahalla mobil tokeni (muddatsiz) advisor'ga ham to'liq kiradi. Bu mavjud modul, shuning uchun ruxsatingizsiz o'zgartirmayman — alohida vazifa sifatida taklif qilaman.
 
@@ -202,17 +231,19 @@ Qamrov (B yoki C tanlansa): viloyat hammasini ko'radi. Qolganlar ko'radi — ham
   - tasdiqlash: `body_hash = sha256(subject + "\n" + body)`, `approved_by_user_id`, `approved_at` yoziladi;
   - rad etish: sabab majburiy;
   - tasdiqlangan xat tahrirlansa, `approved`dan `draft`ga qaytadi va tasdiq tozalanadi;
-  - tasdiqlash oldidan tekshiriladi: kompaniya `blocked_sanctions` emas, toifa A yoki B, kontakt `do_not_contact` emas va obunadan chiqmagan, davlat chiqarilmagan.
+  - tasdiqlash oldidan tekshiriladi: kompaniya `blocked_sanctions` emas, toifa A yoki B, kontakt `do_not_contact` emas va obunadan chiqmagan, davlat chiqarilmagan;
+  - **ommaviy tasdiqlash**: tanlangan xabarlar bitta so'rovda. Har biri yuqoridagi shartlar bilan alohida tekshiriladi, o'z hash'i va audit yozuvini oladi. Shartdan o'tmaganlari tasdiqlanmaydi va javobda sababi bilan qaytariladi (qolganlari baribir tasdiqlanadi). Bir so'rovda ko'pi bilan 200 ta;
+  - ommaviy rad etish ham bor — bitta umumiy sabab bilan.
 
 ## 7. UI sahifalari (advisor SPA)
 
 | Sahifa | Route | Naqsh | Mazmuni |
 | --- | --- | --- | --- |
-| Lidlar | `/outreach` | `Archive.vue` | filtrlar: davlat, hudud, bosqich, toifa A/B/C, egasi; server tomonida sahifalash; bosqich va toifa — `StatusBadge` |
-| Kompaniya kartasi | `/outreach/companies/:id` | `MonitoringDetail.vue` | rekvizitlar, ICP ball tarkibi, kontaktlar (≤ 2 faol), aloqalar tarixi (`ActivityTimeline`), bosqich o'zgartirish (faqat ruxsat etilgan o'tishlar) |
-| Tasdiqlash navbati | `/outreach/approvals` | `TaskDetailModal.vue` | kontakt bo'yicha seriya (1–3 xat): ko'rish, tahrirlash, tasdiqlash, sababi bilan rad etish; tasdiqlangach hash ko'rsatiladi |
-| Statistika | `/outreach/stats` | `Dashboard.vue` | davlat va hudud kesimida 6 ko'rsatkich: yuborilgan, yetib borgan, javob ulushi, qiziqqan, o'tgan uchrashuv, rezident (`BarChart`, jadval) |
-| MCP token | `/outreach/token` | — | token yaratish (bir marta ko'rsatiladi), muddati, bekor qilish, ulanish namunasi |
+| Lidlar | `/outreach` | `Archive.vue` | filtrlar: davlat, to'lqin (1/2/investor), bosqich, toifa A/B/C, egasi (faqat viloyatga), manba (Claude/qo'lda); server tomonida sahifalash; bosqich va toifa — `StatusBadge` |
+| Kompaniya kartasi | `/outreach/companies/:id` | `MonitoringDetail.vue` | rekvizitlar, ICP ball tarkibi, kontaktlar (≤ 2 faol), aloqalar tarixi (`ActivityTimeline`), bosqich o'zgartirish (faqat ruxsat etilgan o'tishlar), egasini almashtirish (faqat viloyat) |
+| Tasdiqlash navbati | `/outreach/approvals` | `TaskDetailModal.vue` | faqat viloyat. Kontakt bo'yicha seriya (1–3 xat): ko'rish, tahrirlash, tasdiqlash, sababi bilan rad etish. **Ommaviy**: belgilash katakchalari, "Tanlanganlarni tasdiqlash" / "rad etish", davlat va toifa bo'yicha filtr. Natija: nechtasi tasdiqlandi, qaysilari nima sababdan o'tmadi |
+| Statistika | `/outreach/stats` | `Dashboard.vue` | davlat kesimida 6 ko'rsatkich: yuborilgan, yetib borgan, javob ulushi, qiziqqan, o'tgan uchrashuv, rezident (`BarChart`, jadval). Viloyatga qo'shimcha: maslahatchilar kesimi |
+| MCP token | `/outreach/token` | — | faqat viloyat: token yaratish (bir marta ko'rsatiladi), muddati, oxirgi ishlatilgan vaqt va IP, bekor qilish, ulanish namunasi |
 
 Sidebar'ga "Ҳорижий инвесторлар" bo'limi qo'shiladi (`meta.roles` 4-bo'limdagi tanlovga ko'ra).
 
@@ -229,9 +260,9 @@ Sidebar'ga "Ҳорижий инвесторлар" bo'limi qo'shiladi (`meta.rol
 | SDK | `laravel/mcp` (Laravel 13 bilan mosligi tekshiriladi; mos kelmasa — 8 ta tool uchun JSON-RPC endpoint qo'lda) | rasmiy TS SDK (SPEC tavsiyasi) |
 | Claude Code / Desktop'ga ulanish | HTTP MCP to'g'ridan-to'g'ri (Desktop'da kerak bo'lsa `mcp-remote` ko'prigi) | `stdio` — lokal jarayon |
 
-**Tavsiya: (a).** Xavfsizlik baribir platforma serverida ta'minlanishi kerak. (b) buni o'zgartirmaydi, faqat ikkinchi kod bazasi va ikkinchi token qo'shadi. (a)da tasdiqlash tool'ining yo'qligi, audit va rate limit bitta kodda tekshiriladi. SPEC boshqa til tanlansa kelishishni talab qiladi — shuning uchun 2-savol.
+**Qaror: (a).** Xavfsizlik baribir platforma serverida ta'minlanishi kerak. (b) buni o'zgartirmaydi, faqat internetga qaragan ikkinchi eshik, ikkinchi kod bazasi va ikkinchi token qo'shadi. (a)da tasdiqlash tool'ining yo'qligi, audit va rate limit bitta kodda tekshiriladi. Endpoint 5-bo'limdagi olti qavat bilan himoyalanadi.
 
-Endpoint internetga ochiqmi yoki faqat LAN'dami — 4-savol.
+Til — PHP (platforma bilan bir xil). SPEC TypeScript'ni tavsiya qilgan edi, lekin (a) tanlanganda alohida TS server kerak emas.
 
 ## 9. Seed ma'lumot
 
@@ -253,6 +284,7 @@ Deploy'da seed ishlamaydi, shuning uchun davlatlar **ma'lumot migratsiyasi** (`u
 | `bootstrap/app.php` | MCP token middleware alias'i |
 | `composer.json` | `laravel/mcp` (agar (a) tanlansa va mos kelsa) |
 | advisor: `router/index.ts`, `layouts/AppLayout.vue`, `components/Icon.vue` | route'lar, menyu, kerak bo'lsa ikonka |
+| server: `/usr/local/bin/soc-alerter.py` (repo'dan tashqarida, `D:\kadr\monitor`) | MCP ogohlantirishlari (5-bo'lim, 6-qavat). Oxirgi qadam, deploy bilan birga — alohida ruxsat bilan |
 
 Boshqa mavjud fayllar o'zgarmaydi.
 
@@ -269,7 +301,10 @@ Boshqa mavjud fayllar o'zgarmaydi.
 7. `McpCannotApproveTest` — MCP tool'lar ro'yxatida `approve` yo'q; MCP token bilan tasdiqlash endpoint'i 401/403.
 8. `AuditLogTest` — har bir yozish amali yozuv qoldiradi (UI va MCP); audit yozuvini `UPDATE`/`DELETE` qilib bo'lmaydi.
 9. `McpTokenTest` — token faqat MCP route'ida ishlaydi (advisor API'da 401), muddati o'tgan va bekor qilingan token, rate limit.
-10. `ApprovalTest` — tasdiqlashda hash yoziladi, tahrirlash tasdiqni bekor qiladi, rad etish sababsiz bo'lmaydi.
+10. `ApprovalTest` — tasdiqlashda hash yoziladi, tahrirlash tasdiqni bekor qiladi, rad etish sababsiz bo'lmaydi, tuman tasdiqlay olmaydi.
+11. `BulkApprovalTest` — aralash to'plam: shartga mos kelganlari tasdiqlanadi, qolganlari sababi bilan qaytadi; 200 dan ortiq so'rov rad etiladi; har biriga alohida audit yozuvi.
+12. `OwnerReassignTest` — faqat viloyat egasini almashtiradi; yangi egasi (tuman) lidni ko'radi, oldingisi ko'rmaydi.
+13. `McpDailyCapTest` — kunlik yozish chegarasidan keyin yozish tool'lari 429 qaytaradi, o'qish ishlashda davom etadi.
 
 Qo'lda: MCP Inspector bilan 8 ta tool, natijalari hisobotda.
 
@@ -287,12 +322,9 @@ Har commitdan oldin shu bosqich testlari o'tishi kerak. Push, merge, prod baza v
 
 ## 13. Savollar (hozir kerak bo'lganlari)
 
-1. **Ruxsatlar:** 4-bo'limdagi A, B yoki C? (SPEC 8.10 — kim tasdiqlaydi: faqat siz yoki jamoa ham?)
-2. **MCP tili va joyi:** (a) platforma ichida, PHP bilan roziman? SPEC TypeScript'ni tavsiya qilgan.
-3. **"Hudud" nimani bildiradi?** Lid Xorazmdagi qaysi tumanga biriktiriladi (`district_id`, masalan filial ochiladigan joy)? Yoki statistikadagi "hudud" — kompaniyaning xorijdagi shahri (`region_city`)? Men ikkalasini ham saqlashni va filtrlarda ikkalasini ham berishni taklif qilaman.
-4. **MCP endpoint qayerda ochiq bo'ladi?** (SPEC 8.9) Faqat LAN'da (ofisdan ishlaysiz) yoki internetda (`app.digital-xorazm.uz`, Cloudflare orqali)? Tavsiya — boshida faqat LAN + token.
-5. **ICP qoidalari:** 6-bo'limdagi jadval ma'qulmi?
-6. **Rate limit:** 60/daqiqa (yozish 20) yetarlimi?
-7. **Yopiq lidni qayta ochish:** `closed_declined`ni viloyat UI'dan qayta ochishi mumkinmi (masalan, "keyinroq" degan kompaniya)?
-8. **Tasdiqlash birligi:** har bir xat alohida tasdiqlanadimi yoki seriya (1–3 xat) bitta tugma bilan?
-9. **UI tili:** yangi sahifalar ham mavjud UI kabi kirill yozuvida bo'lsinmi?
+Javob berilganlari (ruxsatlar, tasdiqlash, hudud, MCP joyi va ochiqligi) yuqoridagi "Qabul qilingan qarorlar"ga kiritildi. Qolganlari:
+
+1. **Cloudflare Access (5-bo'lim, 1-qavat):** qo'shamizmi? U Cloudflare panelida sozlanadi. Rozi bo'lsangiz, yo'riqnoma yozaman va siz sozlaysiz (yoki menga ruxsat berasiz).
+2. **ICP qoidalari:** 6-bo'limdagi jadval ma'qulmi?
+3. **Yopiq lidni qayta ochish:** `closed_declined`ni viloyat UI'dan qayta ocha olsinmi (masalan, "keyinroq" degan kompaniya)?
+4. **UI tili:** yangi sahifalar ham mavjud UI kabi kirill yozuvida bo'lsinmi?
