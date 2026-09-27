@@ -178,11 +178,34 @@ Maxfiy ma'lumotlar (SMTP/IMAP paroli, token imzolash kaliti) faqat `.env`da, rep
 Real rejimga o'tish uchun alohida `.env` kaliti + "allowlist" bosqichi: avval faqat o'zimizning
 test manzillarimizga, keyin haqiqiy oluvchilarga.
 
+## 10a. Mailcow'da amalga oshirish
+
+Yuborish ham, javob/bounce o'qish ham hokimlikning o'z Mailcow serverida (`mail.digital-xorazm.uz`, `.253`):
+
+- **Jo'natuvchi qutilar puli** — Mailcow'da yangi yuborish domen(lar)i (masalan `invest.digital-xorazm.uz`)
+  va unda 20–25 ta quti. Qutilarni Mailcow API orqali yaratish mumkin; har bir quti paroli faqat `.env`da.
+- **Platforma → Mailcow:** SMTP 587 (STARTTLS, login bilan), LAN ichida. **IMAP 993** — o'sha qutilardan
+  bounce va javoblarni o'qish. Tashqi xizmat, API kaliti yoki to'lov yo'q.
+- **Asosiy pochtani himoya qilish:** Postfix'da *sender-dependent transport* — yuborish domenidan
+  chiqqan xatlar alohida transport orqali, **ikkinchi public IP** (`smtp_bind_address`) bilan ketadi.
+  Hokimlik xodimlarining xatlari eski IP'da qoladi, sovuq xatlar obro'siga ta'sir qilmaydi.
+  Ikkinchi IP bo'lmaguncha: alohida domen + qattiq limitlar + avtomatik to'xtatish bilan boshlanadi,
+  hajm past ushlanadi.
+- **Mailcow o'z himoyasi — ikkinchi qatlam:** har bir quti uchun Mailcow rate-limit (masalan, 50/kun),
+  platformadagi limitdan biroz yuqori. Platformada xato bo'lsa ham, Mailcow ortiqcha yubormaydi.
+- **DNS (Cloudflare, bizning nazoratda):** yuborish domeni uchun SPF, DKIM (Mailcow generatsiya qiladi),
+  DMARC `p=none` → keyin kuchaytiriladi.
+
+**Hal qiluvchi shart — PTR (rDNS).** 2026-09-12 holatida Mailcow'dan Gmail'ga ketgan xat
+`550 no PTR` bilan rad etilgan. PTR yozuvini faqat IP egasi (Uztelecom) qo'ya oladi. PTR bo'lmaguncha
+xalqaro kompaniyalarga (ko'pchiligi Google/Microsoft pochtasida) xat yetib bormaydi.
+Ikkinchi IP so'ralganda PTR ham birga so'raladi: `invest.digital-xorazm.uz` → yangi IP.
+
 ## 11. Egasining qarorlari (2026-09-27)
 
 | # | Savol | Qaror |
 |---|---|---|
-| 1 | Xat qaysi server orqali chiqadi | **A — alohida chiquvchi IP / relay** (`invest.digital-xorazm.uz`, PTR bilan). Asosiy hokimlik pochtasining IP obro'si ajratiladi. ISP'dan ikkinchi IP + PTR yoki alohida VPS kerak. Ungacha — Mailpit. |
+| 1 | Xat qaysi server orqali chiqadi | **O'zimizning Mailcow (`.253`)** — tashqi xizmat yo'q (egasi: "pochta serverini aynan shu uchun qurdik"). Ajratish Mailcow ichida: alohida yuborish domen(lar)i + imkon qadar alohida chiquvchi IP (§10a). Ungacha — Mailpit. |
 | 2 | Sanksiya | **`clear` shart.** `unchecked` kompaniyaning xati navbatda kutadi; `clear`ni Claude (MCP) qo'yadi, inson UI'da ko'radi. |
 | 3 | Seriya tasdig'i | **Butun seriya birga** tasdiqlanadi. |
 | 4 | Jo'natuvchi | **Bitta mas'ul shaxs** nomidan. Ism, lavozim, manzil — egasidan olinadi va `.env`/sozlamada saqlanadi. |
