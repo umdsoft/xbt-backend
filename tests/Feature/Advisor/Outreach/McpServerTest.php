@@ -99,14 +99,17 @@ class McpServerTest extends OutreachTestCase
         $this->assertArrayNotHasKey('token_hash', $row->toArray());
     }
 
-    public function test_tool_list_is_exactly_the_eight_tools(): void
+    public function test_tool_list_keeps_the_crm_tools(): void
     {
-        $names = collect($this->rpc('tools/list')->assertOk()->json('result.tools'))->pluck('name')->sort()->values()->all();
+        // The full list (incl. mail tools) is asserted in McpMailToolsTest.
+        $names = collect($this->rpc('tools/list')->assertOk()->json('result.tools'))->pluck('name')->all();
 
-        $this->assertSame([
+        foreach ([
             'dedupe_check', 'get_pipeline', 'get_stats', 'list_approvals',
             'log_touch', 'set_stage', 'upsert_company', 'upsert_contact',
-        ], $names);
+        ] as $tool) {
+            $this->assertContains($tool, $names);
+        }
     }
 
     public function test_full_research_flow_through_tools_is_audited_as_claude(): void
