@@ -201,6 +201,35 @@ Yuborish ham, javob/bounce o'qish ham hokimlikning o'z Mailcow serverida (`mail.
 xalqaro kompaniyalarga (ko'pchiligi Google/Microsoft pochtasida) xat yetib bormaydi.
 Ikkinchi IP so'ralganda PTR ham birga so'raladi: `invest.digital-xorazm.uz` → yangi IP.
 
+### 10b. Tarmoq holati — o'lchov (2026-09-27)
+
+| Nima | Qiymat | Holat |
+|---|---|---|
+| Web server (.252) chiquvchi IP | 89.249.62.67 | web va pochta **ajratilgan** ✓ |
+| Mailcow (.253) chiquvchi IP | 89.249.62.68 (`.252`da SNAT) | ✓ |
+| Public blok | 89.249.62.64/27, shlyuz .65 | blokda birorta PTR yo'q |
+| `pochta.digital-xorazm.uz` A / MX | 89.249.62.68 | ✓ |
+| SPF | `v=spf1 mx ip4:89.249.62.68 ~all` | ✓ |
+| DKIM | selektor `dkim`, DNS'da bor | ✓ |
+| DMARC | `p=quarantine` | ✓ |
+| Postfix HELO nomi | `mail.digital-xorazm.uz` | ✗ **DNS'da yo'q (NXDOMAIN)** |
+| PTR 89.249.62.68 | — | ✗ **yo'q** |
+| Qora ro'yxatlar | SpamCop, Barracuda, SORBS, PSBL toza; Spamhaus — ochiq resolverdan tekshirib bo'lmadi | ✓ / ? |
+| 25-port chiqishi | Gmail 220 javob berdi | ✓ |
+| So'nggi 30 kun tashqi yetkazish | korporativ domenlar, Yandex — `250 sent` | ✓ |
+
+**Xulosa:**
+1. Web va pochtani ajratish to'g'ri va allaqachon qilingan. Web IP'si xat obro'siga ta'sir qilmaydi.
+2. **Asosiy nosozlik — FCrDNS zanjiri uzilgan:** server o'zini `mail.digital-xorazm.uz` deb tanishtiradi,
+   bu nom DNS'da yo'q va IP'da PTR yo'q. Gmail/Outlook bunday serverdan xatni rad etadi yoki spamga soladi.
+   Bu hokimlikning **oddiy** xatlariga ham tegishli, faqat outreach'ga emas.
+   Tuzatish: (a) Cloudflare: `mail` A → 89.249.62.68, *DNS only*; (b) Uztelecom: PTR 89.249.62.68 → `mail.digital-xorazm.uz`.
+3. **Kuniga ~1000 sovuq xat uchun zarur ajratish — web/pochta emas, rasmiy pochta / outreach.**
+   Hozir ikkalasi bitta .68 IP'dan chiqadi: outreach'ga kelgan spam shikoyatlari hokimlik xodimlarining
+   rasmiy xatlarini ham spamga tushiradi. Yechim: /27 blokdan ikkinchi IP (masalan .69, egalik ISP'dan
+   tasdiqlansin), PTR `invest.digital-xorazm.uz`, outreach xatlari faqat shu IP'dan chiqadi
+   (alohida kichik relay VM yoki Postfix transport + `.252`da alohida SNAT qoidasi).
+
 ## 11. Egasining qarorlari (2026-09-27)
 
 | # | Savol | Qaror |
