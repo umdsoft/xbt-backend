@@ -103,7 +103,7 @@ class InboundMailTest extends OutreachTestCase
         $this->assertTrue(AuditEntry::query()->where('action', 'inbound.received')->where('entity_id', $reply->id)->exists());
     }
 
-    public function test_reply_from_known_address_without_thread_headers_is_still_matched(): void
+    public function test_reply_from_known_address_without_thread_headers_is_linked_only(): void
     {
         [$first] = $this->sentSeries();
 
@@ -111,7 +111,8 @@ class InboundMailTest extends OutreachTestCase
 
         $this->assertSame($first->contact_id, $reply->contact_id);
         $this->assertNull($reply->message_id);
-        $this->assertSame(Stage::REPLIED, $first->contact->company->fresh()->stage);
+        // Linked for people/Claude, but an unanchored From can be forged: no state change.
+        $this->assertSame(Stage::SENT, $first->contact->company->fresh()->stage);
     }
 
     public function test_auto_reply_does_not_stop_the_series(): void
@@ -149,6 +150,46 @@ class InboundMailTest extends OutreachTestCase
         $this->assertSame('invalid', $first->contact->fresh()->email_status);
         $this->assertSame(Message::CANCELLED, $second->fresh()->status);
         $this->assertTrue(Suppression::query()->where('email', $first->contact->email)->where('reason', 'hard_bounce')->exists());
+    }
+
+    public function test_forged_dsn_not_tied_to_our_letter_changes_nothing(): void
+    {
+        // Security review HIGH: anyone can mail the inbox a DSN naming a real lead.
+        [$first, $second] = $this->sentSeries();
+
+        $reply = $this->process($this->dsn($first->contact->email, '5.1.1', 'not-ours@attacker.test'));
+
+        $this->assertSame('bounce', $reply->kind);
+        $this->assertSame('verified', $first->contact->fresh()->email_status);
+        $this->assertSame(Message::SENT, $first->fresh()->status);
+        $this->assertSame(Message::APPROVED, $second->fresh()->status);
+        $this->assertFalse(Suppression::query()->where('email', $first->contact->email)->exists());
+    }
+
+    public function test_dsn_for_our_letter_but_another_recipient_changes_nothing(): void
+    {
+        [$first] = $this->sentSeries();
+        [$victim] = $this->sentSeries();
+
+        $this->process($this->dsn($victim->contact->email, '5.1.1', $first->message_id_header));
+
+        $this->assertSame('verified', $victim->contact->fresh()->email_status);
+        $this->assertFalse(Suppression::query()->where('email', $victim->contact->email)->exists());
+    }
+
+    public function test_spoofed_from_without_thread_reference_is_stored_but_not_acted_on(): void
+    {
+        [$first, $second] = $this->sentSeries();
+
+        $unsub = $this->process($this->raw($first->contact->email, 'Stop', 'Please unsubscribe me.'));
+        $reply = $this->process($this->raw($first->contact->email, 'Hello', 'Interested.'));
+
+        $this->assertSame($first->contact_id, $unsub->contact_id, 'linked for people to see');
+        $this->assertNull($first->contact->fresh()->unsubscribed_at);
+        $this->assertSame(Message::APPROVED, $second->fresh()->status);
+        $this->assertSame(Stage::SENT, $first->contact->company->fresh()->stage);
+        $this->assertNull($unsub->classification, 'unanchored opt-out needs a person/Claude decision');
+        $this->assertSame('reply', $reply->kind);
     }
 
     public function test_same_mail_imported_twice_is_stored_once(): void

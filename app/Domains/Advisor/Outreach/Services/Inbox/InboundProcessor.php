@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Stores one incoming mail and applies its mechanical consequences
- * (PLAN-send.md §7). Idempotent by the mail's Message-ID.
+ * (PLAN-send.md §7). Idempotent by the mail's Message-ID. Consequences apply
+ * only to mail anchored to a letter we sent (see process()); anything else is
+ * stored for review because From/DSN content can be forged.
  *
  *   reply        letter -> replied, rest of the series cancelled, lead -> replied
  *   unsubscribe  contact unsubscribed (one-way), email suppressed, series cancelled
@@ -53,7 +55,14 @@ final class InboundProcessor
         $letter = $this->matchLetter($mail);
         $contact = $letter?->contact ?? $this->matchContact($mail);
 
-        return DB::connection('advisor')->transaction(function () use ($mail, $letter, $contact): Reply {
+        // Inbound mail is unauthenticated: From and DSN bodies can be forged by
+        // anyone. State changes happen only when the mail is anchored to a letter
+        // WE sent (its Message-ID, which only the real recipient/MTA knows) and,
+        // for bounces, names that letter's own recipient. Everything else is
+        // stored and linked for people/Claude to judge, but changes nothing.
+        $anchored = $letter !== null && ($mail->kind !== 'bounce' || $this->bounceMatchesLetter($mail, $letter));
+
+        return DB::connection('advisor')->transaction(function () use ($mail, $letter, $contact, $anchored): Reply {
             $reply = Reply::query()->create([
                 'message_id' => $letter?->id,
                 'company_id' => $contact?->company_id,
@@ -65,17 +74,22 @@ final class InboundProcessor
                 'body_text' => $mail->text,
                 'imap_message_id' => $mail->messageId,
                 'in_reply_to' => $mail->references[0] ?? null,
-                'classification' => match ($mail->kind) {
-                    'auto_reply' => 'auto_reply',
-                    'bounce' => 'bounce',
-                    'unsubscribe' => 'unsubscribe',
+                'classification' => match (true) {
+                    $mail->kind === 'auto_reply' => 'auto_reply',
+                    ! $anchored => null,      // unverified: a person / Claude decides
+                    $mail->kind === 'bounce' => 'bounce',
+                    $mail->kind === 'unsubscribe' => 'unsubscribe',
                     default => null,          // left for Claude / a person
                 },
             ]);
 
             $this->audit->log(Actor::system(), 'inbound.received', 'reply', $reply->id, [
-                'kind' => $mail->kind, 'message_id' => $letter?->id, 'contact_id' => $contact?->id,
+                'kind' => $mail->kind, 'message_id' => $letter?->id, 'contact_id' => $contact?->id, 'anchored' => $anchored,
             ]);
+
+            if (! $anchored) {
+                return $reply;
+            }
 
             match (true) {
                 $mail->kind === 'reply' => $this->onReply($letter, $contact),
@@ -159,6 +173,14 @@ final class InboundProcessor
         if ($recent->count() >= 20 && $recent->filter(fn ($s) => $s === Message::BOUNCED)->count() / $recent->count() > self::BOUNCE_RATE_LIMIT) {
             $this->control->stop(Actor::system(), SendControl::BREAKER, 'bounce_rate_above_5_percent');
         }
+    }
+
+    /** A DSN counts only if it names the recipient of the letter it quotes. */
+    private function bounceMatchesLetter(InboundMail $mail, Message $letter): bool
+    {
+        $recipient = strtolower((string) $letter->contact?->email);
+
+        return $recipient !== '' && ($mail->bounceRecipient === null || $mail->bounceRecipient === $recipient);
     }
 
     private function matchLetter(InboundMail $mail): ?Message
