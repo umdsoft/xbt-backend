@@ -10,6 +10,7 @@ use App\Domains\Advisor\Outreach\Support\RuleViolation;
 use App\Domains\Advisor\Support\AdvisorAccess;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Who may see and change which lead (PLAN-crm.md §4).
@@ -75,7 +76,7 @@ final class OutreachGate
     public function company(Actor $actor, string $id, bool $lock = false): Company
     {
         $query = $this->scope(Company::query(), $actor)->whereKey($id);
-        $company = ($lock ? $query->lockForUpdate() : $query)->first();
+        $company = Str::isUuid($id) ? ($lock ? $query->lockForUpdate() : $query)->first() : null;
 
         if ($company === null) {
             throw new RuleViolation(RuleViolation::NOT_FOUND, 'Лид топилмади.');

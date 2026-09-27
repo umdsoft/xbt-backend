@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Outreach\Support;
 
+use Illuminate\Http\JsonResponse;
 use RuntimeException;
 
 /**
@@ -46,6 +47,16 @@ final class RuleViolation extends RuntimeException
         public readonly array $context = [],
     ) {
         parent::__construct($message);
+    }
+
+    /** Laravel calls this when the exception escapes a controller. */
+    public function render(): JsonResponse
+    {
+        return response()->json([
+            'message' => $this->getMessage(),
+            'reason' => $this->reason,
+            'context' => (object) $this->context,
+        ], $this->httpStatus());
     }
 
     public function httpStatus(): int
