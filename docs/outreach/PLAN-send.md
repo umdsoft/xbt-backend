@@ -230,6 +230,14 @@ Ikkinchi IP so'ralganda PTR ham birga so'raladi: `invest.digital-xorazm.uz` → 
    tasdiqlansin), PTR `invest.digital-xorazm.uz`, outreach xatlari faqat shu IP'dan chiqadi
    (alohida kichik relay VM yoki Postfix transport + `.252`da alohida SNAT qoidasi).
 
+**Egasi qarori (2026-09-27): ikkinchi IP olinmaydi** — outreach xatlari ham hokimlik pochtasi bilan bitta
+89.249.62.68 IP'dan chiqadi. Oqibati: IP obro'si umumiy, shuning uchun himoya qattiqroq ushlanadi —
+qizdirish jadvaliga qat'iy rioya, bounce > 5% yoki "block/spam" javobida avtomatik to'xtatish,
+hajm faqat sog'lom ko'rsatkichlar bilan oshiriladi. OneNet'ga yuborilgan so'rov: faqat PTR
+(`89.249.62.68 → mail.digital-xorazm.uz`) va PBL'dan chiqarish.
+Spamhaus (2026-09-27): 89.249.62.68 — **PBL'da** (Gmail rad etishining sababi, `550-5.7.1 … not
+authorized to send email directly`); CSS tarixiy yozuvi 12–15-sentabr (o'chirilgan).
+
 ## 11. Egasining qarorlari (2026-09-27)
 
 | # | Savol | Qaror |
