@@ -64,23 +64,26 @@ abstract class OutreachTool extends Tool
         $minuteKey = 'outreach-mcp-w:'.$user;
         $dayKey = 'outreach-mcp-d:'.$user.':'.now()->toDateString();
 
-        if ($this->exceeds($dayKey, $perDay, $cost)) {
+        if ($cost > $perDay || $cost > $perMinute) {
+            return $this->limitError('write_rate_limited', "One call may use at most {$perMinute} write units.", $perMinute);
+        }
+
+        // Reserve first, then check: the cache increment is atomic, so two
+        // concurrent bulk calls can never both slip under the cap (a
+        // read-then-increment would let each see the old count).
+        if (RateLimiter::increment($dayKey, self::DAY, $cost) > $perDay) {
+            RateLimiter::decrement($dayKey, self::DAY, $cost);
+
             return $this->limitError('daily_write_cap', "Daily write cap of {$perDay} reached. Resume tomorrow.", $perDay);
         }
-        if ($this->exceeds($minuteKey, $perMinute, $cost)) {
+        if (RateLimiter::increment($minuteKey, self::MINUTE, $cost) > $perMinute) {
+            RateLimiter::decrement($minuteKey, self::MINUTE, $cost);
+            RateLimiter::decrement($dayKey, self::DAY, $cost);
+
             return $this->limitError('write_rate_limited', 'Too many writes. Retry in '.RateLimiter::availableIn($minuteKey).' s.', $perMinute);
         }
 
-        RateLimiter::increment($minuteKey, self::MINUTE, $cost);
-        RateLimiter::increment($dayKey, self::DAY, $cost);
-
         return null;
-    }
-
-    /** Would `$cost` more writes go over `$max`? (For cost 1 this is tooManyAttempts.) */
-    private function exceeds(string $key, int $max, int $cost): bool
-    {
-        return $cost > $max || RateLimiter::tooManyAttempts($key, $max - $cost + 1);
     }
 
     private function limitError(string $reason, string $message, int $limit): Response

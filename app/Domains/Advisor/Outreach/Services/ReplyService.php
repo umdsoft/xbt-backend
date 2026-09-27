@@ -35,7 +35,7 @@ use Illuminate\Validation\Rule;
  * Side effects of a classification (only on a change, so re-sending the same
  * class is a no-op):
  *   interested        -> needs a person; lead sent -> replied if still at sent
- *   declined          -> pending letters cancelled, lead -> closed_declined
+ *   declined          -> contact do_not_contact, pending letters cancelled, lead -> closed_declined
  *   unsubscribe       -> contact unsubscribed + suppressed (one-way)
  *   bounce            -> contact email_status invalid + suppressed (hard_bounce)
  *   later, auto_reply, other -> nothing
@@ -248,7 +248,7 @@ final class ReplyService
         $company = $this->gate->company($actor, $links['company_id'], lock: true);
         $effects = match ($class) {
             'interested' => $this->markReplied($actor, $company, $class),
-            'declined' => $this->decline($actor, $company),
+            'declined' => $this->decline($actor, $company, $links['contact_id']),
             'unsubscribe' => $this->unsubscribe($actor, $reply, $links['contact_id']),
             'bounce' => $this->bounce($actor, $company, $reply, $links['contact_id']),
             default => [],
@@ -281,9 +281,17 @@ final class ReplyService
     }
 
     /** @return array<int, string> */
-    private function decline(Actor $actor, Company $company): array
+    private function decline(Actor $actor, Company $company, ?string $contactId): array
     {
         $effects = [];
+
+        // CLAUDE.md rule 5: whoever declined is never written to again — even if
+        // a viloyat advisor reopens the lead for another contact later.
+        $contact = $contactId === null ? null : Contact::query()->find($contactId);
+        if ($contact !== null && ! $contact->do_not_contact) {
+            $this->contacts->upsert($actor, ['company_id' => $company->id, 'contact_id' => $contact->id, 'do_not_contact' => true]);
+            $effects[] = 'do_not_contact';
+        }
         $cancelled = Message::query()
             ->whereIn('contact_id', $company->contacts()->select('id'))
             ->whereIn('status', [Message::DRAFT, Message::APPROVED])

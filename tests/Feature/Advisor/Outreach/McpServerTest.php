@@ -201,6 +201,25 @@ class McpServerTest extends OutreachTestCase
         $this->assertSame(2, $company->touchHistory()->count());
     }
 
+    public function test_refused_bulk_call_releases_its_reservation(): void
+    {
+        config(['outreach.mcp.writes_per_minute' => 3]);
+        $this->country('XA');
+        $batch = fn (string $p) => $this->tool('upsert_companies', ['items' => [
+            ['domain' => $p.'-1.test', 'name' => 'A', 'country_code' => 'XA'],
+            ['domain' => $p.'-2.test', 'name' => 'B', 'country_code' => 'XA'],
+        ]]);
+
+        $this->assertFalse($batch('res-a')['error']);                     // 2 of 3 used
+        $refused = $batch('res-b');                                         // would be 4
+        $this->assertSame('write_rate_limited', $refused['data']['reason']);
+
+        // The refused call must not have kept its 2 units: one more write still fits.
+        $single = $this->tool('upsert_company', ['domain' => 'res-c.test', 'name' => 'C', 'country_code' => 'XA']);
+        $this->assertFalse($single['error'], json_encode($single['data']));
+        $this->assertSame(0, Company::query()->where('domain', 'like', 'res-b-%')->count());
+    }
+
     public function test_daily_write_cap_is_enforced(): void
     {
         config(['outreach.mcp.daily_write_cap' => 1]);

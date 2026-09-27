@@ -125,6 +125,18 @@ class ReplyInboxTest extends OutreachTestCase
         $this->assertContains('stage:closed_declined', $result['effects']);
     }
 
+    public function test_declined_contact_is_never_written_to_again(): void
+    {
+        // CLAUDE.md rule 5: a person who declined is not contacted again, even if
+        // a viloyat advisor later reopens the lead.
+        $reply = $this->repliedLead();
+
+        $result = $this->service()->classify($this->mcp(), $reply->id, 'declined', 'Not interested.');
+
+        $this->assertTrue(Contact::query()->find($reply->contact_id)->do_not_contact);
+        $this->assertContains('do_not_contact', $result['effects']);
+    }
+
     public function test_unsubscribe_marks_contact_suppresses_and_closes(): void
     {
         $reply = $this->repliedLead();
