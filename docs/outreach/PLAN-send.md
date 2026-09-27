@@ -24,6 +24,27 @@ qoralama tayyorlaydi ──▶ o'qiydi, tahrirlaydi, ──▶ navbatga qo'yadi 
 olmaydi, hatto tasdiqlangan xatni ham. Bu SPEC'dagidan xavfsizroq: yuborish uchun hech qanday tashqi
 kirish nuqtasi yo'q.
 
+## 1a. Maqsadli hajm va iqtisod (egasi, 2026-09-27)
+
+Qo'lda ishlagan davr natijasi: 10 kishi × ~100 xat = **~1000 xat/kun, 30 000+/oy**; javob ~1% (≈300/oy),
+kuniga 2–3 uchrashuv; 3 oyda 3 ta yirik kompaniya, **$1 mln+ IT eksport**. Maqsad — shu hajmni
+kam inson resursi va kam xarajat bilan avtomatlashtirish.
+
+Oqibatlari loyiha uchun:
+
+- **Bitta quti bilan 1000/kun mumkin emas.** Bir pochta qutisi sovuq xat uchun xavfsiz ~30–50/kun.
+  Shuning uchun **jo'natuvchi qutilar pulli (sender pool)**: har bir quti o'z kunlik limiti va qizdirish
+  jadvali bilan; tizim navbatni qutilar orasida taqsimlaydi. ~20–25 quti ≈ 1000/kun.
+  Hammasi bitta mas'ul shaxs nomidan (qaror 4), manzillar turlicha bo'lishi mumkin.
+- **Domenlar:** qutilarni 2–4 ta yordamchi domen/subdomenga bo'lish (bir domen shikoyat olsa,
+  qolganlari ishlaydi). Asosiy `digital-xorazm.uz` hech qachon ishlatilmaydi.
+- **Xarajat:** o'z relay/Mailcow'da qutilar bepul — faqat IP/PTR va domenlar (yiliga ~$10–15/domen).
+  Workspace variantida ~$6 × 25 quti ≈ $150/oy. Kod ikkala holatda bir xil.
+- **Tasdiqlash hajmi:** kuniga ~1000 xatni bittalab o'qib bo'lmaydi → ommaviy tasdiq (≤200/so'rov),
+  seriya birga tasdiqlanadi; sifatni namunaviy tekshirish (random 10%) UI'da ko'rsatiladi (keyingi qadam).
+- **Qizdirish:** har bir quti 3–4 haftada 10 → 40/kun. To'liq hajmga ~1 oyda chiqiladi; bu vaqt
+  ichida qo'lda yuborish parallel davom etishi mumkin.
+
 ## 2. "Tasdiqlash = darhol yuborish" emas, "tasdiqlash = navbatga qo'yish"
 
 Tasdiqlash tugmasi bosilganda xat darhol yuborilmaydi. Uch sabab:
@@ -127,8 +148,9 @@ qilgan email'lar (va kerak bo'lsa butun domen). Kontakt o'chirilib, qayta qo'shi
 - **Avtomatik to'xtatish:** oxirgi 50 ta xatda bounce > 5%, har qanday "blocked/spam" mazmunli 5xx
   javob, yoki ketma-ket 5 ta SMTP xatosi → yuborish o'zi to'xtaydi, SOC va maslahatchiga xabar yuboriladi.
   Qayta yoqishni faqat inson qiladi.
-- **Kunlik limit** konfiguratsiyada, qizdirish jadvali bilan: 1-hafta 10/kun, 2-hafta 20, 3-hafta 40,
-  4-hafta 70, keyin maksimum 100 (`.env`da o'zgaradi).
+- **Kunlik limit har bir quti uchun**, qizdirish jadvali bilan: 1-hafta 10/kun, 2-hafta 20, 3-hafta 30,
+  4-haftadan 40 (maksimum `.env`da). Umumiy hajm = faol qutilar yig'indisi (§1a).
+- **Avtomatik to'xtatish quti darajasida ham:** bitta qutida muammo bo'lsa, faqat o'sha quti to'xtaydi.
 
 ## 9. UI o'zgarishlari
 
@@ -143,9 +165,9 @@ qilgan email'lar (va kerak bo'lsa butun domen). Kontakt o'chirilib, qayta qo'shi
 | Qism | Tavsif |
 |---|---|
 | `SendScheduler` (har daqiqa, `schedule:run`) | vaqti kelgan `approved` xatlarni limit/oyna bo'yicha tanlab, navbatga job qo'yadi |
-| `SendMessageJob` (queue `outreach-mail`, 1 worker) | atomar oladi → SendGuard → SMTP → natija |
+| `SendMessageJob` (queue `outreach-mail`) | atomar oladi → SendGuard → SMTP → natija |
 | `SendGuard` | §4 jadvali; sof tekshiruv, test qilinadi |
-| `OutreachMailer` | Laravel mailer, alohida `outreach` mailer (`.env`: host/port/login/parol) — asosiy pochta sozlamasidan ajralgan |
+| `SenderPool` + `outreach_senders` | jo'natuvchi qutilar: holat (faol/pauza, qizdirish boshlangan sana, bugungi soni) bazada; SMTP login/parol faqat `.env`da (har bir quti — alohida Laravel mailer) |
 | `MailboxPoller` (har 5 daqiqa) | IMAP: bounce va javoblarni ushlaydi |
 | `UnsubscribeController` | ochiq, imzolangan token, rate limit |
 | Jadvallar | `outreach_messages`ga: `claim_id`, `send_attempts`, `last_error`, `message_id_header`, `series_id`; yangi: `outreach_send_log`, `outreach_suppressions`, `outreach_send_settings` (pauza, breaker); `outreach_countries.timezone` |
