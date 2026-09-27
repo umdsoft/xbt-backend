@@ -90,6 +90,8 @@ final class OutreachPresenter
             'export_contract_usd' => $c->export_contract_usd,
             'parent_revenue_usd' => $c->parent_revenue_usd,
             'sanctions_status' => $c->sanctions_status,
+            'sanctions_checked_at' => $c->sanctions_checked_at?->toIso8601String(),
+            'sanctions_source' => $c->sanctions_source,
             'icp_breakdown' => $breakdown,
             'next_stages' => $nextStages,
         ];
@@ -129,6 +131,7 @@ final class OutreachPresenter
             'company_name' => $company?->name,
             'country_code' => $company?->country_code,
             'tier' => $company?->tier,
+            'series_id' => $m->series_id,
             'sequence_step' => $m->sequence_step,
             'language' => $m->language,
             'subject' => $m->subject,

@@ -44,6 +44,7 @@ class Company extends Model
         'parent_revenue_usd' => 'integer',
         'icp_score' => 'integer',
         'stage_changed_at' => 'datetime',
+        'sanctions_checked_at' => 'datetime',
     ];
 
     public function country(): BelongsTo

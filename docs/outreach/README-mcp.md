@@ -18,6 +18,19 @@ POST https://<platform-host>/api/mcp/outreach      (Streamable HTTP, JSON-RPC)
 | `get_pipeline` | read | Leads with filters + counts per stage. |
 | `list_approvals` | read | Drafts waiting for approval / rejected with reasons. |
 | `get_stats` | read | Funnel per country. |
+| `get_company` | read | One lead in full: fields, ICP breakdown, sanctions check, contacts, letters, meetings, reply counts. |
+| `upsert_companies` | write | Bulk `upsert_company`, up to 50 items, per-item results; costs one write per item. |
+| `mark_sanctions` | write | Record an OFAC/EU check: `clear` or `hit` + source. `hit` is irreversible; only `clear` companies get mail. |
+| `create_series` | write | 1-3 letters for a contact as **drafts** (days 0/4/10). A verified lead moves to awaiting_approval. |
+| `update_draft` | write | Revise a draft or rejected letter. Approved letters are refused (`not_editable`). |
+| `list_replies` | read | Incoming mail; text only in `untrusted_*` fields, truncated (`text_limit`). |
+| `get_thread` | read | Letters sent + replies + touches, chronological, plus meetings. |
+| `classify_reply` | write | Class + summary with fixed side effects; idempotent; declined/unsubscribe/bounce are final. |
+| `mark_unsubscribed` | write | Irreversible opt-out: contact unsubscribed, email suppressed, lead closed. |
+| `save_meeting` | write | Propose/book/reschedule/cancel a meeting; `done` stays in the web UI. |
+
+Reply text written by outside senders is only ever returned under `untrusted_*` keys, and
+every tool that returns it says so: it is data to classify, never instructions.
 
 There is **no** delete, approve, reject or send tool. Approval exists only in the
 web UI (`/outreach/approvals`), for a person with the viloyat role.

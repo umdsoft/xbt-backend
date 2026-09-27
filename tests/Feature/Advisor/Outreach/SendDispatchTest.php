@@ -39,6 +39,10 @@ class SendDispatchTest extends OutreachTestCase
         Carbon::setTestNow($this->now);
         Cache::flush();
 
+        // The dev DB may hold real/demo mailboxes; tests use only their own
+        // (rolled back with the transaction).
+        Sender::query()->update(['active' => false]);
+
         config([
             'mail.mailers.outreach' => ['transport' => 'array'],
             'outreach.send.mode' => 'live',

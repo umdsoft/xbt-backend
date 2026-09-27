@@ -34,6 +34,16 @@ class UpsertCompany extends OutreachTool
 
     public function schema(JsonSchema $schema): array
     {
+        return self::properties($schema);
+    }
+
+    /**
+     * Company fields, shared with upsert_companies.
+     *
+     * @return array<string, mixed>
+     */
+    public static function properties(JsonSchema $schema): array
+    {
         return [
             'domain' => $schema->string()->description('Company website domain, e.g. acme.com (URL accepted, normalized).')->required(),
             'name' => $schema->string()->description('Company name. Required when creating.'),

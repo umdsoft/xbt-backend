@@ -40,6 +40,15 @@ final class RuleViolation extends RuntimeException
 
     public const INVALID_INPUT = 'invalid_input';
 
+    /** A letter series cannot be drafted for this contact/lead (context.check says why). */
+    public const NOT_DRAFTABLE = 'not_draftable';
+
+    /** Only one open series per contact / one open meeting per lead (context carries its id). */
+    public const ALREADY_OPEN = 'already_open';
+
+    /** The record exists but is not editable in its current status. */
+    public const NOT_EDITABLE = 'not_editable';
+
     /** @param  array<string, mixed>  $context */
     public function __construct(
         public readonly string $reason,

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Domains\Advisor\Outreach\Http\Controllers\ActivityController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ApprovalController;
 use App\Domains\Advisor\Outreach\Http\Controllers\CompanyController;
+use App\Domains\Advisor\Outreach\Http\Controllers\InboxController;
+use App\Domains\Advisor\Outreach\Http\Controllers\MailController;
 use App\Domains\Advisor\Outreach\Http\Controllers\McpTokenController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ReferenceController;
 use App\Domains\Advisor\Outreach\Http\Controllers\SendingController;
@@ -43,6 +45,19 @@ Route::middleware(['auth:sanctum', 'advisor'])
         Route::patch('/messages/{id}', [ApprovalController::class, 'edit'])->name('messages.edit');
         Route::post('/messages/{id}/approve', [ApprovalController::class, 'approve'])->name('messages.approve');
         Route::post('/messages/{id}/reject', [ApprovalController::class, 'reject'])->name('messages.reject');
+
+        // Incoming mail, series, meetings, opt-out, sanctions (docs/outreach/API-contract.md "Mail").
+        Route::get('/replies', [InboxController::class, 'index'])->name('replies.index');
+        Route::get('/replies/{id}', [InboxController::class, 'show'])->name('replies.show');
+        Route::post('/replies/{id}/classify', [InboxController::class, 'classify'])->name('replies.classify');
+        Route::post('/replies/{id}/handled', [InboxController::class, 'handled'])->name('replies.handled');
+        Route::get('/companies/{id}/thread', [InboxController::class, 'thread'])->name('companies.thread');
+        Route::post('/companies/{id}/sanctions', [MailController::class, 'sanctions'])->name('companies.sanctions');
+        Route::post('/contacts/{id}/unsubscribe', [MailController::class, 'unsubscribe'])->name('contacts.unsubscribe');
+        Route::post('/series', [MailController::class, 'storeSeries'])->name('series.store');
+        Route::get('/meetings', [MailController::class, 'meetings'])->name('meetings.index');
+        Route::post('/meetings', [MailController::class, 'storeMeeting'])->name('meetings.store');
+        Route::patch('/meetings/{id}', [MailController::class, 'updateMeeting'])->name('meetings.update');
 
         Route::get('/mcp-tokens', [McpTokenController::class, 'index'])->name('mcp-tokens.index');
         Route::post('/mcp-tokens', [McpTokenController::class, 'store'])->name('mcp-tokens.store');

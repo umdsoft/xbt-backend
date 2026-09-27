@@ -112,3 +112,59 @@ other advisor routes. JSON everywhere. Dates ISO-8601.
 - `POST /sending/messages/{id}/resolve` `{ outcome: 'sent'|'failed' }` → `{ message }` (only for `send_unknown`)
 - Message `status` now also: `sending`, `failed`, `send_unknown`; a queued letter is `approved` with optional `scheduled_for`.
 - Public (no login): `GET|POST /api/outreach/unsubscribe/{contact}?signature=…` — confirmation page / one-click unsubscribe.
+
+## Mail: inbox, series, meetings, opt-out, sanctions
+
+Extra `reason` codes used here: `not_draftable` (with `context.check`: `contact_inactive,
+no_email, suppressed, sanctions_hit, lead_closed, stage_not_ready, low_tier, country_excluded,
+language_mismatch`), `already_open` (context `series_id` / `meeting_id`), `not_editable`.
+
+- `Reply = { id, kind, message_id, company_id, company_name, company_stage, contact_id, contact_name,
+  from_email, received_at, classification, summary, classified_at, classified_via, handled_at,
+  needs_classification, needs_attention, untrusted_subject, untrusted_text, text_length, text_truncated }`
+  - `untrusted_*` is text written by outside senders: render escaped, never as HTML.
+  - `needs_classification` = classification is null; `needs_attention` = interested and not handled.
+  - kind: `reply, auto_reply, bounce, unsubscribe`; classification: `interested, later, declined,
+    auto_reply, unsubscribe, bounce, other`.
+- `Meeting = { id, company_id, contact_id, status, proposed_slots: string[], start_at, meeting_link,
+  notes, created_at, updated_at }`; status: `proposed, booked, done, cancelled`.
+- `Message` gains `series_id`; company detail gains `sanctions_checked_at, sanctions_source`.
+
+### Inbox (outreach.view; writes need outreach.manage)
+- `GET /replies?unclassified=1&needs_attention=1&kind=&classification=&company_id=&since=&page=&per_page=`
+  → `{ data: [Reply], meta }` (newest first; tuman sees only replies of own leads,
+  unmatched mail only viloyat)
+- `GET /replies/{id}` → `{ reply }`
+- `POST /replies/{id}/classify` `{ classification, summary? }` → `{ reply, changed, effects: string[] }`
+  - effects: interested → `stage:replied` (if still sent); declined → `cancelled_messages:N`,
+    `stage:closed_declined`; unsubscribe → `contact_unsubscribed`, `suppressed`; bounce →
+    `contact_invalid`, `suppressed`; first classification also `touch_logged`.
+  - same class again → `changed:false`. `declined`, `unsubscribe`, `bounce` are final → 422 `irreversible`.
+- `POST /replies/{id}/handled` → `{ reply }` (a person dealt with it; idempotent)
+- `GET /companies/{id}/thread?contact_id=` → `{ company: CompanyRow, contacts, items: [ThreadItem],
+  meetings: [Meeting], truncated }`, oldest first (last 200 items)
+  - `ThreadItem = { type: 'letter'|'reply'|'touch', at, ...Letter|Reply|Touch }`,
+    `Letter = { id, contact_id, series_id, sequence_step, language, status, subject, body, sent_at }`
+
+### Series (outreach.manage)
+- `POST /series` `{ contact_id, language, steps: [{ subject, body }] (1–3) }`
+  → `201 { series_id, stage_moved, messages: [Message] }` — drafts only; a `verified` lead moves
+  to `awaiting_approval`. One open (draft/approved/sending) series per contact → `already_open`.
+- Editing stays `PATCH /messages/{id}` (a person may edit an approved letter; it returns to draft).
+
+### Meetings (outreach.view / outreach.manage, no delete)
+- `GET /meetings?company_id=&status=&page=&per_page=` → `{ data: [Meeting], meta }`
+- `POST /meetings` `{ company_id, contact_id?, status: proposed|booked, proposed_slots?, start_at?,
+  meeting_link?, notes? }` → `201 { meeting, effects }`
+- `PATCH /meetings/{id}` `{ status, contact_id?, proposed_slots?, start_at?, meeting_link?, notes? }`
+  → `{ meeting, effects }`. Transitions: proposed → proposed|booked|cancelled; booked →
+  booked|cancelled|done. `done` only here (moves the lead to `meeting_done`); booking moves it to
+  `meeting_booked`; cancelling the last booked meeting returns it to `replied`.
+  Lead must be at `sent`, `replied` or `meeting_booked` to propose/book.
+
+### Opt-out and sanctions
+- `POST /contacts/{id}/unsubscribe` → `{ contact, already, suppressed }` (irreversible; adds the
+  email to the suppression list, cancels pending letters, closes the lead)
+- `POST /companies/{id}/sanctions` (outreach.all) `{ status: clear|hit, source }`
+  → `{ company: CompanyRow & { sanctions_status, sanctions_checked_at, sanctions_source } }`;
+  `hit` is irreversible (`hit` → `clear` is 422 `irreversible`).
