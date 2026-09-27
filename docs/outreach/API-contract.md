@@ -99,3 +99,16 @@ other advisor routes. JSON everywhere. Dates ISO-8601.
 - `POST /mcp-tokens` `{ name }` → `{ token: { ...row }, plain_text: "omcp_..." }` — shown **once**
 - `POST /mcp-tokens/{id}/revoke` → `{ token }`
 - `GET /mcp-info` → `{ endpoint_url, rate_per_minute, writes_per_minute, daily_write_cap, token_ttl_days }`
+
+### Sending (outreach.approve — viloyat) — docs/outreach/PLAN-send.md
+- `GET /sending` → `{ mode: 'off'|'test'|'live', pause: {reason,at,by}|null, breaker: {reason,at,by}|null,
+  today: { sent, capacity }, queue: { approved, due_now, send_unknown, failed_today },
+  bounce_rate_last_50: number|null, senders: [{ id, email, display_name, active, paused_at, paused_reason,
+  warmup_started_on, daily_cap_max, cap_today, sent_today }], unknown: [Message & { last_error, claimed_at }] }`
+- `POST /sending/pause` `{ reason }` · `POST /sending/resume` · `POST /sending/breaker/reset` → same as `GET /sending`
+- `POST /sending/senders` `{ email, display_name, warmup_started_on?, daily_cap_max? }` → `201 { sender: { id, email } }`
+- `PATCH /sending/senders/{id}` `{ active?, daily_cap_max?, display_name?, resume? }` → `{ sender: { id, active, paused_at } }`
+- `POST /sending/messages/{id}/unqueue` → `{ message }` (approved, not yet sent → draft)
+- `POST /sending/messages/{id}/resolve` `{ outcome: 'sent'|'failed' }` → `{ message }` (only for `send_unknown`)
+- Message `status` now also: `sending`, `failed`, `send_unknown`; a queued letter is `approved` with optional `scheduled_for`.
+- Public (no login): `GET|POST /api/outreach/unsubscribe/{contact}?signature=…` — confirmation page / one-click unsubscribe.

@@ -7,6 +7,7 @@ use App\Domains\Advisor\Outreach\Http\Controllers\ApprovalController;
 use App\Domains\Advisor\Outreach\Http\Controllers\CompanyController;
 use App\Domains\Advisor\Outreach\Http\Controllers\McpTokenController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ReferenceController;
+use App\Domains\Advisor\Outreach\Http\Controllers\SendingController;
 use App\Domains\Advisor\Outreach\Http\Controllers\UnsubscribeController;
 use App\Domains\Advisor\Outreach\Mcp\AuthenticateMcpToken;
 use App\Domains\Advisor\Outreach\Mcp\OutreachServer;
@@ -66,3 +67,20 @@ Route::middleware(['signed', 'throttle:30,1'])->group(function () {
     Route::get('/outreach/unsubscribe/{contact}', [UnsubscribeController::class, 'show'])->name('api.outreach.unsubscribe');
     Route::post('/outreach/unsubscribe/{contact}', [UnsubscribeController::class, 'store'])->name('api.outreach.unsubscribe.store');
 });
+
+/*
+ * Sending dashboard and controls (viloyat, `outreach.approve`) — PLAN-send.md §8–§9.
+ */
+Route::middleware(['auth:sanctum', 'advisor'])
+    ->prefix('advisor/outreach/sending')
+    ->name('api.advisor.outreach.sending.')
+    ->group(function () {
+        Route::get('/', [SendingController::class, 'overview'])->name('overview');
+        Route::post('/pause', [SendingController::class, 'pause'])->name('pause');
+        Route::post('/resume', [SendingController::class, 'resume'])->name('resume');
+        Route::post('/breaker/reset', [SendingController::class, 'resetBreaker'])->name('breaker.reset');
+        Route::post('/senders', [SendingController::class, 'addSender'])->name('senders.store');
+        Route::patch('/senders/{id}', [SendingController::class, 'updateSender'])->name('senders.update');
+        Route::post('/messages/{id}/unqueue', [SendingController::class, 'unqueue'])->name('messages.unqueue');
+        Route::post('/messages/{id}/resolve', [SendingController::class, 'resolveUnknown'])->name('messages.resolve');
+    });
