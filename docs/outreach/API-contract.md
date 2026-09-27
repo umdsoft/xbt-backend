@@ -98,4 +98,4 @@ other advisor routes. JSON everywhere. Dates ISO-8601.
 - `GET /mcp-tokens` → `{ data: [{ id, name, created_at, expires_at, last_used_at, last_used_ip, revoked_at }] }`
 - `POST /mcp-tokens` `{ name }` → `{ token: { ...row }, plain_text: "omcp_..." }` — shown **once**
 - `POST /mcp-tokens/{id}/revoke` → `{ token }`
-- `GET /mcp-info` → `{ endpoint_url, rate_per_minute, writes_per_minute, daily_write_cap }`
+- `GET /mcp-info` → `{ endpoint_url, rate_per_minute, writes_per_minute, daily_write_cap, token_ttl_days }`
