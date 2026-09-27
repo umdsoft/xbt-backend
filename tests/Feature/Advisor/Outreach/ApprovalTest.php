@@ -106,6 +106,14 @@ class ApprovalTest extends OutreachTestCase
         $this->assertSame(Message::hashOf($draft->subject, 'New body'), $edited->body_hash);
     }
 
+    public function test_tuman_cannot_edit_another_advisors_message(): void
+    {
+        $draft = $this->approvableDraft($this->tuman());
+
+        $this->assertSame(RuleViolation::NOT_FOUND, $this->reasonOf(fn () => $this->service()->edit(Actor::ui($this->tuman()), $draft->id, 'x', 'y')));
+        $this->assertSame('Dear Jane, ...', $draft->fresh()->body);
+    }
+
     public function test_reject_requires_reason(): void
     {
         $draft = $this->approvableDraft();

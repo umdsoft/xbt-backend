@@ -35,7 +35,7 @@ final class ApprovalService
         $this->requireApprover($actor);
 
         return DB::connection('advisor')->transaction(function () use ($actor, $messageId, $bodyHash): Message {
-            $message = $this->lockMessage($messageId);
+            $message = $this->lockMessage($actor, $messageId);
             $this->assertApprovable($message, $bodyHash);
 
             $message->forceFill([
@@ -59,7 +59,7 @@ final class ApprovalService
         }
 
         return DB::connection('advisor')->transaction(function () use ($actor, $messageId, $reason): Message {
-            $message = $this->lockMessage($messageId);
+            $message = $this->lockMessage($actor, $messageId);
             if ($message->status !== Message::DRAFT) {
                 throw new RuleViolation(RuleViolation::NOT_APPROVABLE, 'Фақат қоралама рад этилади.', ['status' => $message->status]);
             }
@@ -115,8 +115,7 @@ final class ApprovalService
         $this->gate->require($actor, OutreachGate::MANAGE);
 
         return DB::connection('advisor')->transaction(function () use ($actor, $messageId, $subject, $body): Message {
-            $message = $this->lockMessage($messageId);
-            $this->gate->company($actor, $message->contact->company_id);
+            $message = $this->lockMessage($actor, $messageId);
 
             if (! in_array($message->status, [Message::DRAFT, Message::APPROVED, Message::REJECTED], true)) {
                 throw new RuleViolation(RuleViolation::IRREVERSIBLE, 'Юборилган ёки бекор қилинган хат таҳрирланмайди.', ['status' => $message->status]);
@@ -148,10 +147,18 @@ final class ApprovalService
         $this->gate->require($actor, OutreachGate::APPROVE);
     }
 
-    private function lockMessage(string $id): Message
+    /**
+     * Scope to leads the actor may access BEFORE locking, so nobody can hold a
+     * lock on (or time) another advisor's message.
+     */
+    private function lockMessage(Actor $actor, string $id): Message
     {
+        $companies = $this->gate->scope(Company::query(), $actor)->select('id');
+
         $message = Str::isUuid($id)
-            ? Message::query()->with('contact.company.country')->lockForUpdate()->find($id)
+            ? Message::query()->with('contact.company.country')
+                ->whereHas('contact', fn ($c) => $c->whereIn('company_id', $companies))
+                ->lockForUpdate()->find($id)
             : null;
 
         return $message ?? throw new RuleViolation(RuleViolation::NOT_FOUND, 'Хат топилмади.');
