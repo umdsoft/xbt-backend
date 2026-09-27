@@ -78,7 +78,7 @@ other advisor routes. JSON everywhere. Dates ISO-8601.
 
 ### Messages & approvals (outreach.approve)
 - `Message = { id, contact_id, contact_name, contact_email, company_id, company_name,
-  country_code, tier, sanctions_status, sanctions_source, sanctions_checked_at, sequence_step, language, subject, body, body_hash, status,
+  country_code, tier, sanctions_status, sanctions_source, sanctions_checked_at, sequence_step, language, subject, body, body_hash, status, scheduled_for, sent_at,
   approved_by_name, approved_at, rejected_by_name, rejected_at, reject_reason, created_at }`
 - `GET /approvals?country=&tier=&owner=&page=` → `{ data: [Message], meta }` (status `draft` only)
 - `PATCH /messages/{id}` `{ subject, body }` → `{ message }` (edit; `approved` returns to `draft`)

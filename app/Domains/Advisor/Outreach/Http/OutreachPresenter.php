@@ -148,6 +148,9 @@ final class OutreachPresenter
             'rejected_by_name' => $this->name($m->rejected_by_user_id),
             'rejected_at' => $m->rejected_at?->toIso8601String(),
             'reject_reason' => $m->reject_reason,
+            // Queue view: when an approved letter is due (null = next free slot) and when it left.
+            'scheduled_for' => $m->scheduled_for?->toIso8601String(),
+            'sent_at' => $m->sent_at?->toIso8601String(),
             'created_at' => $m->created_at?->toIso8601String(),
         ];
     }
