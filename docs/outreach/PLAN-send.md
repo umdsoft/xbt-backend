@@ -1,6 +1,6 @@
 # Tasdiqlangan xatlarni avtomatik yuborish — loyiha (3-bosqich)
 
-Holat: **loyiha, tasdiq kutilmoqda.** Kod yozilmagan.
+Holat: **loyiha; egasining qarorlari qabul qilindi (2026-09-27, §11).** Kod yozilmagan.
 Bog'liq hujjatlar: [SPEC.md](SPEC.md) §4.3, §5, §6, §7 · [CLAUDE.md](CLAUDE.md) qoidalari 1, 5, 7, 8 · [PLAN-crm.md](PLAN-crm.md).
 
 ## 1. G'oya
@@ -156,7 +156,18 @@ Maxfiy ma'lumotlar (SMTP/IMAP paroli, token imzolash kaliti) faqat `.env`da, rep
 Real rejimga o'tish uchun alohida `.env` kaliti + "allowlist" bosqichi: avval faqat o'zimizning
 test manzillarimizga, keyin haqiqiy oluvchilarga.
 
-## 11. Egasi hal qilishi kerak bo'lgan savollar
+## 11. Egasining qarorlari (2026-09-27)
+
+| # | Savol | Qaror |
+|---|---|---|
+| 1 | Xat qaysi server orqali chiqadi | **A — alohida chiquvchi IP / relay** (`invest.digital-xorazm.uz`, PTR bilan). Asosiy hokimlik pochtasining IP obro'si ajratiladi. ISP'dan ikkinchi IP + PTR yoki alohida VPS kerak. Ungacha — Mailpit. |
+| 2 | Sanksiya | **`clear` shart.** `unchecked` kompaniyaning xati navbatda kutadi; `clear`ni Claude (MCP) qo'yadi, inson UI'da ko'radi. |
+| 3 | Seriya tasdig'i | **Butun seriya birga** tasdiqlanadi. |
+| 4 | Jo'natuvchi | **Bitta mas'ul shaxs** nomidan. Ism, lavozim, manzil — egasidan olinadi va `.env`/sozlamada saqlanadi. |
+
+Quyidagi bo'lim — qaror qabul qilinishidan oldingi variantlar tahlili (tarix uchun saqlanadi).
+
+### Variantlar tahlili
 
 1. **Xat qaysi server orqali chiqadi?** (eng muhim)
    Hozir Mailcow (`.253`) chiquvchi xatlari Gmail tomonidan rad etiladi (PTR yo'q, 2026-09-12 holati).
