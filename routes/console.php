@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\PruneInteriorPhotos;
+use App\Domains\Advisor\Outreach\Console\PollInboxCommand;
 use App\Domains\Advisor\Outreach\Console\SendDueLettersCommand;
 use App\Console\Commands\ReanalyzeStuckObservations;
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
@@ -54,6 +55,7 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(CheckDeadlinesCommand::class);
     // Advisor outreach: automatic sending of approved letters.
     $artisan->resolve(SendDueLettersCommand::class);
+    $artisan->resolve(PollInboxCommand::class);
 });
 
 /*
@@ -83,4 +85,9 @@ Schedule::command('yoshlar:check-deadlines')
 // Outreach: send approved letters that are due. Inert unless OUTREACH_SEND_MODE=test|live.
 Schedule::command('outreach:send-due')
     ->everyMinute()
+    ->withoutOverlapping();
+
+// Outreach: import replies and bounces from the Mailcow inbox. Inert until OUTREACH_INBOX_HOST is set.
+Schedule::command('outreach:poll-inbox')
+    ->everyFiveMinutes()
     ->withoutOverlapping();

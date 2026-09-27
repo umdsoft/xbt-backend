@@ -75,4 +75,19 @@ return [
             'address' => env('OUTREACH_SENDER_ADDRESS'),
         ],
     ],
+
+    /*
+     * Central outreach inbox on Mailcow: pool mailboxes forward replies and
+     * bounces here; `outreach:poll-inbox` reads it every 5 minutes.
+     * Empty host = poller disabled.
+     */
+    'inbox' => [
+        'host' => env('OUTREACH_INBOX_HOST'),
+        'port' => (int) env('OUTREACH_INBOX_PORT', 993),
+        'encryption' => env('OUTREACH_INBOX_ENCRYPTION', 'ssl'),
+        'username' => env('OUTREACH_INBOX_USERNAME'),
+        'password' => env('OUTREACH_INBOX_PASSWORD'),
+        'folder' => env('OUTREACH_INBOX_FOLDER', 'INBOX'),
+        'validate_cert' => (bool) env('OUTREACH_INBOX_VALIDATE_CERT', true),
+    ],
 ];
