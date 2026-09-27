@@ -137,16 +137,34 @@ class ReplyInboxTest extends OutreachTestCase
         $this->assertSame(Stage::CLOSED_UNSUBSCRIBED, Company::query()->find($reply->company_id)->stage);
     }
 
-    public function test_bounce_invalidates_email_and_auto_reply_changes_nothing(): void
+    public function test_bounce_invalidates_and_suppresses_later_and_auto_reply_change_nothing(): void
     {
-        $bounce = $this->repliedLead(null, ['kind' => 'bounce']);
+        // Claude recognises a bounce the poller filed as an ordinary reply.
+        $bounce = $this->repliedLead();
         $this->service()->classify($this->mcp(), $bounce->id, 'bounce');
-        $this->assertSame('invalid', Contact::query()->find($bounce->contact_id)->email_status);
+        $contact = Contact::query()->find($bounce->contact_id);
+        $this->assertSame('invalid', $contact->email_status);
+        $this->assertTrue(Suppression::query()->where('email', $contact->email)->where('reason', 'hard_bounce')->exists());
 
-        $auto = $this->repliedLead(null, ['kind' => 'auto_reply']);
-        $result = $this->service()->classify($this->mcp(), $auto->id, 'auto_reply');
-        $this->assertSame([], $result['effects']);
-        $this->assertSame(Stage::SENT, Company::query()->find($auto->company_id)->stage);
+        foreach (['later', 'auto_reply'] as $class) {
+            $reply = $this->repliedLead();
+            $result = $this->service()->classify($this->mcp(), $reply->id, $class);
+            $this->assertNotContains('stage:replied', $result['effects']);
+            $this->assertSame(Stage::SENT, Company::query()->find($reply->company_id)->stage);
+        }
+    }
+
+    public function test_machine_classified_rows_are_final_and_not_unclassified(): void
+    {
+        $machine = $this->repliedLead(null, ['kind' => 'unsubscribe', 'classification' => 'unsubscribe']);
+        $open = $this->repliedLead();
+
+        $unclassified = $this->service()->scope(Actor::ui($this->owner))->whereNull('classification')->pluck('id')->all();
+        $this->assertNotContains($machine->id, $unclassified);
+        $this->assertContains($open->id, $unclassified);
+
+        $this->assertSame(RuleViolation::IRREVERSIBLE, $this->refusal(fn () => $this->service()->classify($this->mcp(), $machine->id, 'interested')));
+        $this->assertFalse($this->service()->classify($this->mcp(), $machine->id, 'unsubscribe')['changed']);
     }
 
     public function test_final_classifications_cannot_be_changed_soft_ones_can(): void

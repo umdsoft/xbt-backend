@@ -25,13 +25,22 @@ use Illuminate\Validation\Rule;
  * Reply text is untrusted data (CLAUDE.md rule 2): nothing here interprets
  * it, and classification side effects depend only on the class chosen.
  *
+ * Poller contract: rows of kind auto_reply/bounce/unsubscribe arrive already
+ * classified (classified_at NULL) and their mechanical effects are done; kind
+ * `reply` arrives with classification NULL = "needs classification", and the
+ * poller has already moved the lead sent -> replied and cancelled the
+ * contact's pending letters. Effects below are therefore idempotent safety
+ * nets or the parts only a reader can decide.
+ *
  * Side effects of a classification (only on a change, so re-sending the same
  * class is a no-op):
- *   interested, later -> lead sent -> replied
+ *   interested        -> needs a person; lead sent -> replied if still at sent
  *   declined          -> pending letters cancelled, lead -> closed_declined
  *   unsubscribe       -> contact unsubscribed + suppressed (one-way)
- *   bounce            -> contact email_status invalid
- *   auto_reply, other -> nothing
+ *   bounce            -> contact email_status invalid + suppressed (hard_bounce)
+ *   later, auto_reply, other -> nothing
+ * A first classification of a reply that reached a lead also logs an
+ * incoming touch (history), except for auto_reply/bounce.
  * `declined`, `unsubscribe` and `bounce` are final: they cannot be
  * reclassified by anyone. The other classes may change freely; stage moves
  * already made are not undone.
@@ -47,7 +56,7 @@ final class ReplyService
 
     public const THREAD_LIMIT = 200;
 
-    private const REPLIED_CLASSES = ['interested', 'later'];
+    private const REPLIED_CLASSES = ['interested'];
 
     private const TOUCH_CLASSES = ['interested', 'later', 'declined', 'unsubscribe', 'other'];
 
@@ -238,10 +247,10 @@ final class ReplyService
 
         $company = $this->gate->company($actor, $links['company_id'], lock: true);
         $effects = match ($class) {
-            'interested', 'later' => $this->markReplied($actor, $company, $class),
+            'interested' => $this->markReplied($actor, $company, $class),
             'declined' => $this->decline($actor, $company),
             'unsubscribe' => $this->unsubscribe($actor, $reply, $links['contact_id']),
-            'bounce' => $this->bounce($actor, $company, $links['contact_id']),
+            'bounce' => $this->bounce($actor, $company, $reply, $links['contact_id']),
             default => [],
         };
 
@@ -313,15 +322,22 @@ final class ReplyService
     }
 
     /** @return array<int, string> */
-    private function bounce(Actor $actor, Company $company, ?string $contactId): array
+    private function bounce(Actor $actor, Company $company, Reply $reply, ?string $contactId): array
     {
         $contact = $contactId !== null ? Contact::query()->where('company_id', $company->id)->find($contactId) : null;
-        if ($contact === null || $contact->email_status === 'invalid') {
+        if ($contact === null) {
             return [];
         }
 
-        $this->contacts->upsert($actor, ['company_id' => $company->id, 'contact_id' => $contact->id, 'email_status' => 'invalid']);
+        $effects = [];
+        if ($contact->email_status !== 'invalid') {
+            $this->contacts->upsert($actor, ['company_id' => $company->id, 'contact_id' => $contact->id, 'email_status' => 'invalid']);
+            $effects[] = 'contact_invalid';
+        }
+        if ($contact->email !== null && $this->optOut->suppress($actor, (string) $contact->email, 'hard_bounce', $reply->message_id)) {
+            $effects[] = 'suppressed';
+        }
 
-        return ['contact_invalid'];
+        return $effects;
     }
 }
