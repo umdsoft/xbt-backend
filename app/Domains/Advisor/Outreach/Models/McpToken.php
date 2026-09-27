@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Outreach\Models;
 
+use App\Domains\Advisor\Outreach\Models\Concerns\WritesTimezoneOffset;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 class McpToken extends Model
 {
     use HasUuids;
+    use WritesTimezoneOffset;
 
     protected $connection = 'advisor';
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Outreach\Models;
 
+use App\Domains\Advisor\Outreach\Models\Concerns\WritesTimezoneOffset;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Message extends Model
 {
     use HasUuids;
+    use WritesTimezoneOffset;
 
     public const DRAFT = 'draft';
 

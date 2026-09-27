@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Advisor\Outreach\Models;
 
+use App\Domains\Advisor\Outreach\Models\Concerns\WritesTimezoneOffset;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Country extends Model
 {
+    use WritesTimezoneOffset;
+
     protected $connection = 'advisor';
 
     protected $table = 'outreach_countries';
