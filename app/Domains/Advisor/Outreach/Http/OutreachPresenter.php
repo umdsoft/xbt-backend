@@ -131,6 +131,11 @@ final class OutreachPresenter
             'company_name' => $company?->name,
             'country_code' => $company?->country_code,
             'tier' => $company?->tier,
+            // Shown to the approver: letters go out only for `clear`, and the
+            // check may have been recorded by Claude (security review MEDIUM).
+            'sanctions_status' => $company?->sanctions_status,
+            'sanctions_source' => $company?->sanctions_source,
+            'sanctions_checked_at' => $company?->sanctions_checked_at?->toIso8601String(),
             'series_id' => $m->series_id,
             'sequence_step' => $m->sequence_step,
             'language' => $m->language,
