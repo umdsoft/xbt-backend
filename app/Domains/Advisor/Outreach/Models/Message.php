@@ -53,6 +53,27 @@ class Message extends Model
         'sent_at' => 'datetime',
     ];
 
+    /**
+     * Invariants that hold no matter which code path saves the message:
+     *  - body_hash always matches subject+body;
+     *  - changing the text of an approved message drops the approval, so an
+     *    approved hash can never cover text nobody approved (CLAUDE.md rule 1).
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (self $message): void {
+            $textChanged = $message->isDirty(['subject', 'body']);
+
+            if ($message->exists && $textChanged && $message->getOriginal('status') === self::APPROVED) {
+                $message->status = self::DRAFT;
+                $message->approved_by_user_id = null;
+                $message->approved_at = null;
+            }
+
+            $message->body_hash = $message->currentHash();
+        });
+    }
+
     public static function hashOf(string $subject, string $body): string
     {
         return hash('sha256', $subject."\n".$body);
