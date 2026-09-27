@@ -101,7 +101,10 @@ final class SendGuard
         }
 
         if (! in_array($company->stage, self::FOLLOW_UP_STAGES, true)) {
-            return $this->notReadyOrOver($company->stage);
+            // Before the first letter went out the follow-up simply waits.
+            return $company->stage === Stage::AWAITING_APPROVAL
+                ? GuardDecision::hold('previous_step_pending')
+                : $this->notReadyOrOver($company->stage);
         }
 
         $previous = $message->series_id === null ? null : Message::query()

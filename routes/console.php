@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\PruneInteriorPhotos;
+use App\Domains\Advisor\Outreach\Console\SendDueLettersCommand;
 use App\Console\Commands\ReanalyzeStuckObservations;
 use App\Domains\Mahalla\Console\Commands\CyrillicizeMahallaNamesCommand;
 use App\Domains\Mahalla\Console\Commands\AddMahallaAliasCommand;
@@ -51,6 +52,8 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(MakeYoshlarUserCommand::class);
     $artisan->resolve(RefreshRegistryCommand::class);
     $artisan->resolve(CheckDeadlinesCommand::class);
+    // Advisor outreach: automatic sending of approved letters.
+    $artisan->resolve(SendDueLettersCommand::class);
 });
 
 /*
@@ -75,4 +78,9 @@ Schedule::command('yoshlar:refresh-registry')
 // Muddat nazorati va eskalatsiya — ish kuni boshlanishidan oldin.
 Schedule::command('yoshlar:check-deadlines')
     ->dailyAt('07:00')
+    ->withoutOverlapping();
+
+// Outreach: send approved letters that are due. Inert unless OUTREACH_SEND_MODE=test|live.
+Schedule::command('outreach:send-due')
+    ->everyMinute()
     ->withoutOverlapping();

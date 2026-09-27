@@ -45,12 +45,17 @@ class Sender extends Model
      */
     public function capOn(Carbon $day): int
     {
-        if ($day->lt($this->warmup_started_on)) {
+        // Compare calendar dates only: `$day` is a local (Tashkent) day, the
+        // column is a plain date — mixing their time zones shifts the ramp.
+        $today = Carbon::parse($day->toDateString(), 'UTC');
+        $start = Carbon::parse($this->warmup_started_on->toDateString(), 'UTC');
+
+        if ($today->lt($start)) {
             return 0;
         }
 
         $ramp = (array) config('outreach.send.warmup', [10, 20, 30]);
-        $week = intdiv((int) $this->warmup_started_on->diffInDays($day), 7);
+        $week = intdiv((int) $start->diffInDays($today), 7);
 
         return min($this->daily_cap_max, (int) ($ramp[$week] ?? $this->daily_cap_max));
     }

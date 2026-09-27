@@ -7,6 +7,7 @@ use App\Domains\Advisor\Outreach\Http\Controllers\ApprovalController;
 use App\Domains\Advisor\Outreach\Http\Controllers\CompanyController;
 use App\Domains\Advisor\Outreach\Http\Controllers\McpTokenController;
 use App\Domains\Advisor\Outreach\Http\Controllers\ReferenceController;
+use App\Domains\Advisor\Outreach\Http\Controllers\UnsubscribeController;
 use App\Domains\Advisor\Outreach\Mcp\AuthenticateMcpToken;
 use App\Domains\Advisor\Outreach\Mcp\OutreachServer;
 use Illuminate\Support\Facades\Route;
@@ -56,3 +57,12 @@ Route::middleware(['auth:sanctum', 'advisor'])
 Mcp::web(config('outreach.mcp.path'), OutreachServer::class)
     ->middleware([AuthenticateMcpToken::class, 'throttle:outreach-mcp'])
     ->name('api.outreach.mcp');
+
+/*
+ * Public one-click unsubscribe from outreach letters (RFC 8058). Signed URL,
+ * no login; rate limited against abuse.
+ */
+Route::middleware(['signed', 'throttle:30,1'])->group(function () {
+    Route::get('/outreach/unsubscribe/{contact}', [UnsubscribeController::class, 'show'])->name('api.outreach.unsubscribe');
+    Route::post('/outreach/unsubscribe/{contact}', [UnsubscribeController::class, 'store'])->name('api.outreach.unsubscribe.store');
+});

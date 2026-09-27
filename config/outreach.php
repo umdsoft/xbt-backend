@@ -26,8 +26,53 @@ return [
      * Automatic sending of approved letters — docs/outreach/PLAN-send.md.
      */
     'send' => [
+        // off  — nothing is sent (default; safe for every environment)
+        // test — every letter goes to OUTREACH_SEND_TEST_RECIPIENT instead of the real address
+        // live — real recipients; requires the sender identity below
+        'mode' => env('OUTREACH_SEND_MODE', 'off'),
+        'test_recipient' => env('OUTREACH_SEND_TEST_RECIPIENT'),
+
         // Letters per mailbox per day by warm-up week (index 0 = first week);
         // after the ramp each mailbox uses its own daily_cap_max.
         'warmup' => array_map('intval', explode(',', (string) env('OUTREACH_SEND_WARMUP', '10,20,30'))),
+
+        // Daily counters reset at midnight in this zone.
+        'cap_timezone' => env('OUTREACH_SEND_CAP_TIMEZONE', 'Asia/Tashkent'),
+
+        // Recipient's business hours (recipient country's time zone), Mon–Fri.
+        'window_start_hour' => (int) env('OUTREACH_SEND_WINDOW_START', 9),
+        'window_end_hour' => (int) env('OUTREACH_SEND_WINDOW_END', 16),
+        'default_recipient_timezone' => env('OUTREACH_SEND_DEFAULT_TZ', 'Europe/Berlin'),
+
+        // Random pause between two letters from the same mailbox, seconds.
+        'spacing_min' => (int) env('OUTREACH_SEND_SPACING_MIN', 180),
+        'spacing_max' => (int) env('OUTREACH_SEND_SPACING_MAX', 420),
+
+        // At most this many letters per recipient domain per day (all mailboxes).
+        'per_domain_daily' => (int) env('OUTREACH_SEND_PER_DOMAIN_DAILY', 2),
+
+        // Follow-ups: days after the FIRST letter was actually sent (SPEC §4.3: 0/4/10).
+        'follow_up_days' => [2 => 4, 3 => 10],
+
+        // Temporary SMTP failures: retry up to max_attempts, backing off.
+        'max_attempts' => 3,
+        'retry_minutes' => 30,
+
+        // Letters sent per scheduler run (runs every minute).
+        'batch' => (int) env('OUTREACH_SEND_BATCH', 10),
+
+        // Circuit breaker: this many consecutive failed attempts stops everything.
+        'breaker_consecutive_failures' => 5,
+
+        // Envelope sender for bounces (a Mailcow mailbox read by the poller).
+        'bounce_address' => env('OUTREACH_BOUNCE_ADDRESS'),
+
+        // Real sender identity printed under every letter (SPEC §4.3). Required in live mode.
+        'identity' => [
+            'name' => env('OUTREACH_SENDER_NAME'),
+            'title' => env('OUTREACH_SENDER_TITLE'),
+            'organization' => env('OUTREACH_SENDER_ORG'),
+            'address' => env('OUTREACH_SENDER_ADDRESS'),
+        ],
     ],
 ];
