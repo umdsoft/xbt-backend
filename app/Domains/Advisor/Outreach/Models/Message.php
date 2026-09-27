@@ -37,6 +37,15 @@ class Message extends Model
 
     public const CANCELLED = 'cancelled';
 
+    /** Claimed by a send worker; never touched by anything else meanwhile. */
+    public const SENDING = 'sending';
+
+    /** Permanent SMTP failure or retries exhausted. */
+    public const FAILED = 'failed';
+
+    /** Connection dropped after DATA: delivery unknown, a person decides (never auto-resent). */
+    public const SEND_UNKNOWN = 'send_unknown';
+
     protected $connection = 'advisor';
 
     protected $table = 'outreach_messages';
@@ -44,7 +53,7 @@ class Message extends Model
     protected $fillable = [
         'contact_id', 'sequence_step', 'language', 'subject', 'body', 'body_hash', 'status',
         'approved_by_user_id', 'approved_at', 'rejected_by_user_id', 'rejected_at', 'reject_reason',
-        'scheduled_for', 'sent_at', 'smtp_message_id', 'created_by',
+        'scheduled_for', 'sent_at', 'smtp_message_id', 'created_by', 'series_id',
     ];
 
     protected $casts = [
@@ -53,6 +62,8 @@ class Message extends Model
         'rejected_at' => 'datetime',
         'scheduled_for' => 'datetime',
         'sent_at' => 'datetime',
+        'claimed_at' => 'datetime',
+        'send_attempts' => 'integer',
     ];
 
     /**

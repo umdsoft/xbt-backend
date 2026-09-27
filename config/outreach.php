@@ -21,4 +21,13 @@ return [
         'writes_per_minute' => (int) env('OUTREACH_MCP_WRITES_PER_MINUTE', 60),
         'daily_write_cap' => (int) env('OUTREACH_MCP_DAILY_WRITE_CAP', 3000),
     ],
+
+    /*
+     * Automatic sending of approved letters — docs/outreach/PLAN-send.md.
+     */
+    'send' => [
+        // Letters per mailbox per day by warm-up week (index 0 = first week);
+        // after the ramp each mailbox uses its own daily_cap_max.
+        'warmup' => array_map('intval', explode(',', (string) env('OUTREACH_SEND_WARMUP', '10,20,30'))),
+    ],
 ];

@@ -29,7 +29,7 @@ class Country extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'code', 'name', 'wave', 'score', 'excluded', 'excluded_reason', 'default_language',
+        'code', 'name', 'wave', 'score', 'excluded', 'excluded_reason', 'default_language', 'timezone',
     ];
 
     protected $casts = [
