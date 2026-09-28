@@ -69,6 +69,8 @@ return [
         'egress_ip' => env('OUTREACH_EGRESS_IP', '89.249.62.68'),
         'helo_name' => env('OUTREACH_HELO_NAME', 'mail.digital-xorazm.uz'),
         'dkim_selector' => env('OUTREACH_DKIM_SELECTOR', 'dkim'),
+        // Public DNS-over-HTTPS resolver (bypasses /etc/hosts and the LAN resolver).
+        'doh_url' => env('OUTREACH_DOH_URL', 'https://cloudflare-dns.com/dns-query'),
         'test_from' => env('OUTREACH_PREFLIGHT_FROM'),
 
         // Envelope sender for bounces (a Mailcow mailbox read by the poller).

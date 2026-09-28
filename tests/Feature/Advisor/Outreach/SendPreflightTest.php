@@ -7,6 +7,7 @@ namespace Tests\Feature\Advisor\Outreach;
 use App\Domains\Advisor\Outreach\Models\Sender;
 use App\Domains\Advisor\Outreach\Services\Sending\Dns;
 use App\Domains\Advisor\Outreach\Services\Sending\SendPreflight;
+use Illuminate\Support\Facades\Http;
 
 /** Readiness checks before live sending, with fixed DNS answers. */
 class SendPreflightTest extends OutreachTestCase
@@ -123,6 +124,36 @@ class SendPreflightTest extends OutreachTestCase
 
         Sender::query()->update(['active' => false]);
         $this->assertSame('fail', $this->statuses()['mailbox pool']);
+    }
+
+    public function test_dns_reader_parses_public_doh_answers(): void
+    {
+        Http::fake(['*' => function ($request) {
+            $q = [];
+            parse_str((string) parse_url((string) $request->url(), PHP_URL_QUERY), $q);
+
+            return Http::response(['Answer' => match ($q['type']) {
+                'A' => [['type' => 1, 'data' => '203.0.113.10'], ['type' => 5, 'data' => 'alias.example.test.']],
+                'TXT' => [['type' => 16, 'data' => '"v=DKIM1;k=rsa;" "p=MIIB"']],
+                'MX' => [['type' => 15, 'data' => '10 mx.example.test.']],
+                'PTR' => [['type' => 12, 'data' => 'mail.example.test.']],
+            }]);
+        }]);
+        $dns = new Dns;
+
+        $this->assertSame(['203.0.113.10'], $dns->a('mail.example.test'));
+        $this->assertSame(['v=DKIM1;k=rsa;p=MIIB'], $dns->txt('dkim._domainkey.example.test'));
+        $this->assertSame(['mx.example.test'], $dns->mx('example.test'));
+        $this->assertSame('mail.example.test', $dns->ptr('203.0.113.10'));
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'name=10.113.0.203.in-addr.arpa'));
+    }
+
+    public function test_dns_reader_returns_nothing_when_resolver_fails(): void
+    {
+        Http::fake(['*' => Http::response('', 500)]);
+
+        $this->assertSame([], (new Dns)->a('mail.example.test'));
+        $this->assertNull((new Dns)->ptr('203.0.113.10'));
     }
 
     public function test_command_exit_code_reflects_readiness(): void
