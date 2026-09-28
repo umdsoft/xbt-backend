@@ -63,6 +63,8 @@ class AdvisorAccess
             'activity.view',
             'plan.view', 'plan.progress',
             'monitoring.view', 'monitoring.enter',
+            // Xorijiy investorlar (outreach CRM): faqat o'z lidlari; tasdiq/MCP YO'Q.
+            'outreach.view', 'outreach.manage',
         ],
     ];
 

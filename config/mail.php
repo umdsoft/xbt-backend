@@ -37,6 +37,19 @@ return [
 
     'mailers' => [
 
+        // Outreach CRM letters (docs/outreach/PLAN-send.md §10a): one Mailcow
+        // service account allowed to send as every pool mailbox.
+        'outreach' => [
+            'transport' => env('OUTREACH_SMTP_TRANSPORT', 'smtp'),
+            'scheme' => env('OUTREACH_SMTP_SCHEME'),
+            'host' => env('OUTREACH_SMTP_HOST', '127.0.0.1'),
+            'port' => env('OUTREACH_SMTP_PORT', 1025),
+            'username' => env('OUTREACH_SMTP_USERNAME'),
+            'password' => env('OUTREACH_SMTP_PASSWORD'),
+            'timeout' => 30,
+            'local_domain' => env('OUTREACH_SMTP_EHLO_DOMAIN'),
+        ],
+
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),

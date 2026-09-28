@@ -1,6 +1,9 @@
 <?php
 
 use App\Console\Commands\PruneInteriorPhotos;
+use App\Domains\Advisor\Outreach\Console\PollInboxCommand;
+use App\Domains\Advisor\Outreach\Console\SendDueLettersCommand;
+use App\Domains\Advisor\Outreach\Console\SendPreflightCommand;
 use App\Console\Commands\ReanalyzeStuckObservations;
 use App\Domains\Ayollar\Console\Commands\MakeAyollarUserCommand;
 use App\Domains\Ayollar\Console\Commands\PurgeAyollarDataCommand;
@@ -60,6 +63,10 @@ ConsoleApplication::starting(function ($artisan) {
     $artisan->resolve(SeedAyollarDemoCommand::class);
     $artisan->resolve(PurgeAyollarDataCommand::class);
     $artisan->resolve(RecalculateBalancesCommand::class);
+    // Advisor outreach: automatic sending of approved letters.
+    $artisan->resolve(SendDueLettersCommand::class);
+    $artisan->resolve(PollInboxCommand::class);
+    $artisan->resolve(SendPreflightCommand::class);
 });
 
 /*
@@ -94,4 +101,14 @@ Schedule::command('yoshlar:check-deadlines')
 // 03:30 — boshqa og'ir ishlardan keyin, ish kuni boshlanishidan ancha oldin.
 Schedule::command('ayollar:recalculate')
     ->dailyAt('03:30')
+    ->withoutOverlapping();
+
+// Outreach: send approved letters that are due. Inert unless OUTREACH_SEND_MODE=test|live.
+Schedule::command('outreach:send-due')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+// Outreach: import replies and bounces from the Mailcow inbox. Inert until OUTREACH_INBOX_HOST is set.
+Schedule::command('outreach:poll-inbox')
+    ->everyFiveMinutes()
     ->withoutOverlapping();
