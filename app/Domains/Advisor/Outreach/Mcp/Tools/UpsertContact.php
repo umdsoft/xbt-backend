@@ -31,6 +31,16 @@ class UpsertContact extends OutreachTool
 
     public function schema(JsonSchema $schema): array
     {
+        return self::properties($schema);
+    }
+
+    /**
+     * Contact fields, shared with upsert_contacts.
+     *
+     * @return array<string, mixed>
+     */
+    public static function properties(JsonSchema $schema): array
+    {
         return [
             'company_id' => $schema->string()->description('Lead id from upsert_company / get_pipeline.')->required(),
             'contact_id' => $schema->string()->description('Existing contact id, to update a contact that has no email.'),

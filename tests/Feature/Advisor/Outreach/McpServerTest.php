@@ -107,6 +107,7 @@ class McpServerTest extends OutreachTestCase
         foreach ([
             'dedupe_check', 'get_pipeline', 'get_stats', 'list_approvals',
             'log_touch', 'set_stage', 'upsert_company', 'upsert_contact',
+            'upsert_country', 'list_countries', 'upsert_contacts',
         ] as $tool) {
             $this->assertContains($tool, $names);
         }

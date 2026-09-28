@@ -7,6 +7,7 @@ namespace App\Domains\Advisor\Outreach\Http\Controllers;
 use App\Domains\Advisor\Models\Advisor;
 use App\Domains\Advisor\Outreach\Http\OutreachPresenter;
 use App\Domains\Advisor\Outreach\Models\Country;
+use App\Domains\Advisor\Outreach\Services\CountryService;
 use App\Domains\Advisor\Outreach\Services\OutreachGate;
 use App\Domains\Advisor\Outreach\Services\StatsService;
 use Illuminate\Http\JsonResponse;
@@ -29,8 +30,17 @@ class ReferenceController extends OutreachController
 
         return response()->json([
             'data' => Country::query()->orderBy('excluded')->orderByDesc('score')->orderBy('name')
-                ->get(['code', 'name', 'wave', 'score', 'excluded', 'excluded_reason']),
+                ->get(['code', 'name', 'wave', 'score', 'excluded', 'excluded_reason', 'default_language', 'timezone', 'notes', 'source', 'updated_via']),
         ]);
+    }
+
+    /** viloyat: record/correct a country; the only place an exclusion can be lifted. */
+    public function saveCountry(Request $request, CountryService $countries): JsonResponse
+    {
+        $this->authorizeTo($request, OutreachGate::ALL_LEADS);
+        $result = $countries->upsert($this->actor($request), $request->validate(CountryService::rules()));
+
+        return response()->json(['country' => $result['country'], 'created' => $result['created']], $result['created'] ? 201 : 200);
     }
 
     public function advisors(Request $request): JsonResponse

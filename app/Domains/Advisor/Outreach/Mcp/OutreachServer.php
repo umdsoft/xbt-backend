@@ -12,6 +12,7 @@ use App\Domains\Advisor\Outreach\Mcp\Tools\GetPipeline;
 use App\Domains\Advisor\Outreach\Mcp\Tools\GetStats;
 use App\Domains\Advisor\Outreach\Mcp\Tools\GetThread;
 use App\Domains\Advisor\Outreach\Mcp\Tools\ListApprovals;
+use App\Domains\Advisor\Outreach\Mcp\Tools\ListCountries;
 use App\Domains\Advisor\Outreach\Mcp\Tools\ListReplies;
 use App\Domains\Advisor\Outreach\Mcp\Tools\LogTouch;
 use App\Domains\Advisor\Outreach\Mcp\Tools\MarkSanctions;
@@ -22,6 +23,8 @@ use App\Domains\Advisor\Outreach\Mcp\Tools\UpdateDraft;
 use App\Domains\Advisor\Outreach\Mcp\Tools\UpsertCompanies;
 use App\Domains\Advisor\Outreach\Mcp\Tools\UpsertCompany;
 use App\Domains\Advisor\Outreach\Mcp\Tools\UpsertContact;
+use App\Domains\Advisor\Outreach\Mcp\Tools\UpsertContacts;
+use App\Domains\Advisor\Outreach\Mcp\Tools\UpsertCountry;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -38,7 +41,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 #[Instructions(<<<'MD'
     CRM of the Khorezm regional government for inviting foreign IT companies to open delivery centers in Khorezm, Uzbekistan.
 
-    Workflow: dedupe_check -> upsert_company -> upsert_contact (verified email) -> set_stage verified. Use get_pipeline to pick work and get_stats for progress.
+    Hunting: list_countries -> (research) upsert_country -> dedupe_check -> upsert_companies -> upsert_contact (verified email) -> set_stage verified. Use get_pipeline to pick work and get_stats for progress.
 
     Mail loop: mark_sanctions (OFAC/EU check; only clear companies are mailed) -> create_series (drafts, 1-3 letters) -> a person approves in the web UI -> the server sends. Revise rejected drafts with update_draft (list_approvals shows the reason). Read incoming mail with list_replies (unclassified=true) and get_thread, then classify_reply. Record opt-outs with mark_unsubscribed and meetings with save_meeting. get_company shows one lead in full; upsert_companies loads up to 50 leads per call.
 
@@ -74,6 +77,10 @@ class OutreachServer extends Server
         SaveMeeting::class,
         GetCompany::class,
         UpsertCompanies::class,
+        // Hunting (owner decision 2026-09-28): countries are researched by Claude.
+        UpsertCountry::class,
+        ListCountries::class,
+        UpsertContacts::class,
     ];
 
     protected array $resources = [];

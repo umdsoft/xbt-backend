@@ -125,8 +125,8 @@ class McpMailToolsTest extends OutreachTestCase
 
         $this->assertSame([
             'classify_reply', 'create_series', 'dedupe_check', 'get_company', 'get_pipeline', 'get_stats', 'get_thread',
-            'list_approvals', 'list_replies', 'log_touch', 'mark_sanctions', 'mark_unsubscribed', 'save_meeting',
-            'set_stage', 'update_draft', 'upsert_companies', 'upsert_company', 'upsert_contact',
+            'list_approvals', 'list_countries', 'list_replies', 'log_touch', 'mark_sanctions', 'mark_unsubscribed', 'save_meeting',
+            'set_stage', 'update_draft', 'upsert_companies', 'upsert_company', 'upsert_contact', 'upsert_contacts', 'upsert_country',
         ], $names);
 
         foreach ($names as $name) {

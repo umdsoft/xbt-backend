@@ -30,6 +30,7 @@ class Country extends Model
 
     protected $fillable = [
         'code', 'name', 'wave', 'score', 'excluded', 'excluded_reason', 'default_language', 'timezone',
+        'notes', 'source', 'updated_via',
     ];
 
     protected $casts = [

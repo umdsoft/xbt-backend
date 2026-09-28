@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum', 'advisor'])
     ->name('api.advisor.outreach.')
     ->group(function () {
         Route::get('/countries', [ReferenceController::class, 'countries'])->name('countries');
+        Route::post('/countries', [ReferenceController::class, 'saveCountry'])->name('countries.save');
         Route::get('/advisors', [ReferenceController::class, 'advisors'])->name('advisors');
         Route::get('/stats', [ReferenceController::class, 'stats'])->name('stats');
 
